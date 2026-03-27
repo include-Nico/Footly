@@ -1,6 +1,6 @@
-<div class="home-view glass-panel">
+<div class="home-view glass-panel" style="padding: 15px;">
 
-    <div class="section-label">Prossima Partita · Giornata 1 di 30</div>
+    <div class="section-label">Prossima Partita · Giornata 1 di 28</div>
 
     <div class="match-card">
         <div class="match-teams">
@@ -11,7 +11,7 @@
             <div class="vs-badge">VS</div>
             <div class="team-block">
                 <div class="team-crest">🤖</div>
-                <div class="team-name-label">FC CPU</div>
+                <div class="team-name-label" id="cpu-team-name">Avversario</div>
             </div>
         </div>
 
@@ -30,31 +30,24 @@
 
     <div class="divider" style="margin-top:20px;"></div>
 
-    <div class="section-label" style="margin-bottom:12px;">Statistiche Stagione</div>
+    <div class="section-label" style="margin-bottom:12px; display: flex; justify-content: space-between;">
+        <span>Classifica · Div <span id="home-div-num">3</span></span>
+    </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div style="background:var(--bg-surface);border:1px solid var(--border-dim);border-radius:var(--radius-sm);padding:12px;text-align:center;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--accent);">0</div>
-            <div style="font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Vittorie</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-dim);border-radius:var(--radius-sm);padding:12px;text-align:center;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--text-muted);">0</div>
-            <div style="font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Pareggi</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-dim);border-radius:var(--radius-sm);padding:12px;text-align:center;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--notif-error);">0</div>
-            <div style="font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Sconfitte</div>
-        </div>
+    <div style="background: var(--bg-surface); border: 1px solid var(--border-dim); border-radius: var(--radius-sm); padding: 10px; overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; color: var(--text-primary);">
+            <thead>
+                <tr style="color: var(--text-hint); border-bottom: 1px solid var(--border-dim);">
+                    <th style="padding: 6px 4px; width: 10%;">#</th>
+                    <th style="padding: 6px 4px; width: 50%;">Squadra</th>
+                    <th style="padding: 6px 4px; text-align: center;">PT</th>
+                    <th style="padding: 6px 4px; text-align: center;">G</th>
+                    <th style="padding: 6px 4px; text-align: center;">DR</th>
+                </tr>
+            </thead>
+            <tbody id="league-table-body">
+                </tbody>
+        </table>
     </div>
 
 </div>
-
-<script>
-    // Aggiorna nome squadra nel match card
-    const state = JSON.parse(localStorage.getItem('footly_save_data') || '{}');
-    const name = state?.userTeam?.name;
-    if (name) {
-        const el = document.getElementById('home-team-name');
-        if (el) el.textContent = name;
-    }
-</script>

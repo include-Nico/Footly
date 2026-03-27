@@ -2,6 +2,7 @@
 import { gameState, saveGame } from './state.js';
 import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
 import { generateInitialSquad } from './players.js';
+import { initializeLeague } from './teams.js'; // IMPORTIAMO LA LEGA!
 
 const teamNameInput    = document.getElementById('team-name');
 const leagueBtns       = document.querySelectorAll('.league-btn');
@@ -30,9 +31,13 @@ export function initOnboarding() {
         gameState.userTeam.colors.secondary = colorSecondaryInput.value;
         gameState.userTeam.kitStyle         = kitStyleSelect.value;
         
+        // 1. Genera giocatori
         gameState.userTeam.players = generateInitialSquad();
+        
+        // 2. GENERA LA CLASSIFICA CON LE SQUADRE CPU!
+        gameState.userTeam.standings = initializeLeague(gameState.userTeam.name, gameState.userTeam.league, gameState.userTeam.division);
+        
         saveGame();
-
         showPackOpening();
     });
 }
@@ -79,7 +84,7 @@ function showPackOpening() {
         switchToMainApp();
         showNotification(
             `Benvenuto, ${gameState.userTeam.name}!`,
-            `Inizia la tua scalata partendo dalla Divisione ${gameState.userTeam.division}!`,
+            `Inizia la tua scalata in Divisione ${gameState.userTeam.division}. Guarda la classifica in Home!`,
             'success',
             6000
         );

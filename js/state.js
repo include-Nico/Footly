@@ -7,7 +7,8 @@ export const gameState = {
         coins: 10000,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
-        players: []
+        players: [],
+        standings: [] // NUOVO: La classifica del campionato!
     },
     currentView: "home"
 };
@@ -33,7 +34,6 @@ export function loadGame() {
     return false;
 }
 
-// NUOVA FUNZIONE: Cancella i dati e ricarica il gioco!
 export function resetGame() {
     localStorage.removeItem('footly_save_data');
     location.reload(); 
