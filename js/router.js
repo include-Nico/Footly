@@ -1,7 +1,7 @@
 // js/router.js
 import { gameState, resetGame, saveGame, getUserTeamStrength } from './state.js';
 import { updateDashboardHeader, showNotification, showConfirm, showPlayerInfo } from './ui.js';
-import { processEndOfSeason, generatePlayer, generateRandomNameByNation } from './players.js'; 
+import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 
 const mainContent = document.getElementById('main-content');
 let selectedPlayerId = null; let draggedId = null; 
@@ -51,8 +51,18 @@ function getPlayerPotential(age, overall) {
     return "⭐⭐ Discreto";
 }
 
+// GENERA LA BARRA DELL'ENERGIA DA INSERIRE NELLE CARTE
+function getEnergyBarHTML(p) {
+    if(p.energy === undefined) p.energy = 100;
+    let color = p.energy > 70 ? '#00f5a0' : (p.energy > 40 ? '#f0b429' : '#f05252');
+    return `
+    <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px; margin-top: 4px; overflow: hidden;" title="Energia: ${p.energy}%">
+        <div style="height: 100%; width: ${p.energy}%; background: ${color}; transition: width 0.3s;"></div>
+    </div>`;
+}
+
 // ==========================================
-// 1. MOTORE DELLA PARTITA 5.0 (Tattiche Integrate)
+// 1. IL MOTORE DELLA PARTITA (MATCH ENGINE 6.0)
 // ==========================================
 function renderMatch() {
     let minute = 0; let homeScore = 0; let awayScore = 0; let timerInterval;
@@ -63,7 +73,7 @@ function renderMatch() {
     let nextOpponent = opponents[oppIndex];
 
     function updateMatchHeaderStr() {
-        const userStr = getUserTeamStrength(); // Ricalcola in tempo reale!
+        const userStr = getUserTeamStrength(); 
         document.getElementById('intro-home-str').innerHTML = `${userStr} ${getStarsHTML(userStr)}`;
     }
     
@@ -112,7 +122,7 @@ function renderMatch() {
             if(minute === 45) { 
                 isPaused = true; 
                 addLog("L'arbitro fischia la fine del primo tempo.");
-                showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni e l'assetto.", () => { 
+                showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Effettua sostituzioni se hai giocatori troppo stanchi.", () => { 
                     document.getElementById('btn-pause-sub').click(); 
                 }, "Gestione Squadra", false, true); 
             }
@@ -123,14 +133,18 @@ function renderMatch() {
     }
 
     function simulateMinute() {
+        // STANCHEZZA IN TEMPO REALE
+        gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
+            if(Math.random() < 0.6 && p.energy > 0) p.energy--;
+        });
+
         if (chanceMinutes.includes(minute)) {
             isPaused = true;
             
-            // LA MAGIA: Combina la Tattica Scelta (+15/-15) con i Bonus del Modulo Attuale
             const currentF = FORMATIONS[gameState.userTeam.formation];
             let totalTacAtt = tacBonusAtt + currentF.att;
             let totalTacDef = tacBonusDef + currentF.def;
-            let currentUserStr = getUserTeamStrength();
+            let currentUserStr = getUserTeamStrength(); // Considera la stanchezza
 
             let userWeight = currentUserStr + totalTacAtt;
             let cpuWeight = nextOpponent.strength - (totalTacDef * 0.5);
@@ -206,7 +220,8 @@ function renderMatch() {
             let companions = getMultipleActivePlayers(2);
             companions.forEach(comp => {
                 if(comp.id === pOff.id) return;
-                let successChance = (comp.overall / 100) * 0.8;
+                // USA LA FORZA REALE CON LA STANCHEZZA!
+                let successChance = (getEffectiveOverall(comp) / 100) * 0.8;
                 addEventButton(`Passa la palla a ${comp.name} (${comp.position})`, () => {
                     if(Math.random() < successChance) { addLog(`Passaggio illuminante per ${comp.name}!`); triggerGoalMiniGame(comp, false); }
                     else { addLog(`Passaggio intercettato per ${comp.name}. Palla persa.`); isPaused = false; }
@@ -214,7 +229,7 @@ function renderMatch() {
             });
             
             addEventButton(`Cerca la conclusione personale`, () => {
-                let successChance = (pOff.overall / 100) * 0.7; 
+                let successChance = (getEffectiveOverall(pOff) / 100) * 0.7; 
                 if(Math.random() < successChance) { addLog(`${pOff.name} si libera lo specchio della porta!`); triggerGoalMiniGame(pOff, false); }
                 else { addLog(`${pOff.name} viene murato al momento del tiro.`); isPaused = false; }
             });
@@ -230,7 +245,7 @@ function renderMatch() {
             });
             
             addEventButton(`Difendi temporeggiando (Rischio Gol)`, () => {
-                let successChance = (pDef.overall / 100) * 0.85;
+                let successChance = (getEffectiveOverall(pDef) / 100) * 0.85;
                 if(Math.random() < successChance) { addLog(`Chiusura difensiva magistrale di <b>${pDef.name}</b>! Pericolo scampato.`); isPaused = false; } 
                 else { addLog(`<b>${pDef.name}</b> viene saltato di netto! L'attaccante si invola.`); triggerGoalMiniGame(null, true); }
             });
@@ -293,6 +308,7 @@ function renderMatch() {
                     if(idx === cpuZone) { this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore intuendo l'angolo giusto!`, 'log-goal'); } 
                     else { this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; addLog(`⚽ Gol della CPU. Portiere spiazzato.`, 'log-cpu-goal'); }
                 }
+                
                 setTimeout(() => { this.classList.remove('goal-success', 'goal-fail'); modal.classList.remove('active'); isPaused = false; }, 1500);
             };
         });
@@ -340,20 +356,18 @@ function renderMatch() {
                     if(idx === cpuTarget) {
                         this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Tiro parato incredibilmente!`, 'log-goal');
                     } else {
-                        let userGK = getActivePlayer(['POR']); let saveChance = userGK ? (userGK.overall / 100) * 0.3 : 0.1;
+                        let userGK = getActivePlayer(['POR']); 
+                        let saveChance = userGK ? (getEffectiveOverall(userGK) / 100) * 0.3 : 0.1;
                         if(Math.random() < saveChance) { this.classList.add('goal-success'); addLog(`🧤 Il portiere ci arriva con la punta delle dita! Parata!`, 'log-goal'); } 
                         else { this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; addLog(`⚽ Gol della CPU. Tuffo dalla parte sbagliata.`, 'log-cpu-goal'); }
                     }
                 } else {
-                    // Impatto tattico aggiunto al tiro
                     const currentF = FORMATIONS[gameState.userTeam.formation];
                     let totalTacAtt = tacBonusAtt + currentF.att;
                     
-                    let baseSuccess = (userShooterPlayer.overall / 100) * 0.9;
+                    let baseSuccess = (getEffectiveOverall(userShooterPlayer) / 100) * 0.9;
                     if(userShooterPlayer.position === 'ATT') baseSuccess += 0.1; 
                     if(userShooterPlayer.position === 'DIF') baseSuccess -= 0.2;
-                    
-                    // Applica il bonus o malus tattico al tiro (+10% max)
                     baseSuccess += (totalTacAtt / 100) * 0.5;
 
                     if(Math.random() < baseSuccess) {
@@ -368,7 +382,6 @@ function renderMatch() {
         });
     }
 
-    // GESTIONE SQUADRA E CAMBIO MODULO IN PARTITA
     document.getElementById('btn-pause-sub').onclick = () => {
         isPaused = true;
         const modal = document.getElementById('subs-modal');
@@ -378,10 +391,7 @@ function renderMatch() {
             matchFormSelect.value = gameState.userTeam.formation;
             matchFormSelect.onchange = (e) => {
                 gameState.userTeam.formation = e.target.value;
-                selectedPlayerId = null;
-                saveGame();
-                renderMatchSubsList();
-                updateMatchHeaderStr(); // Ricalcola e aggiorna le stelle in alto
+                selectedPlayerId = null; saveGame(); renderMatchSubsList(); updateMatchHeaderStr(); 
                 addLog(`🔄 Cambio Modulo: L'allenatore passa al ${gameState.userTeam.formation}.`);
             };
         }
@@ -400,7 +410,6 @@ function renderMatch() {
         const bench = document.getElementById('match-bench-players');
         document.getElementById('subs-modal-left').textContent = subsLeft;
         
-        // Aggiorna indicatori tattici
         const currentF = FORMATIONS[gameState.userTeam.formation];
         let totalTacAtt = tacBonusAtt + currentF.att;
         let totalTacDef = tacBonusDef + currentF.def;
@@ -416,13 +425,14 @@ function renderMatch() {
             let p = starters.find(pl => pl.slotIndex === idx);
             if(p) {
                 const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
-                let displayOverall = isOOP ? Math.floor(p.overall * 0.7) : p.overall;
+                let displayOverall = isOOP ? Math.floor(getEffectiveOverall(p) * 0.7) : getEffectiveOverall(p);
                 let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
                 if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
                 if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
                 
                 let isSelected = selectedPlayerId === p.id ? 'selected' : '';
                 let disabledClass = (p.status.suspended > 0) ? "disabled" : "";
+                const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
 
                 pitch.innerHTML += `
                     <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
@@ -431,6 +441,7 @@ function renderMatch() {
                             ${warningHTML}
                             <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
                             <div class="card-pos">${p.position}</div>
+                            ${getEnergyBarHTML(p)}
                             <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                         </div>
                     </div>
@@ -448,8 +459,9 @@ function renderMatch() {
             bench.innerHTML += `
                 <div class="player-card match-card-interactive ${isSelected} ${disabledClass}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                     ${warningHTML}
-                    <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
+                    <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
                     <div class="card-pos">${p.position}</div>
+                    ${getEnergyBarHTML(p)}
                     <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                 </div>
             `;
@@ -457,8 +469,7 @@ function renderMatch() {
 
         function executeMatchSwap(id1, id2) {
             if(id1 === id2) return;
-            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
-            let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
             
             if(p1.isStarter !== p2.isStarter) {
                 if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
@@ -482,8 +493,16 @@ function renderMatch() {
     }
 
     function endGame() {
+        // RECUPERO ENERGIE E STATS A FINE PARTITA
         gameState.userTeam.players.forEach(p => {
-            if(p.isStarter && p.status.suspended === 0) p.stats.appearances++;
+            if(p.isStarter) {
+                if(p.status.suspended === 0) p.stats.appearances++;
+                p.energy += randomInt(30, 50); // Recupero parziale per chi ha giocato
+            } else {
+                p.energy += randomInt(70, 100); // Recupero totale per riposo
+            }
+            if(p.energy > 100) p.energy = 100;
+            
             if(p.status.injured > 0 && !p.isStarter) p.status.injured--;
             if(p.status.suspended > 0 && !p.isStarter) p.status.suspended--;
         });
@@ -500,23 +519,44 @@ function renderMatch() {
 
         gameState.userTeam.coins += coinsEarned;
 
+        // CALCOLO STAMINA SQUADRE CPU
+        function processCpuTeam(team) {
+            team.roster.forEach(p => {
+                if(p.energy === undefined) p.energy = 100;
+                if(Math.random() < 0.7) p.energy = Math.max(10, p.energy - randomInt(40, 60)) + randomInt(30, 50); // Ha giocato e recuperato
+                else p.energy = Math.min(100, p.energy + randomInt(50, 80)); // Non ha giocato
+            });
+            let best = [...team.roster].sort((a,b) => getEffectiveOverall(b) - getEffectiveOverall(a)).slice(0,7);
+            team.strength = Math.floor(best.reduce((acc, p) => acc + getEffectiveOverall(p), 0) / 7);
+        }
+
+        // Aggiorna CPU attuale
+        processCpuTeam(nextOpponent);
         nextOpponent.played++; nextOpponent.goalsFor += awayScore; nextOpponent.goalsAgainst += homeScore;
         if (awayScore > homeScore) { nextOpponent.won++; nextOpponent.points += 3; }
         else if (awayScore === homeScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
         else { nextOpponent.lost++; }
 
-        let otherCPUs = opponents.filter(t => t.name !== nextOpponent.name);
-        for (let i = 0; i < otherCPUs.length; i += 2) {
-            if(i+1 >= otherCPUs.length) break;
-            let t1 = otherCPUs[i]; let t2 = otherCPUs[i+1];
-            let t1Roll = Math.random() * (t1.strength + t2.strength);
-            let g1 = 0, g2 = 0;
-            if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
-            else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
-            t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
-            if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
-            t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
-            if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
+        // Simula il resto del mondo
+        for (const lg in gameState.world) {
+            [1, 2, 3].forEach(div => {
+                if(gameState.world[lg][div]) {
+                    let teams = gameState.world[lg][div];
+                    
+                    if (lg === gameState.userTeam.league && div === gameState.userTeam.division) {
+                        let otherCPUs = teams.filter(t => t.name !== nextOpponent.name);
+                        for (let i = 0; i < otherCPUs.length; i += 2) {
+                            if(i+1 >= otherCPUs.length) break;
+                            simulateGlobalMatch(otherCPUs[i], otherCPUs[i+1]);
+                        }
+                    } else {
+                        for(let i=0; i<teams.length; i+=2) {
+                            if(i+1 >= teams.length) break;
+                            simulateGlobalMatch(teams[i], teams[i+1]);
+                        }
+                    }
+                }
+            });
         }
 
         gameState.userTeam.matchday++;
@@ -524,6 +564,20 @@ function renderMatch() {
         showConfirm(title, `Partita conclusa: <b>${homeScore} - ${awayScore}</b><br><br>Hai guadagnato 💰${coinsEarned}.`, () => {
             loadView('home');
         }, "Torna alla Dashboard", false, true); 
+    }
+
+    function simulateGlobalMatch(t1, t2) {
+        processCpuTeam(t1); processCpuTeam(t2);
+        let t1Roll = Math.random() * (t1.strength + t2.strength);
+        let g1 = 0, g2 = 0;
+        if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
+        else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
+        
+        t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
+        if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
+        
+        t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
+        if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
     }
 }
 
@@ -815,6 +869,7 @@ function renderSquad() {
                         ${warningHTML}
                         <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
                         <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
+                        ${getEnergyBarHTML(p)}
                         <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                     </div>
                 </div>
@@ -834,6 +889,7 @@ function renderSquad() {
                 ${warningHTML}
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
                 <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
+                ${getEnergyBarHTML(p)}
                 <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
             </div>
         `;
@@ -977,6 +1033,7 @@ function renderProfile() {
     const coinsEl = document.getElementById('profile-coins');
     const playersCountEl = document.getElementById('profile-players-count');
     const deleteBtn = document.getElementById('delete-account-btn');
+    
     const strEl = document.getElementById('profile-strength');
     const starsEl = document.getElementById('profile-stars');
 
@@ -993,7 +1050,7 @@ function renderProfile() {
 
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
-            showConfirm("Cancellazione Account", "⚠️ Sei sicuro di voler cancellare la tua squadra? Perderai tutto.", () => { resetGame(); }, "Cancella", true);
+            showConfirm("Cancellazione Account", "⚠️ Sei sicuro di voler cancellare la tua squadra? Perderai tutto.", () => { resetGame(); }, "Cancella Definitivamente", true);
         });
     }
 }

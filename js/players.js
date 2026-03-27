@@ -26,9 +26,7 @@ function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)
 
 export function generateRandomNameByNation(natKey) {
     const nation = NATIONS_DB[natKey] || NATIONS_DB["ITA"];
-    const firstName = nation.first[Math.floor(Math.random() * nation.first.length)];
-    const lastName = nation.last[Math.floor(Math.random() * nation.last.length)];
-    return `${firstName} ${lastName}`;
+    return `${nation.first[Math.floor(Math.random() * nation.first.length)]} ${nation.last[Math.floor(Math.random() * nation.last.length)]}`;
 }
 
 function getRarityKey(overall) {
@@ -45,6 +43,13 @@ export function calculateValue(overall) {
     return randomInt(100000, 500000);
 }
 
+// ─── NUOVO: CALCOLA LA FORZA REALE IN BASE ALLA FATICA ───
+export function getEffectiveOverall(player) {
+    if (player.energy === undefined) player.energy = 100;
+    // A 100 energia: overall intatto. A 0 energia: l'overall si dimezza!
+    return Math.floor(player.overall * (0.5 + (player.energy / 200)));
+}
+
 export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = false) {
     let overall;
     if (forcedRarity === 'LEGEND') overall = randomInt(93, 99);
@@ -57,12 +62,9 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
     else overall = randomInt(50, 70);
     
     const rarityKey = getRarityKey(overall);
-    
-    // FIX: Scelta Nazione
     const nationKeys = Object.keys(NATIONS_DB);
     const natKey = nationKeys[Math.floor(Math.random() * nationKeys.length)];
     const nationality = `${NATIONS_DB[natKey].flag} ${natKey}`;
-    
     const age = isRegen ? randomInt(17, 19) : randomInt(18, 34);
 
     let secondaryPositions = [];
@@ -74,9 +76,9 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
 
     return {
         id: Math.random().toString(36).substr(2, 9),
-        name: generateRandomNameByNation(natKey), // Usa la nazione corretta!
+        name: generateRandomNameByNation(natKey),
         nationality: nationality,
-        nationKey: natKey, // FIX: Salviamo la nazione vera
+        nationKey: natKey,
         age: age,
         position: pos,
         secondaryPositions: secondaryPositions,
@@ -87,7 +89,8 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         value: calculateValue(overall),
         stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 },
         status: { injured: 0, suspended: 0, yellowCards: 0 },
-        trainingBoost: 0 
+        trainingBoost: 0,
+        energy: 100 // NUOVO: Energia di partenza al 100%
     };
 }
 
@@ -135,6 +138,7 @@ export function processEndOfSeason(player) {
     player.stats = { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 };
     if(!player.status) player.status = { injured: 0, suspended: 0, yellowCards: 0 };
     player.status.injured = 0; player.status.suspended = 0; player.status.yellowCards = 0;
+    player.energy = 100; // Reset energia a fine stagione
 
     return { retired: false, growth };
 }
