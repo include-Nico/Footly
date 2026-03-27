@@ -49,15 +49,12 @@
         </div>
     </div>
 
-    <div id="tactics-modal" class="modal-overlay">
+    <div id="event-modal" class="modal-overlay">
         <div class="modal-box">
-            <h3 style="color: var(--accent); text-align: center; margin-bottom: 15px;">Scelta Tattica</h3>
-            <p style="font-size: 13px; color: var(--text-hint); text-align: center; margin-bottom: 20px;">Come vuoi impostare la squadra in questa fase?</p>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button class="glass-btn tactic-choice" data-type="att">Attacco Totale (Difesa scoperta)</button>
-                <button class="glass-btn tactic-choice" data-type="def">Catenaccio (Nessun attacco)</button>
-                <button class="glass-btn tactic-choice" data-type="bal">Equilibrio</button>
-            </div>
+            <h3 id="event-title" style="color: var(--accent); text-align: center; margin-bottom: 10px;">Evento</h3>
+            <p id="event-desc" style="font-size: 14px; color: var(--text-primary); text-align: center; margin-bottom: 20px; line-height: 1.4;"></p>
+            <div id="event-options" style="display: flex; flex-direction: column; gap: 10px;">
+                </div>
         </div>
     </div>
 
@@ -67,12 +64,12 @@
             <p id="shooter-name" style="color: var(--gold); text-align: center; margin-bottom: 20px; font-weight: bold;"></p>
             
             <div class="goal-grid">
+                <div class="goal-section" data-zone="0"></div>
                 <div class="goal-section" data-zone="1"></div>
                 <div class="goal-section" data-zone="2"></div>
                 <div class="goal-section" data-zone="3"></div>
                 <div class="goal-section" data-zone="4"></div>
                 <div class="goal-section" data-zone="5"></div>
-                <div class="goal-section" data-zone="6"></div>
             </div>
             <p id="goal-helper-text" style="color: white; text-align: center; margin-top: 15px; font-size: 12px;">Scegli dove tirare!</p>
         </div>

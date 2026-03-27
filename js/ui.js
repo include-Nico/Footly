@@ -53,6 +53,7 @@ export function showNotification(title, message = '', type = 'info', duration = 
     if (duration > 0) setTimeout(dismiss, duration);
 }
 
+// MODIFICATO: hideCancel fa sparire totalmente il tasto annulla.
 export function showConfirm(title, message, onConfirm, confirmText = "Conferma", isDanger = false, hideCancel = false) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
