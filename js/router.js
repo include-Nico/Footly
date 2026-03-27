@@ -52,28 +52,30 @@ function getPlayerPotential(age, overall) {
 }
 
 // ==========================================
-// 1. MOTORE DELLA PARTITA (MATCH ENGINE)
+// 1. MOTORE DELLA PARTITA 5.0 (Tattiche Integrate)
 // ==========================================
 function renderMatch() {
     let minute = 0; let homeScore = 0; let awayScore = 0; let timerInterval;
     let isPaused = false; let subsLeft = 5; let tacBonusAtt = 0; let tacBonusDef = 0; let redCards = 0;
 
-    const userStr = getUserTeamStrength();
-    // FIX: Ora andiamo a cercare nel mondo GLOBALE
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
     let nextOpponent = opponents[oppIndex];
 
+    function updateMatchHeaderStr() {
+        const userStr = getUserTeamStrength(); // Ricalcola in tempo reale!
+        document.getElementById('intro-home-str').innerHTML = `${userStr} ${getStarsHTML(userStr)}`;
+    }
+    
     document.getElementById('intro-matchday').textContent = gameState.userTeam.matchday;
     document.getElementById('intro-home-name').textContent = gameState.userTeam.name;
     document.getElementById('intro-away-name').textContent = nextOpponent.name;
-    document.getElementById('intro-home-str').innerHTML = `${userStr} ${getStarsHTML(userStr)}`;
+    updateMatchHeaderStr();
     document.getElementById('intro-away-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
     document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3);
     document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3);
 
     gameState.userTeam.players.forEach(p => { if(!p.status) p.status = { injured: 0, suspended: 0, yellowCards: 0 }; });
-    
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
     if(unavailable.length > 0) { showNotification("Indisponibili!", "Hai schierato titolari infortunati o squalificati!", "error"); setTimeout(() => loadView('squad'), 2000); return; }
 
@@ -110,7 +112,7 @@ function renderMatch() {
             if(minute === 45) { 
                 isPaused = true; 
                 addLog("L'arbitro fischia la fine del primo tempo.");
-                showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni.", () => { 
+                showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni e l'assetto.", () => { 
                     document.getElementById('btn-pause-sub').click(); 
                 }, "Gestione Squadra", false, true); 
             }
@@ -123,8 +125,15 @@ function renderMatch() {
     function simulateMinute() {
         if (chanceMinutes.includes(minute)) {
             isPaused = true;
-            let userWeight = userStr + tacBonusAtt;
-            let cpuWeight = nextOpponent.strength - (tacBonusDef * 0.5);
+            
+            // LA MAGIA: Combina la Tattica Scelta (+15/-15) con i Bonus del Modulo Attuale
+            const currentF = FORMATIONS[gameState.userTeam.formation];
+            let totalTacAtt = tacBonusAtt + currentF.att;
+            let totalTacDef = tacBonusDef + currentF.def;
+            let currentUserStr = getUserTeamStrength();
+
+            let userWeight = currentUserStr + totalTacAtt;
+            let cpuWeight = nextOpponent.strength - (totalTacDef * 0.5);
 
             if(Math.random() * (userWeight + cpuWeight) < userWeight) {
                 let shooter = getRandomShooter();
@@ -189,9 +198,7 @@ function renderMatch() {
         let randEvent = Math.random();
         
         if (randEvent < 0.4) {
-            titleEl.textContent = "Azione Pericolosa!";
-            titleEl.style.color = "var(--accent)";
-            
+            titleEl.textContent = "Azione Pericolosa!"; titleEl.style.color = "var(--accent)";
             let offVerbs = ["sale prepotentemente sulla fascia", "trova un varco centrale", "avanza palla al piede", "supera un avversario con una finta"];
             let offVerb = offVerbs[Math.floor(Math.random() * offVerbs.length)];
             descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. La difesa è scoperta. Cosa gli diciamo di fare?`;
@@ -213,35 +220,22 @@ function renderMatch() {
             });
 
         } else if (randEvent < 0.8) {
-            titleEl.textContent = "Contropiede Avversario!";
-            titleEl.style.color = "var(--notif-warning)";
+            titleEl.textContent = "Contropiede Avversario!"; titleEl.style.color = "var(--notif-warning)";
             descEl.innerHTML = `Lancio lungo improvviso! La CPU riparte veloce. <b>${pDef.name}</b> è l'ultimo uomo rimasto in difesa.`;
             
             addEventButton(`Fallo Tattico (Rischio Cartellino)`, () => {
                 let r = Math.random();
-                if(r < 0.3) { 
-                    pDef.status.suspended = 1; redCards++;
-                    addLog(`🟥 ROSSO! <b>${pDef.name}</b> espulso per fallo da ultimo uomo!`, 'log-red'); 
-                    isPaused = false;
-                } else {
-                    pDef.status.yellowCards++; 
-                    addLog(`🟨 Giallo per <b>${pDef.name}</b>. Contropiede fermato con le cattive.`, 'log-yellow'); 
-                    isPaused = false;
-                }
+                if(r < 0.3) { pDef.status.suspended = 1; redCards++; addLog(`🟥 ROSSO! <b>${pDef.name}</b> espulso per fallo da ultimo uomo!`, 'log-red'); isPaused = false; } 
+                else { pDef.status.yellowCards++; addLog(`🟨 Giallo per <b>${pDef.name}</b>. Contropiede fermato con le cattive.`, 'log-yellow'); isPaused = false; }
             });
             
             addEventButton(`Difendi temporeggiando (Rischio Gol)`, () => {
                 let successChance = (pDef.overall / 100) * 0.85;
-                if(Math.random() < successChance) {
-                    addLog(`Chiusura difensiva magistrale di <b>${pDef.name}</b>! Pericolo scampato.`); isPaused = false;
-                } else {
-                    addLog(`<b>${pDef.name}</b> viene saltato di netto! L'attaccante si invola.`); 
-                    triggerGoalMiniGame(null, true);
-                }
+                if(Math.random() < successChance) { addLog(`Chiusura difensiva magistrale di <b>${pDef.name}</b>! Pericolo scampato.`); isPaused = false; } 
+                else { addLog(`<b>${pDef.name}</b> viene saltato di netto! L'attaccante si invola.`); triggerGoalMiniGame(null, true); }
             });
         } else {
-            titleEl.textContent = "Fallo in Area!";
-            titleEl.style.color = "var(--gold)";
+            titleEl.textContent = "Fallo in Area!"; titleEl.style.color = "var(--gold)";
             if(Math.random() > 0.5) {
                 descEl.innerHTML = `L'arbitro indica il dischetto a tuo favore!`;
                 addEventButton(`Calcia il Rigore`, () => { triggerPenalty(true); });
@@ -255,8 +249,7 @@ function renderMatch() {
 
         function addEventButton(text, callback) {
             let btn = document.createElement('button');
-            btn.className = 'glass-btn'; btn.textContent = text;
-            btn.style.textAlign = "left";
+            btn.className = 'glass-btn'; btn.textContent = text; btn.style.textAlign = "left";
             btn.onclick = () => { modal.classList.remove('active'); callback(); };
             optionsEl.appendChild(btn);
         }
@@ -264,7 +257,7 @@ function renderMatch() {
 
     function triggerPenalty(isUserShooter) {
         const modal = document.getElementById('goal-modal');
-        let shooterName = isUserShooter ? (getRandomShooter()?.name || "Tuo Giocatore") : "Giocatore CPU";
+        let shooterName = isUserShooter ? (getRandomShooter()?.name || "Tuo Giocatore") : "Attaccante CPU";
         
         document.getElementById('goal-modal-title').textContent = isUserShooter ? "RIGORE A FAVORE!" : "RIGORE CONTRO!";
         document.getElementById('goal-modal-title').style.color = isUserShooter ? "var(--accent)" : "var(--notif-error)";
@@ -294,19 +287,12 @@ function renderMatch() {
                 let cpuZone = Math.floor(Math.random() * 6);
                 
                 if(isUserShooter) {
-                    if(idx === cpuZone) {
-                        this.classList.add('goal-fail'); addLog(`❌ Rigore PARATO! Il portiere intuisce l'angolo.`, 'log-red');
-                    } else {
-                        this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore; addLog(`⚽ <b>GOOOAAALLLL!</b> Rigore perfetto di ${shooterName}!`, 'log-goal');
-                    }
+                    if(idx === cpuZone) { this.classList.add('goal-fail'); addLog(`❌ Rigore PARATO! Il portiere intuisce l'angolo.`, 'log-red'); } 
+                    else { this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore; addLog(`⚽ <b>GOOOAAALLLL!</b> Rigore perfetto di ${shooterName}!`, 'log-goal'); }
                 } else {
-                    if(idx === cpuZone) {
-                        this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore intuendo l'angolo giusto!`, 'log-goal');
-                    } else {
-                        this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; addLog(`⚽ Gol della CPU. Portiere spiazzato.`, 'log-cpu-goal');
-                    }
+                    if(idx === cpuZone) { this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore intuendo l'angolo giusto!`, 'log-goal'); } 
+                    else { this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; addLog(`⚽ Gol della CPU. Portiere spiazzato.`, 'log-cpu-goal'); }
                 }
-                
                 setTimeout(() => { this.classList.remove('goal-success', 'goal-fail'); modal.classList.remove('active'); isPaused = false; }, 1500);
             };
         });
@@ -359,9 +345,17 @@ function renderMatch() {
                         else { this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; addLog(`⚽ Gol della CPU. Tuffo dalla parte sbagliata.`, 'log-cpu-goal'); }
                     }
                 } else {
+                    // Impatto tattico aggiunto al tiro
+                    const currentF = FORMATIONS[gameState.userTeam.formation];
+                    let totalTacAtt = tacBonusAtt + currentF.att;
+                    
                     let baseSuccess = (userShooterPlayer.overall / 100) * 0.9;
                     if(userShooterPlayer.position === 'ATT') baseSuccess += 0.1; 
                     if(userShooterPlayer.position === 'DIF') baseSuccess -= 0.2;
+                    
+                    // Applica il bonus o malus tattico al tiro (+10% max)
+                    baseSuccess += (totalTacAtt / 100) * 0.5;
+
                     if(Math.random() < baseSuccess) {
                         this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore;
                         addLog(`⚽ <b>GOOOAAALLLL!</b> Rete implacabile di <b>${userShooterPlayer.name}</b>!`, 'log-goal');
@@ -374,9 +368,24 @@ function renderMatch() {
         });
     }
 
+    // GESTIONE SQUADRA E CAMBIO MODULO IN PARTITA
     document.getElementById('btn-pause-sub').onclick = () => {
         isPaused = true;
         const modal = document.getElementById('subs-modal');
+        const matchFormSelect = document.getElementById('match-formation-select');
+        
+        if (matchFormSelect) {
+            matchFormSelect.value = gameState.userTeam.formation;
+            matchFormSelect.onchange = (e) => {
+                gameState.userTeam.formation = e.target.value;
+                selectedPlayerId = null;
+                saveGame();
+                renderMatchSubsList();
+                updateMatchHeaderStr(); // Ricalcola e aggiorna le stelle in alto
+                addLog(`🔄 Cambio Modulo: L'allenatore passa al ${gameState.userTeam.formation}.`);
+            };
+        }
+
         renderMatchSubsList();
         modal.classList.add('active');
 
@@ -390,9 +399,16 @@ function renderMatch() {
         const pitch = document.getElementById('match-pitch-players');
         const bench = document.getElementById('match-bench-players');
         document.getElementById('subs-modal-left').textContent = subsLeft;
+        
+        // Aggiorna indicatori tattici
+        const currentF = FORMATIONS[gameState.userTeam.formation];
+        let totalTacAtt = tacBonusAtt + currentF.att;
+        let totalTacDef = tacBonusDef + currentF.def;
+        document.getElementById('match-tactics-att').textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
+        document.getElementById('match-tactics-def').textContent = `DIF: ${totalTacDef > 0 ? '+' : ''}${totalTacDef}%`;
+
         pitch.innerHTML = ''; bench.innerHTML = '';
         
-        const currentF = FORMATIONS[gameState.userTeam.formation];
         let starters = gameState.userTeam.players.filter(p => p.isStarter);
         let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
 
@@ -451,7 +467,7 @@ function renderMatch() {
             }
             let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
             let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
-            saveGame(); renderMatchSubsList();
+            saveGame(); renderMatchSubsList(); updateMatchHeaderStr();
         }
 
         document.querySelectorAll('.match-card-interactive').forEach(card => {
@@ -489,44 +505,25 @@ function renderMatch() {
         else if (awayScore === homeScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
         else { nextOpponent.lost++; }
 
-        // Simulazione altri match mondiali
-        for (const lg in gameState.world) {
-            [1, 2, 3].forEach(div => {
-                if (lg === gameState.userTeam.league && div === gameState.userTeam.division) {
-                    let otherCPUs = opponents.filter(t => t.name !== nextOpponent.name);
-                    for (let i = 0; i < otherCPUs.length; i += 2) {
-                        if(i+1 >= otherCPUs.length) break;
-                        simulateGlobalMatch(otherCPUs[i], otherCPUs[i+1]);
-                    }
-                } else {
-                    let lgTeams = gameState.world[lg][div];
-                    for(let i=0; i<lgTeams.length; i+=2) {
-                        if(i+1 >= lgTeams.length) break;
-                        simulateGlobalMatch(lgTeams[i], lgTeams[i+1]);
-                    }
-                }
-            });
+        let otherCPUs = opponents.filter(t => t.name !== nextOpponent.name);
+        for (let i = 0; i < otherCPUs.length; i += 2) {
+            if(i+1 >= otherCPUs.length) break;
+            let t1 = otherCPUs[i]; let t2 = otherCPUs[i+1];
+            let t1Roll = Math.random() * (t1.strength + t2.strength);
+            let g1 = 0, g2 = 0;
+            if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
+            else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
+            t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
+            if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
+            t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
+            if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
         }
 
         gameState.userTeam.matchday++;
         saveGame();
-
         showConfirm(title, `Partita conclusa: <b>${homeScore} - ${awayScore}</b><br><br>Hai guadagnato 💰${coinsEarned}.`, () => {
             loadView('home');
         }, "Torna alla Dashboard", false, true); 
-    }
-
-    function simulateGlobalMatch(t1, t2) {
-        let t1Roll = Math.random() * (t1.strength + t2.strength);
-        let g1 = 0, g2 = 0;
-        if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
-        else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
-        
-        t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
-        if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
-        
-        t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
-        if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
     }
 }
 
@@ -647,7 +644,7 @@ function handleEndSeason() {
 }
 
 // ==========================================
-// 3. GESTIONE SQUADRA E HUB SQUADRA
+// 3. GESTIONE SQUADRA (FUORI PARTITA)
 // ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
@@ -666,7 +663,6 @@ function renderSquad() {
     formSelect.value = gameState.userTeam.formation;
     formSelect.onchange = (e) => { gameState.userTeam.formation = e.target.value; selectedPlayerId = null; saveGame(); renderSquad(); };
 
-    // --- HUB SQUADRA LOGICA ---
     btnOpenHub.onclick = () => { renderHubList(); hubModal.classList.add('active'); };
     closeHubBtn.onclick = () => { hubModal.classList.remove('active'); renderSquad(); };
 
@@ -789,7 +785,6 @@ function renderSquad() {
             });
         };
     }
-    // --- FINE HUB ---
 
     const currentF = FORMATIONS[gameState.userTeam.formation];
     attLabel.textContent = `ATT: ${currentF.att > 0 ? '+' : ''}${currentF.att}%`; defLabel.textContent = `DIF: ${currentF.def > 0 ? '+' : ''}${currentF.def}%`;
@@ -910,19 +905,13 @@ function renderMarket() {
             if(nameFilter && !p.name.toLowerCase().includes(nameFilter)) return false;
             if(posFilter && p.position !== posFilter) return false;
             if(rarityFilter && p.rarity !== rarityFilter) return false;
-            // FIX DEL MERCATO PER LA NAZIONALITA': Ora usa nationKey correttamente!
             if(nationFilter && p.nationKey !== nationFilter) return false;
             
             if(ageFilter) {
                 let [minAge, maxAge] = ageFilter.split('-');
-                if(maxAge) {
-                    if(p.age < parseInt(minAge) || p.age > parseInt(maxAge)) return false;
-                } else {
-                    // Per il 30+
-                    if(p.age < 30) return false;
-                }
+                if(maxAge) { if(p.age < parseInt(minAge) || p.age > parseInt(maxAge)) return false; } 
+                else { if(p.age < 30) return false; }
             }
-            
             return true;
         });
 
@@ -988,7 +977,6 @@ function renderProfile() {
     const coinsEl = document.getElementById('profile-coins');
     const playersCountEl = document.getElementById('profile-players-count');
     const deleteBtn = document.getElementById('delete-account-btn');
-    
     const strEl = document.getElementById('profile-strength');
     const starsEl = document.getElementById('profile-stars');
 
@@ -1005,7 +993,7 @@ function renderProfile() {
 
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
-            showConfirm("Cancellazione Account", "⚠️ Sei sicuro di voler cancellare la tua squadra? Perderai tutto.", () => { resetGame(); }, "Cancella Definitivamente", true);
+            showConfirm("Cancellazione Account", "⚠️ Sei sicuro di voler cancellare la tua squadra? Perderai tutto.", () => { resetGame(); }, "Cancella", true);
         });
     }
 }
