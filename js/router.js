@@ -5,7 +5,10 @@ const mainContent = document.getElementById('main-content');
 
 export async function loadView(viewName) {
     try {
-        const response = await fetch(`views/${viewName}.html`);
+        // TRUCCO ANTI-CACHE: Aggiungiamo il timestamp esatto al millisecondo per forzare il download del file nuovo!
+        const cacheBuster = new Date().getTime();
+        const response = await fetch(`views/${viewName}.html?v=${cacheBuster}`);
+        
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const html = await response.text();
@@ -75,8 +78,7 @@ function renderProfile() {
     // Attiva il bottone per cancellare l'account
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
-            // Chiede conferma prima di distruggere tutto!
-            const confirmDelete = confirm("⚠️ ATTENZIONE: Sei sicuro di voler cancellare la tua squadra? L'azione è irreversibile.");
+            const confirmDelete = confirm("⚠️ ATTENZIONE: Sei sicuro di voler cancellare la tua squadra? L'azione è irreversibile e perderai i tuoi giocatori e le tue monete.");
             if (confirmDelete) {
                 resetGame();
             }
