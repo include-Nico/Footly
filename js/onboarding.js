@@ -6,7 +6,7 @@ const teamNameInput = document.getElementById('team-name');
 const leagueBtns = document.querySelectorAll('.league-btn');
 const startGameBtn = document.getElementById('start-game-btn');
 
-// ECCO LA FUNZIONE CHE MAIN.JS STA CERCANDO:
+// ECCO LA FUNZIONE CHE MAIN.JS STA CERCANDO (Nota la parola "export"):
 export function initOnboarding() {
     
     // Selezione del Campionato
