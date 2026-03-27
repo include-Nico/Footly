@@ -33,8 +33,8 @@ export function loadGame() {
     return false;
 }
 
-// NUOVA FUNZIONE: Elimina il salvataggio e ricarica il gioco da zero
+// NUOVA FUNZIONE: Cancella i dati e ricarica il gioco!
 export function resetGame() {
     localStorage.removeItem('footly_save_data');
-    location.reload(); // Ricarica la pagina web in automatico
+    location.reload(); 
 }
