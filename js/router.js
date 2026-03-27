@@ -1,3 +1,4 @@
+// js/router.js
 import { gameState } from './state.js';
 
 const mainContent = document.getElementById('main-content');
@@ -31,8 +32,7 @@ export async function loadView(viewName) {
     }
 }
 
-// Quando iniettiamo nuovo HTML, perdiamo i listener dei bottoni al suo interno.
-// Questa funzione riattacca gli eventi in base alla pagina caricata.
+// Riattacca gli eventi in base alla pagina caricata
 function attachViewListeners(viewName) {
     if (viewName === 'home') {
         const playBtn = document.getElementById('play-match-btn');
@@ -42,5 +42,4 @@ function attachViewListeners(viewName) {
             });
         }
     }
-    // Qui aggiungeremo i listener per il mercato, per lo switch titolari/riserve, ecc.
 }
