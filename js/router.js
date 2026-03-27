@@ -1,11 +1,12 @@
 // js/router.js
 import { gameState, resetGame, saveGame } from './state.js';
 import { updateDashboardHeader, showNotification } from './ui.js';
+import { randomName } from './players.js'; // Importiamo la funzione per i cloni!
 
 const mainContent = document.getElementById('main-content');
-let selectedPlayerId = null; // Variabile globale per gestire lo scambio
+let selectedPlayerId = null; 
+let draggedId = null; 
 
-// Dizionario delle formazioni con statistiche e coordinate X,Y assolute sul campo
 const FORMATIONS = {
     "2-3-1": { att: 0, def: 0, pos: [
         {role:'POR', t:'88%', l:'50%'}, 
@@ -54,7 +55,7 @@ export async function loadView(viewName) {
 }
 
 // ==========================================
-// RENDER DELLA FORMAZIONE IN CAMPO
+// RENDER SQUADRA E VENDITA
 // ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
@@ -68,12 +69,11 @@ function renderSquad() {
     if(!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
     formSelect.value = gameState.userTeam.formation;
 
-    // Cambia Formazione
     formSelect.onchange = (e) => {
         gameState.userTeam.formation = e.target.value;
-        selectedPlayerId = null; // Resetta per evitare bug
+        selectedPlayerId = null; 
         saveGame();
-        renderSquad(); // Ridisegna il campo!
+        renderSquad(); 
     };
 
     const currentF = FORMATIONS[gameState.userTeam.formation];
@@ -86,31 +86,21 @@ function renderSquad() {
 
     let starters = gameState.userTeam.players.filter(p => p.isStarter);
     let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
-
-    // Sistema gli slot di vecchi salvataggi
     starters.forEach((p, idx) => { if(p.slotIndex === undefined) p.slotIndex = idx; });
 
-    // Disegna il campo posizionando i giocatori
+    // Disegna Titolari sul Campo
     currentF.pos.forEach((slot, idx) => {
         let p = starters.find(pl => pl.slotIndex === idx);
-        
         if (p) {
-            // Controlla se il giocatore è Fuori Ruolo!
             const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
-            let displayOverall = p.overall;
-            let warningHTML = '';
-            
-            if (isOOP) {
-                displayOverall = Math.floor(p.overall * 0.7); // Penalità -30%
-                warningHTML = `<div class="oop-warning" title="Fuori Ruolo! -30% Stats"><i class="fas fa-exclamation"></i></div>`;
-            }
-            
+            let displayOverall = isOOP ? Math.floor(p.overall * 0.7) : p.overall;
+            let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo! -30% Stats"><i class="fas fa-exclamation"></i></div>` : '';
             let isSelected = selectedPlayerId === p.id ? 'selected' : '';
 
             pitch.innerHTML += `
                 <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
                     <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                    <div class="player-card player-card-interactive ${isSelected}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                    <div class="player-card player-card-interactive ${isSelected}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                         ${warningHTML}
                         <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
                         <div class="card-pos">${p.position} ${p.secondaryPositions && p.secondaryPositions.length > 0 ? `<span style="font-size:8px; color:var(--text-hint)">(${p.secondaryPositions[0]})</span>` : ''}</div>
@@ -119,7 +109,6 @@ function renderSquad() {
                 </div>
             `;
         } else {
-            // Slot Vuoto (se vendi giocatori)
             pitch.innerHTML += `
                 <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
                     <div class="empty-slot" data-idx="${idx}">
@@ -130,11 +119,17 @@ function renderSquad() {
         }
     });
 
-    // Disegna la Panchina
+    // Disegna Panchina CON BOTTONE SVINCOLO
     reserves.forEach(p => {
         let isSelected = selectedPlayerId === p.id ? 'selected' : '';
+        let baseValue = p.value || (p.overall * 100); // Fallback per vecchi salvataggi
+        let sellPrice = Math.floor(baseValue * 0.9); // Ritorni il 90% del valore
+
         bench.innerHTML += `
-            <div class="player-card player-card-interactive ${isSelected}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+            <div class="player-card player-card-interactive ${isSelected}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; position: relative;">
+                
+                <button class="sell-btn" data-id="${p.id}" data-price="${sellPrice}" data-name="${p.name}" style="position: absolute; top: -8px; left: -8px; background: var(--notif-error); color: white; border: 2px solid var(--bg-card); border-radius: 50%; width: 26px; height: 26px; font-size: 11px; cursor: pointer; z-index: 20; box-shadow: 0 2px 5px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;" title="Svincola a 💰${sellPrice.toLocaleString()}">💰</button>
+
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
                 <div class="card-pos">${p.position} ${p.secondaryPositions && p.secondaryPositions.length > 0 ? `<span style="font-size:8px; color:var(--text-hint)">(${p.secondaryPositions[0]})</span>` : ''}</div>
                 <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
@@ -142,51 +137,109 @@ function renderSquad() {
         `;
     });
 
-    // LOGICA CLICK PER LO SCAMBIO
+    // Evento Svincolo (Vendita)
+    document.querySelectorAll('.sell-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation(); // Evita che il click selezioni la carta per lo scambio
+            const id = btn.getAttribute('data-id');
+            const price = parseInt(btn.getAttribute('data-price'));
+            const name = btn.getAttribute('data-name');
+
+            // Non permettere di vendere se la squadra scende sotto i 7 giocatori
+            if(gameState.userTeam.players.length <= 7) {
+                showNotification('Rosa Corta', 'Devi avere almeno 7 giocatori per scendere in campo!', 'error');
+                return;
+            }
+
+            if(confirm(`Vuoi cedere ${name} per ${price.toLocaleString()} monete?`)) {
+                gameState.userTeam.players = gameState.userTeam.players.filter(p => p.id !== id);
+                gameState.userTeam.coins += price;
+                saveGame();
+                updateDashboardHeader();
+                renderSquad(); 
+
+                // Trova squadra random per la notifica
+                let destTeam = "un club estero";
+                if (gameState.userTeam.standings && gameState.userTeam.standings.length > 1) {
+                    const cpuTeams = gameState.userTeam.standings.filter(t => !t.isUser);
+                    if (cpuTeams.length > 0) destTeam = cpuTeams[Math.floor(Math.random() * cpuTeams.length)].name;
+                }
+                
+                showNotification('Cessione Completata', `${name} si è trasferito al ${destTeam} per 💰 ${price.toLocaleString()}`, 'success', 6000);
+            }
+        };
+    });
+
+    // Logica di Scambio
+    function executeSwap(id1, id2) {
+        if(id1 === id2) return;
+        let p1 = gameState.userTeam.players.find(pl => pl.id === id1);
+        let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+        let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
+        let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
+        saveGame(); renderSquad();
+    }
+
+    function executeMove(id, targetIdx) {
+        let p1 = gameState.userTeam.players.find(pl => pl.id === id);
+        p1.isStarter = true; p1.slotIndex = targetIdx;
+        saveGame(); renderSquad();
+    }
+
+    // Applica Eventi Drag & Drop
     document.querySelectorAll('.player-card-interactive').forEach(card => {
         card.onclick = (e) => {
             e.stopPropagation(); 
             const id = card.getAttribute('data-id');
-            
-            if (!selectedPlayerId) {
-                selectedPlayerId = id; // Primo tocco
-                renderSquad();
-            } else {
-                if (selectedPlayerId === id) {
-                    selectedPlayerId = null; // Secondo tocco sullo stesso (deseleziona)
-                } else {
-                    // Scambia!
-                    let p1 = gameState.userTeam.players.find(pl => pl.id === selectedPlayerId);
-                    let p2 = gameState.userTeam.players.find(pl => pl.id === id);
-                    
-                    let tempS = p1.isStarter;
-                    p1.isStarter = p2.isStarter;
-                    p2.isStarter = tempS;
-
-                    let tempIdx = p1.slotIndex;
-                    p1.slotIndex = p2.slotIndex;
-                    p2.slotIndex = tempIdx;
-                    
-                    selectedPlayerId = null;
-                    saveGame();
-                }
-                renderSquad();
+            if (!selectedPlayerId) { selectedPlayerId = id; renderSquad(); } 
+            else {
+                if (selectedPlayerId === id) selectedPlayerId = null;
+                else executeSwap(selectedPlayerId, id);
+                selectedPlayerId = null;
             }
         };
+
+        card.addEventListener('dragstart', (e) => { draggedId = card.getAttribute('data-id'); setTimeout(() => card.style.opacity = '0.4', 0); });
+        card.addEventListener('dragend', () => { card.style.opacity = '1'; draggedId = null; });
+        card.addEventListener('dragover', (e) => e.preventDefault());
+        card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const targetId = card.getAttribute('data-id');
+            if (draggedId) executeSwap(draggedId, targetId);
+        });
+
+        card.addEventListener('touchstart', (e) => { draggedId = card.getAttribute('data-id'); card.style.opacity = '0.6'; }, {passive: true});
+        card.addEventListener('touchend', (e) => {
+            card.style.opacity = '1';
+            if (!draggedId) return;
+            const touch = e.changedTouches[0];
+            const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (targetElement) {
+                const targetCard = targetElement.closest('.player-card-interactive');
+                const emptySlot = targetElement.closest('.empty-slot');
+                if (targetCard) {
+                    const targetId = targetCard.getAttribute('data-id');
+                    if (targetId) executeSwap(draggedId, targetId);
+                } else if (emptySlot) {
+                    const targetIdx = parseInt(emptySlot.getAttribute('data-idx'));
+                    executeMove(draggedId, targetIdx);
+                }
+            }
+            draggedId = null;
+        });
     });
 
     document.querySelectorAll('.empty-slot').forEach(slot => {
         slot.onclick = () => {
             const targetIdx = parseInt(slot.getAttribute('data-idx'));
-            if (selectedPlayerId) {
-                let p1 = gameState.userTeam.players.find(p => p.id === selectedPlayerId);
-                p1.isStarter = true;
-                p1.slotIndex = targetIdx;
-                selectedPlayerId = null;
-                saveGame();
-                renderSquad();
-            }
+            if (selectedPlayerId) { executeMove(selectedPlayerId, targetIdx); selectedPlayerId = null; }
         }
+        slot.addEventListener('dragover', (e) => e.preventDefault());
+        slot.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const targetIdx = parseInt(slot.getAttribute('data-idx'));
+            if (draggedId) executeMove(draggedId, targetIdx);
+        });
     });
 }
 
@@ -237,10 +290,7 @@ function renderMarket() {
         if(gameState.userTeam.standings) {
             gameState.userTeam.standings.forEach(team => {
                 if(!team.isUser && team.roster) {
-                    team.roster.forEach(p => {
-                        p.teamName = team.name;
-                        allPlayers.push(p);
-                    });
+                    team.roster.forEach(p => { p.teamName = team.name; allPlayers.push(p); });
                 }
             });
         }
@@ -253,7 +303,6 @@ function renderMarket() {
         });
 
         filtered.sort((a, b) => b.overall - a.overall);
-
         resultsContainer.innerHTML = '';
         if(filtered.length === 0) {
             resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato.</p>';
@@ -266,12 +315,8 @@ function renderMarket() {
                     <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
                     <div class="card-pos">${p.position} <span style="font-size:8px;">${p.nationality}</span></div>
                     <div class="card-name" title="${p.name}" style="font-size: 10px; margin-bottom: 4px;">${p.name.split(' ')[1] || p.name}</div>
-                    <div style="font-size: 8px; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; border-top: 1px solid var(--border-dim); padding-top: 4px;">
-                        ${p.teamName}
-                    </div>
-                    <button class="glass-btn buy-btn" data-id="${p.id}" data-team="${p.teamName}" data-price="${p.value}" style="padding: 6px; font-size: 11px; margin-top: 8px; width: 100%; border-color: var(--gold); color: var(--gold);">
-                        💰 ${p.value.toLocaleString()}
-                    </button>
+                    <div style="font-size: 8px; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; border-top: 1px solid var(--border-dim); padding-top: 4px;">${p.teamName}</div>
+                    <button class="glass-btn buy-btn" data-id="${p.id}" data-team="${p.teamName}" data-price="${p.value}" style="padding: 6px; font-size: 11px; margin-top: 8px; width: 100%; border-color: var(--gold); color: var(--gold);">💰 ${p.value.toLocaleString()}</button>
                 </div>
             `;
         });
@@ -279,7 +324,8 @@ function renderMarket() {
         document.querySelectorAll('.buy-btn').forEach(btn => {
             btn.onclick = (e) => {
                 const id = e.target.getAttribute('data-id');
-                const price = parseInt(e.target.getAttribute('data-price'));
+                let baseValue = e.target.getAttribute('data-price');
+                const price = parseInt(baseValue) || 100;
                 const teamName = e.target.getAttribute('data-team');
 
                 if(gameState.userTeam.coins >= price) {
@@ -290,21 +336,26 @@ function renderMarket() {
                         const cpuTeam = gameState.userTeam.standings.find(t => t.name === teamName);
                         if(cpuTeam) {
                             const pIndex = cpuTeam.roster.findIndex(p => p.id === id);
-                            if(pIndex > -1) boughtPlayer = cpuTeam.roster.splice(pIndex, 1)[0];
+                            if(pIndex > -1) {
+                                boughtPlayer = cpuTeam.roster.splice(pIndex, 1)[0];
+                                
+                                // LA CPU GENERA IL CLONE PER RIMPIAZZARE IL GIOCATORE VENDUTO!
+                                let clonePlayer = JSON.parse(JSON.stringify(boughtPlayer));
+                                clonePlayer.id = Math.random().toString(36).substr(2, 9);
+                                clonePlayer.name = randomName(); // Nuovo nome casuale
+                                cpuTeam.roster.push(clonePlayer);
+                            }
                         }
 
                         if(boughtPlayer) {
                             boughtPlayer.isStarter = false; 
                             gameState.userTeam.players.push(boughtPlayer);
-                            saveGame();
-                            updateDashboardHeader();
+                            saveGame(); updateDashboardHeader();
                             showNotification('Colpo di Mercato!', `Hai acquistato ${boughtPlayer.name}! Controlla la rosa.`, 'success', 5000);
                             searchBtn.click(); 
                         }
                     }
-                } else {
-                    showNotification('Fondi Insufficienti', 'Non hai abbastanza monete.', 'error');
-                }
+                } else showNotification('Fondi Insufficienti', 'Non hai abbastanza monete.', 'error');
             };
         });
     };

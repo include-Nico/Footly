@@ -1,4 +1,5 @@
 // js/players.js
+
 export const RARITIES = {
     BRONZE: { name: 'Bronzo', min: 50, max: 64, color: 'var(--rarity-bronze)' },
     SILVER: { name: 'Argento', min: 65, max: 74, color: 'var(--rarity-silver)' },
@@ -14,7 +15,9 @@ const FIRST_NAMES = ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "L
 const LAST_NAMES = ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Silva", "Santos", "Gomez", "Lopez", "Muller", "Dubois"];
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function randomName() { return `${FIRST_NAMES[randomInt(0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[randomInt(0, LAST_NAMES.length - 1)]}`; }
+
+// ESPORTIAMO QUESTA FUNZIONE PER USARLA NEL MERCATO
+export function randomName() { return `${FIRST_NAMES[randomInt(0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[randomInt(0, LAST_NAMES.length - 1)]}`; }
 
 function determineRarity(overall) {
     for (const key in RARITIES) { if (overall >= RARITIES[key].min && overall <= RARITIES[key].max) return key; }
@@ -45,7 +48,6 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
     const nationality = NATIONALITIES[Math.floor(Math.random() * NATIONALITIES.length)];
     const value = calculateValue(overall);
 
-    // I giocatori forti (Overall > 74) hanno una chance di avere ruoli secondari
     let secondaryPositions = [];
     if (overall >= 74) {
         if (pos === 'DIF' && Math.random() > 0.5) secondaryPositions.push('CEN');
@@ -58,7 +60,7 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
         name: randomName(),
         nationality: nationality,
         position: pos,
-        secondaryPositions: secondaryPositions, // NOVITA'
+        secondaryPositions: secondaryPositions,
         overall: overall,
         rarity: RARITIES[rarityKey].name,
         color: RARITIES[rarityKey].color,
@@ -68,7 +70,6 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
 }
 
 export function generateInitialSquad() {
-    // Assegnamo gli slotIndex (0-6) in modo che finiscano precisi nei pallini sul campo
     return [
         { ...generatePlayer('POR', true, 'BRONZE'), slotIndex: 0 },
         { ...generatePlayer('DIF', true, 'SILVER'), slotIndex: 1 },
