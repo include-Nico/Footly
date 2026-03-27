@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Footly - Football Manager</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-overlay"></div>
+
+    <section id="onboarding-screen" class="screen active">
+        <div class="glass-panel onboarding-container">
+            <h1>Benvenuto in <span class="highlight-text">Footly</span></h1>
+            <p>Inizia la tua scalata verso la gloria.</p>
+            
+            <div class="form-group">
+                <label for="team-name">Nome della Squadra:</label>
+                <input type="text" id="team-name" placeholder="Es. Real Milano..." autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label>Scegli il tuo Campionato:</label>
+                <div class="leagues-grid" id="leagues-selection">
+                    <button class="glass-btn league-btn" data-league="Italia">🇮🇹 Italia</button>
+                    <button class="glass-btn league-btn" data-league="Spagna">🇪🇸 Spagna</button>
+                    <button class="glass-btn league-btn" data-league="Inghilterra">🇬🇧 Inghilterra</button>
+                    <button class="glass-btn league-btn" data-league="Germania">🇩🇪 Germania</button>
+                    <button class="glass-btn league-btn" data-league="Francia">🇫🇷 Francia</button>
+                </div>
+            </div>
+
+            <button id="start-game-btn" class="glass-btn primary-btn disabled" disabled>Crea Club e Inizia</button>
+        </div>
+    </section>
+
+    <section id="main-app-screen" class="screen hidden">
+        <header class="top-bar glass-panel">
+            <div class="team-info">
+                <h2 id="display-team-name">Team Name</h2>
+                <span id="display-league" class="badge">Campionato</span>
+            </div>
+            <div class="resources">
+                <div class="currency"><i class="fas fa-coins"></i> <span id="coins-display">10000</span></div>
+            </div>
+        </header>
+
+        <main class="content-area" id="main-content">
+            </main>
+
+        <nav class="bottom-nav glass-panel">
+            <button class="nav-item active" data-target="home"><i class="fas fa-home"></i><span>Home</span></button>
+            <button class="nav-item" data-target="squad"><i class="fas fa-users"></i><span>Squadra</span></button>
+            <button class="nav-item" data-target="market"><i class="fas fa-exchange-alt"></i><span>Mercato</span></button>
+            <button class="nav-item" data-target="store"><i class="fas fa-store"></i><span>Negozio</span></button>
+            <button class="nav-item" data-target="profile"><i class="fas fa-user"></i><span>Profilo</span></button>
+        </nav>
+    </section>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
