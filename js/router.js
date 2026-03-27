@@ -1,5 +1,5 @@
 // js/router.js
-import { gameState } from './state.js';
+import { gameState, resetGame } from './state.js';
 
 const mainContent = document.getElementById('main-content');
 
@@ -11,8 +11,11 @@ export async function loadView(viewName) {
         const html = await response.text();
         mainContent.innerHTML = html;
 
+        // Gestione delle logiche per le singole schede
         if (viewName === 'squad') {
             renderSquad();
+        } else if (viewName === 'profile') {
+            renderProfile(); // Richiama la funzione per il profilo
         }
 
     } catch (error) {
@@ -21,6 +24,7 @@ export async function loadView(viewName) {
     }
 }
 
+// Disegna le carte della squadra
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
     const bench = document.getElementById('bench-players');
@@ -50,4 +54,33 @@ function renderSquad() {
             bench.innerHTML += cardHTML;
         }
     });
+}
+
+// NUOVA FUNZIONE: Inizializza i dati nella vista Profilo
+function renderProfile() {
+    const teamNameEl = document.getElementById('profile-team-name');
+    const leagueDivEl = document.getElementById('profile-league-div');
+    const coinsEl = document.getElementById('profile-coins');
+    const playersCountEl = document.getElementById('profile-players-count');
+    const deleteBtn = document.getElementById('delete-account-btn');
+
+    // Stampa i dati aggiornati dello State a schermo
+    if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
+    if (leagueDivEl) leagueDivEl.textContent = `${gameState.userTeam.league} · Div ${gameState.userTeam.division}`;
+    if (coinsEl) coinsEl.textContent = gameState.userTeam.coins.toLocaleString('it-IT');
+    if (playersCountEl && gameState.userTeam.players) {
+        playersCountEl.textContent = gameState.userTeam.players.length;
+    }
+
+    // Aggiunge la funzionalità al bottone Cancella Account
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            // Finestra di conferma nativa del browser per evitare click accidentali
+            const confirmDelete = confirm("⚠️ ATTENZIONE: Sei sicuro di voler cancellare la tua squadra? L'azione è irreversibile e perderai tutti i tuoi giocatori e le tue monete.");
+            
+            if (confirmDelete) {
+                resetGame(); // Esegue l'eliminazione e ricarica
+            }
+        });
+    }
 }
