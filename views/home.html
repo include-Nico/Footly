@@ -1,6 +1,6 @@
 <div class="home-view glass-panel" style="padding: 15px;">
 
-    <div class="section-label">Prossima Partita · Giornata 1 di 28</div>
+    <div class="section-label">Prossima Partita · Giornata <span id="matchday-counter">1</span> di 28</div>
 
     <div class="match-card">
         <div class="match-teams">
@@ -23,10 +23,14 @@
         </div>
     </div>
 
-    <button class="play-btn" id="play-match-btn">
-        <div class="play-icon"><i class="fas fa-play"></i></div>
-        Gioca Ora
-    </button>
+    <div style="display: flex; gap: 10px; margin-top: 16px;">
+        <button class="play-btn" id="play-match-btn" style="flex: 2; margin-top: 0;">
+            <div class="play-icon"><i class="fas fa-play"></i></div> Gioca Ora
+        </button>
+        <button id="end-season-btn" class="glass-btn" style="flex: 1; border-color: var(--gold); color: var(--gold);">
+            <i class="fas fa-forward-step"></i> Fine Stagione
+        </button>
+    </div>
 
     <div class="divider" style="margin-top:20px;"></div>
 
@@ -46,7 +50,7 @@
                 </tr>
             </thead>
             <tbody id="league-table-body">
-                </tbody>
+            </tbody>
         </table>
     </div>
 

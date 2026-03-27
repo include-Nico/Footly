@@ -2,7 +2,7 @@
 import { gameState, saveGame } from './state.js';
 import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
 import { generateInitialSquad } from './players.js';
-import { initializeLeague } from './teams.js'; // IMPORTIAMO LA LEGA!
+import { initializeWorld } from './teams.js'; 
 
 const teamNameInput    = document.getElementById('team-name');
 const leagueBtns       = document.querySelectorAll('.league-btn');
@@ -31,11 +31,11 @@ export function initOnboarding() {
         gameState.userTeam.colors.secondary = colorSecondaryInput.value;
         gameState.userTeam.kitStyle         = kitStyleSelect.value;
         
-        // 1. Genera giocatori
+        // Genera Rosa Utente
         gameState.userTeam.players = generateInitialSquad();
         
-        // 2. GENERA LA CLASSIFICA CON LE SQUADRE CPU!
-        gameState.userTeam.standings = initializeLeague(gameState.userTeam.name, gameState.userTeam.league, gameState.userTeam.division);
+        // Genera TUTTO il Mondo (Div 1, 2 e 3)
+        gameState.world = initializeWorld(gameState.userTeam.league);
         
         saveGame();
         showPackOpening();
@@ -82,11 +82,6 @@ function showPackOpening() {
         overlay.style.display = 'none';
         updateDashboardHeader();
         switchToMainApp();
-        showNotification(
-            `Benvenuto, ${gameState.userTeam.name}!`,
-            `Inizia la tua scalata in Divisione ${gameState.userTeam.division}. Guarda la classifica in Home!`,
-            'success',
-            6000
-        );
+        showNotification(`Benvenuto, ${gameState.userTeam.name}!`, `Inizia la scalata in Divisione ${gameState.userTeam.division}.`, 'success', 6000);
     };
 }

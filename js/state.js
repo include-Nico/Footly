@@ -7,10 +7,13 @@ export const gameState = {
         coins: 10000,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
-        formation: "2-3-1", // NUOVO: Salviamo il modulo!
+        formation: "2-3-1",
         players: [],
-        standings: []
+        // Statistiche di squadra per la stagione in corso
+        stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
     },
+    // Contiene tutte le squadre CPU divise per divisione (1, 2, 3)
+    world: { 1: [], 2: [], 3: [] },
     currentView: "home"
 };
 
@@ -24,6 +27,7 @@ export function loadGame() {
     if (savedData) {
         const parsedData = JSON.parse(savedData);
         Object.assign(gameState.userTeam, parsedData.userTeam);
+        if (parsedData.world) gameState.world = parsedData.world;
         gameState.currentView = parsedData.currentView || "home";
 
         if (!gameState.userTeam.division) gameState.userTeam.division = 3;
