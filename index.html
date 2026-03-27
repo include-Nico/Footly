@@ -2,84 +2,109 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Footly - Football Manager</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Footly</title>
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+
     <div class="background-overlay"></div>
 
+    <!-- ── NOTIFICATION CONTAINER ── -->
+    <div id="notification-container" aria-live="polite" aria-atomic="false"></div>
+
+    <!-- ── ONBOARDING ── -->
     <section id="onboarding-screen" class="screen active">
         <div class="glass-panel onboarding-container">
-            <h1>Benvenuto in <span class="highlight-text">Footly</span></h1>
-            <p>Crea il tuo club leggendario.</p>
-            
+
+            <h1>Benvenuto in<br><span class="highlight-text">Footly</span></h1>
+            <p>Crea il tuo club, scrivi la tua leggenda.</p>
+
             <div class="form-group">
-                <label for="team-name">Nome della Squadra:</label>
-                <input type="text" id="team-name" placeholder="Es. Real Milano..." autocomplete="off">
+                <label for="team-name">Nome della Squadra</label>
+                <input type="text" id="team-name" placeholder="Es. Real Milano..." autocomplete="off" maxlength="30">
             </div>
 
             <div class="form-group">
-                <label>Colori e Divisa:</label>
+                <label>Divisa & Colori</label>
                 <div class="kit-selection-grid">
                     <div>
-                        <label for="color-primary" style="font-size: 12px;">Colore 1:</label>
-                        <input type="color" id="color-primary" value="#10b981">
+                        <label for="color-primary">Colore 1</label>
+                        <input type="color" id="color-primary" value="#00f5a0">
                     </div>
                     <div>
-                        <label for="color-secondary" style="font-size: 12px;">Colore 2:</label>
+                        <label for="color-secondary">Colore 2</label>
                         <input type="color" id="color-secondary" value="#ffffff">
                     </div>
                     <div style="grid-column: span 2;">
-                        <label for="kit-style" style="font-size: 12px;">Stile Maglia:</label>
+                        <label for="kit-style">Stile Maglia</label>
                         <select id="kit-style" class="glass-select">
-                            <option value="solid" style="color: black;">Tinta Unita</option>
-                            <option value="stripes" style="color: black;">Strisce Verticali</option>
-                            <option value="halves" style="color: black;">Divisa a Metà</option>
+                            <option value="solid">Tinta Unita</option>
+                            <option value="stripes">Strisce Verticali</option>
+                            <option value="halves">Divisa a Metà</option>
                         </select>
                     </div>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Scegli il tuo Campionato:</label>
+                <label>Campionato</label>
                 <div class="leagues-grid" id="leagues-selection">
-                    <button class="glass-btn league-btn" data-league="Italia">🇮🇹 Italia</button>
-                    <button class="glass-btn league-btn" data-league="Spagna">🇪🇸 Spagna</button>
-                    <button class="glass-btn league-btn" data-league="Inghilterra">🇬🇧 Inghilterra</button>
-                    <button class="glass-btn league-btn" data-league="Germania">🇩🇪 Germania</button>
-                    <button class="glass-btn league-btn" data-league="Francia">🇫🇷 Francia</button>
+                    <button class="league-btn" data-league="Italia">🇮🇹 Italia</button>
+                    <button class="league-btn" data-league="Spagna">🇪🇸 Spagna</button>
+                    <button class="league-btn" data-league="Inghilterra">🇬🇧 Inghilterra</button>
+                    <button class="league-btn" data-league="Germania">🇩🇪 Germania</button>
+                    <button class="league-btn" data-league="Francia">🇫🇷 Francia</button>
+                    <button class="league-btn" data-league="Portogallo">🇵🇹 Portogallo</button>
                 </div>
             </div>
 
-            <button id="start-game-btn" class="glass-btn primary-btn disabled" disabled>Crea Club e Inizia</button>
+            <button id="start-game-btn" class="primary-btn disabled" disabled>
+                <i class="fas fa-shield-halved"></i>
+                Crea Club e Inizia
+            </button>
+
         </div>
     </section>
 
+    <!-- ── MAIN APP ── -->
     <section id="main-app-screen" class="screen hidden">
+
         <header class="top-bar glass-panel">
             <div class="team-info">
-                <h2 id="display-team-name">Team Name</h2>
+                <h2 id="display-team-name">Team</h2>
                 <span id="display-league" class="badge">Campionato</span>
             </div>
             <div class="resources">
-                <div class="currency"><i class="fas fa-coins"></i> <span id="coins-display">10000</span></div>
+                <div class="currency">
+                    <i class="fas fa-coins"></i>
+                    <span id="coins-display">10.000</span>
+                </div>
             </div>
         </header>
 
-        <main class="content-area" id="main-content">
-        </main>
+        <main class="content-area" id="main-content"></main>
 
         <nav class="bottom-nav glass-panel">
-            <button class="nav-item active" data-target="home"><i class="fas fa-home"></i><span>Home</span></button>
-            <button class="nav-item" data-target="squad"><i class="fas fa-users"></i><span>Squadra</span></button>
-            <button class="nav-item" data-target="market"><i class="fas fa-exchange-alt"></i><span>Mercato</span></button>
-            <button class="nav-item" data-target="store"><i class="fas fa-store"></i><span>Negozio</span></button>
-            <button class="nav-item" data-target="profile"><i class="fas fa-user"></i><span>Profilo</span></button>
+            <button class="nav-item active" data-target="home">
+                <i class="fas fa-house"></i><span>Home</span>
+            </button>
+            <button class="nav-item" data-target="squad">
+                <i class="fas fa-users"></i><span>Rosa</span>
+            </button>
+            <button class="nav-item" data-target="market">
+                <i class="fas fa-arrows-rotate"></i><span>Mercato</span>
+            </button>
+            <button class="nav-item" data-target="store">
+                <i class="fas fa-bag-shopping"></i><span>Shop</span>
+            </button>
+            <button class="nav-item" data-target="profile">
+                <i class="fas fa-circle-user"></i><span>Profilo</span>
+            </button>
         </nav>
+
     </section>
 
     <script type="module" src="./js/main.js"></script>

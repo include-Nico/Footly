@@ -1,32 +1,51 @@
-// js/state.js
-export const gameState = {
-    userTeam: {
-        name: "",
-        league: "",
-        coins: 10000,
-        colors: {
-            primary: "#10b981", // Verde neon di default
-            secondary: "#ffffff" // Bianco di default
-        },
-        kitStyle: "solid", // solid, stripes, halves
-        players: []
-    },
-    currentView: "home"
-};
+// js/onboarding.js
+import { gameState, saveGame } from './state.js';
+import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
 
-// Funzione per salvare il gioco nel browser
-export function saveGame() {
-    localStorage.setItem('footly_save_data', JSON.stringify(gameState));
-    console.log("Gioco salvato con successo!");
+const teamNameInput    = document.getElementById('team-name');
+const leagueBtns       = document.querySelectorAll('.league-btn');
+const startGameBtn     = document.getElementById('start-game-btn');
+const colorPrimaryInput  = document.getElementById('color-primary');
+const colorSecondaryInput = document.getElementById('color-secondary');
+const kitStyleSelect   = document.getElementById('kit-style');
+
+export function initOnboarding() {
+
+    leagueBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            leagueBtns.forEach(b => b.classList.remove('active-league'));
+            btn.classList.add('active-league');
+            gameState.userTeam.league = btn.getAttribute('data-league');
+            validateForm();
+        });
+    });
+
+    teamNameInput.addEventListener('input', (e) => {
+        gameState.userTeam.name = e.target.value.trim();
+        validateForm();
+    });
+
+    startGameBtn.addEventListener('click', () => {
+        gameState.userTeam.colors.primary   = colorPrimaryInput.value;
+        gameState.userTeam.colors.secondary = colorSecondaryInput.value;
+        gameState.userTeam.kitStyle         = kitStyleSelect.value;
+
+        saveGame();
+        updateDashboardHeader();
+        switchToMainApp();
+
+        // Notifica benvenuto
+        showNotification(
+            `Benvenuto, ${gameState.userTeam.name}!`,
+            `Il tuo club è stato creato nel campionato di ${gameState.userTeam.league}.`,
+            'success',
+            5000
+        );
+    });
 }
 
-// Funzione per caricare il gioco all'avvio
-export function loadGame() {
-    const savedData = localStorage.getItem('footly_save_data');
-    if (savedData) {
-        // Se c'è un salvataggio, sovrascrive il gameState attuale con i dati salvati
-        Object.assign(gameState, JSON.parse(savedData));
-        return true; // Ritorna vero se ha caricato qualcosa
-    }
-    return false; // Ritorna falso se è la prima volta che gioca
+function validateForm() {
+    const valid = gameState.userTeam.name.length > 2 && gameState.userTeam.league !== '';
+    startGameBtn.disabled = !valid;
+    startGameBtn.classList.toggle('disabled', !valid);
 }
