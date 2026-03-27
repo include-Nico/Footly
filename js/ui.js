@@ -12,7 +12,6 @@ export const elements = {
     notifContainer:    document.getElementById('notification-container'),
 };
 
-// ─── NAVIGATION ──────────────────────────────────────────────────────
 export function switchToMainApp() {
     elements.onboardingScreen.classList.remove('active');
     elements.onboardingScreen.classList.add('hidden');
@@ -23,59 +22,35 @@ export function switchToMainApp() {
 
 export function updateDashboardHeader() {
     elements.displayTeamName.textContent = gameState.userTeam.name;
-    elements.displayLeague.textContent   = `${gameState.userTeam.league}`;
+    // Mostriamo Campionato e Divisione!
+    elements.displayLeague.textContent   = `${gameState.userTeam.league} · Div ${gameState.userTeam.division}`;
     elements.coinsDisplay.textContent    = gameState.userTeam.coins.toLocaleString('it-IT');
 }
 
-// ─── NOTIFICATION SYSTEM ─────────────────────────────────────────────
-const ICONS = {
-    success: 'fa-circle-check',
-    error:   'fa-circle-xmark',
-    info:    'fa-circle-info',
-    warning: 'fa-triangle-exclamation',
-};
+const ICONS = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
 
-/**
- * Mostra una notifica.
- * @param {string} title   - Titolo breve
- * @param {string} message - Testo descrittivo (opzionale)
- * @param {'success'|'error'|'info'|'warning'} type
- * @param {number} duration - ms prima dell'auto-dismiss (default 4000; 0 = no auto)
- */
 export function showNotification(title, message = '', type = 'info', duration = 4000) {
     const card = document.createElement('div');
     card.className = `notif-card ${type}`;
     card.setAttribute('role', 'alert');
-
     card.innerHTML = `
         <div class="notif-inner">
-            <div class="notif-icon">
-                <i class="fas ${ICONS[type] ?? ICONS.info}"></i>
-            </div>
+            <div class="notif-icon"><i class="fas ${ICONS[type] ?? ICONS.info}"></i></div>
             <div class="notif-body">
                 <div class="notif-title">${title}</div>
                 ${message ? `<div class="notif-msg">${message}</div>` : ''}
             </div>
-            <button class="notif-close" aria-label="Chiudi">
-                <i class="fas fa-xmark"></i>
-            </button>
+            <button class="notif-close" aria-label="Chiudi"><i class="fas fa-xmark"></i></button>
         </div>
         ${duration > 0 ? `<div class="notif-progress"><div class="notif-progress-bar" style="animation-duration:${duration}ms"></div></div>` : ''}
     `;
-
     elements.notifContainer.prepend(card);
-
-    // Slide-in
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => card.classList.add('show'));
-    });
-
+    requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('show')));
     const dismiss = () => {
         card.classList.remove('show');
         card.classList.add('hide');
         card.addEventListener('transitionend', () => card.remove(), { once: true });
     };
-
     card.querySelector('.notif-close').addEventListener('click', dismiss);
     if (duration > 0) setTimeout(dismiss, duration);
 }

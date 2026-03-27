@@ -3,6 +3,7 @@ export const gameState = {
     userTeam: {
         name: "",
         league: "",
+        division: 3, // Si parte dalla 3° Divisione!
         coins: 10000,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
