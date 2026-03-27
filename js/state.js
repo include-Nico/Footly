@@ -8,6 +8,7 @@ export const gameState = {
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
         formation: "2-3-1",
+        matchday: 1, // NUOVO: Tiene traccia della giornata corrente
         players: [],
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
     },
@@ -30,6 +31,7 @@ export function loadGame() {
 
         if (!gameState.userTeam.division) gameState.userTeam.division = 3;
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
+        if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1; // Fallback
         
         saveGame();
         return true;
@@ -42,12 +44,10 @@ export function resetGame() {
     location.reload(); 
 }
 
-// NUOVO: Calcola la forza della TUA squadra (media dei 7 titolari)
 export function getUserTeamStrength() {
     if(!gameState.userTeam.players || gameState.userTeam.players.length === 0) return 0;
     let starters = gameState.userTeam.players.filter(p => p.isStarter);
     if(starters.length === 0) return 0;
-    
     let sum = starters.reduce((acc, p) => acc + p.overall, 0);
     return Math.floor(sum / starters.length);
 }

@@ -1,6 +1,6 @@
 <div class="home-view glass-panel" style="padding: 15px;">
 
-    <div class="section-label">Prossima Partita · Giornata <span id="matchday-counter">1</span> di 28</div>
+    <div class="section-label">Stagione · Giornata <span id="matchday-counter">1</span> di 26</div>
 
     <div class="match-card">
         <div class="match-teams">
@@ -9,7 +9,7 @@
                 <div class="team-name-label" id="home-team-name" style="margin-top:4px;">La tua squadra</div>
                 <div id="home-team-rating" style="display:flex; flex-direction:column; align-items:center; margin-top:2px;"></div>
             </div>
-            <div class="vs-badge">VS</div>
+            <div class="vs-badge" id="match-vs-badge">VS</div>
             <div class="team-block">
                 <div class="team-crest">🤖</div>
                 <div class="team-name-label" id="cpu-team-name" style="margin-top:4px;">Avversario</div>
@@ -20,19 +20,14 @@
         <div class="divider"></div>
 
         <div style="display:flex;gap:8px;font-size:11px;color:var(--text-hint);">
-            <span><i class="fas fa-location-dot" style="margin-right:4px;color:var(--accent);"></i>Casa</span>
-            <span style="margin-left:auto"><i class="fas fa-calendar" style="margin-right:4px;"></i>Oggi</span>
+            <span><i class="fas fa-location-dot" style="margin-right:4px;color:var(--accent);"></i>Stadio di Casa</span>
         </div>
     </div>
 
-    <div style="display: flex; gap: 10px; margin-top: 16px;">
-        <button class="play-btn" id="play-match-btn" style="flex: 2; margin-top: 0;">
-            <div class="play-icon"><i class="fas fa-play"></i></div> Gioca Ora
-        </button>
-        <button id="end-season-btn" class="glass-btn" style="flex: 1; border-color: var(--gold); color: var(--gold);">
-            <i class="fas fa-forward-step"></i> Fine Stagione
-        </button>
-    </div>
+    <button class="play-btn" id="play-match-btn" style="width: 100%; margin-top: 16px;">
+        <div class="play-icon" id="play-btn-icon"><i class="fas fa-play"></i></div> 
+        <span id="play-btn-text">Gioca Partita</span>
+    </button>
 
     <div class="divider" style="margin-top:20px;"></div>
 
