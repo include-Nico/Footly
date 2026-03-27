@@ -1,5 +1,4 @@
 // js/players.js
-
 export const RARITIES = {
     BRONZE: { name: 'Bronzo', min: 50, max: 64, color: 'var(--rarity-bronze)' },
     SILVER: { name: 'Argento', min: 65, max: 74, color: 'var(--rarity-silver)' },
@@ -10,7 +9,7 @@ export const RARITIES = {
     LEGEND: { name: 'Leggenda', min: 93, max: 99, color: 'var(--rarity-legend)' }
 };
 
-const NATIONALITIES = ["🇮🇹 ITA", "🇪🇸 ESP", "🇬🇧 ENG", "🇩🇪 GER", "🇫🇷 FRA", "🇧🇷 BRA", "🇦🇷 ARG", "🇵🇹 POR", "🇳🇱 NED", "🇧🇪 NED"];
+const NATIONALITIES = ["🇮🇹 ITA", "🇪🇸 ESP", "🇬🇧 ENG", "🇩🇪 GER", "🇫🇷 FRA", "🇧🇷 BRA", "🇦🇷 ARG", "🇵🇹 POR", "🇳🇱 NED", "🇧🇪 BEL"];
 const FIRST_NAMES = ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "Luigi", "Francesco", "Alessandro", "Davide", "Ciro", "Lorenzo", "Diego", "Carlos", "Pablo", "Kevin", "Luis"];
 const LAST_NAMES = ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Silva", "Santos", "Gomez", "Lopez", "Muller", "Dubois"];
 
@@ -22,7 +21,6 @@ function determineRarity(overall) {
     return 'BRONZE';
 }
 
-// Calcolo del prezzo del cartellino in base alla forza
 function calculateValue(overall) {
     if(overall < 60) return randomInt(100, 400);
     if(overall < 70) return randomInt(500, 1500);
@@ -41,17 +39,26 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
     else if (forcedRarity === 'GOLD') overall = randomInt(75, 80);
     else if (forcedRarity === 'SILVER') overall = randomInt(65, 74);
     else if (forcedRarity === 'BRONZE') overall = randomInt(50, 64);
-    else overall = randomInt(50, 70); // Default Div 3
+    else overall = randomInt(50, 70);
     
     const rarityKey = determineRarity(overall);
     const nationality = NATIONALITIES[Math.floor(Math.random() * NATIONALITIES.length)];
     const value = calculateValue(overall);
+
+    // I giocatori forti (Overall > 74) hanno una chance di avere ruoli secondari
+    let secondaryPositions = [];
+    if (overall >= 74) {
+        if (pos === 'DIF' && Math.random() > 0.5) secondaryPositions.push('CEN');
+        if (pos === 'CEN') secondaryPositions.push(Math.random() > 0.5 ? 'DIF' : 'ATT');
+        if (pos === 'ATT' && Math.random() > 0.5) secondaryPositions.push('CEN');
+    }
 
     return {
         id: Math.random().toString(36).substr(2, 9),
         name: randomName(),
         nationality: nationality,
         position: pos,
+        secondaryPositions: secondaryPositions, // NOVITA'
         overall: overall,
         rarity: RARITIES[rarityKey].name,
         color: RARITIES[rarityKey].color,
@@ -61,11 +68,15 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
 }
 
 export function generateInitialSquad() {
+    // Assegnamo gli slotIndex (0-6) in modo che finiscano precisi nei pallini sul campo
     return [
-        generatePlayer('POR', true, 'BRONZE'),
-        generatePlayer('DIF', true, 'SILVER'), generatePlayer('DIF', true, 'BRONZE'),
-        generatePlayer('CEN', true, 'BRONZE'), generatePlayer('CEN', true, 'BRONZE'), generatePlayer('CEN', true, 'SILVER'),
-        generatePlayer('ATT', true, 'BRONZE'),
+        { ...generatePlayer('POR', true, 'BRONZE'), slotIndex: 0 },
+        { ...generatePlayer('DIF', true, 'SILVER'), slotIndex: 1 },
+        { ...generatePlayer('DIF', true, 'BRONZE'), slotIndex: 2 },
+        { ...generatePlayer('CEN', true, 'BRONZE'), slotIndex: 3 },
+        { ...generatePlayer('CEN', true, 'BRONZE'), slotIndex: 4 },
+        { ...generatePlayer('CEN', true, 'SILVER'), slotIndex: 5 },
+        { ...generatePlayer('ATT', true, 'BRONZE'), slotIndex: 6 },
         
         generatePlayer('POR', false, 'BRONZE'), generatePlayer('DIF', false, 'BRONZE'),
         generatePlayer('CEN', false, 'BRONZE'), generatePlayer('CEN', false, 'BRONZE'), generatePlayer('ATT', false, 'BRONZE')

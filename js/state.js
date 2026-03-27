@@ -7,8 +7,9 @@ export const gameState = {
         coins: 10000,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
+        formation: "2-3-1", // NUOVO: Salviamo il modulo!
         players: [],
-        standings: [] // NUOVO: La classifica del campionato!
+        standings: []
     },
     currentView: "home"
 };
@@ -25,10 +26,10 @@ export function loadGame() {
         Object.assign(gameState.userTeam, parsedData.userTeam);
         gameState.currentView = parsedData.currentView || "home";
 
-        if (!gameState.userTeam.division) {
-            gameState.userTeam.division = 3;
-            saveGame();
-        }
+        if (!gameState.userTeam.division) gameState.userTeam.division = 3;
+        if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
+        
+        saveGame();
         return true;
     }
     return false;
