@@ -1,42 +1,47 @@
-import { gameState } from './state.js';
+// js/onboarding.js
+import { gameState, saveGame } from './state.js';
 import { elements, switchToMainApp, updateDashboardHeader } from './ui.js';
 
-// Riferimenti DOM per la schermata iniziale
 const teamNameInput = document.getElementById('team-name');
 const leagueBtns = document.querySelectorAll('.league-btn');
 const startGameBtn = document.getElementById('start-game-btn');
 
-// ECCO LA SOLUZIONE ALL'ERRORE: La parola chiave "export" permette a main.js di leggere questa funzione
+// Nuovi input
+const colorPrimaryInput = document.getElementById('color-primary');
+const colorSecondaryInput = document.getElementById('color-secondary');
+const kitStyleSelect = document.getElementById('kit-style');
+
 export function initOnboarding() {
     
-    // Selezione del Campionato
     leagueBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Rimuove la selezione precedente
             leagueBtns.forEach(b => b.classList.remove('active-league'));
-            // Evidenzia la nuova selezione
             btn.classList.add('active-league');
             gameState.userTeam.league = btn.getAttribute('data-league');
-            
             validateForm();
         });
     });
 
-    // Controllo Input Nome Squadra
     teamNameInput.addEventListener('input', (e) => {
         gameState.userTeam.name = e.target.value.trim();
         validateForm();
     });
 
-    // Avvio del Gioco (Click sul bottone)
     startGameBtn.addEventListener('click', () => {
+        // 1. Salva colori e divisa scelti
+        gameState.userTeam.colors.primary = colorPrimaryInput.value;
+        gameState.userTeam.colors.secondary = colorSecondaryInput.value;
+        gameState.userTeam.kitStyle = kitStyleSelect.value;
+
+        // 2. SALVA TUTTO NEL BROWSER!
+        saveGame();
+
+        // 3. Avvia interfaccia
         updateDashboardHeader();
         switchToMainApp();
-        console.log("Gioco avviato! Stato attuale:", gameState);
     });
 }
 
-// Questa funzione NON ha l'export, quindi è "privata" e può essere usata solo dentro questo file
 function validateForm() {
     if (gameState.userTeam.name.length > 2 && gameState.userTeam.league !== "") {
         startGameBtn.disabled = false;

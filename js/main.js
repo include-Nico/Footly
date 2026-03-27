@@ -1,24 +1,29 @@
+// js/main.js
 import { initOnboarding } from './onboarding.js';
-import { elements } from './ui.js';
-import { gameState } from './state.js';
+import { elements, switchToMainApp, updateDashboardHeader } from './ui.js';
+import { gameState, loadGame } from './state.js';
 import { loadView } from './router.js';
 
-// Inizializza l'Onboarding
-initOnboarding();
+// --- LOGICA DI AVVIO ---
+// Controlliamo se l'utente ha già salvato in passato
+if (loadGame()) {
+    console.log("Dati di salvataggio trovati! Rientro in game...");
+    updateDashboardHeader();
+    switchToMainApp(); // Salta l'onboarding e va dritto alla Dashboard
+} else {
+    console.log("Nessun salvataggio trovato. Avvio Creazione Squadra.");
+    initOnboarding();  // Mostra l'onboarding
+}
 
 // Logica di Routing per la Navigazione Inferiore
 elements.navItems.forEach(nav => {
     nav.addEventListener('click', () => {
-        
-        // Evita di ricaricare se stiamo già su quella pagina
         const targetView = nav.getAttribute('data-target');
         if (gameState.currentView === targetView) return;
 
-        // Gestione visiva del menu attivo
         elements.navItems.forEach(n => n.classList.remove('active'));
         nav.classList.add('active');
         
-        // Aggiorna lo stato e carica l'HTML corretto
         gameState.currentView = targetView;
         loadView(targetView);
     });

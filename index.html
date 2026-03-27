@@ -6,7 +6,6 @@
     <title>Footly - Football Manager</title>
     
     <link rel="icon" href="data:,">
-    
     <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -16,11 +15,33 @@
     <section id="onboarding-screen" class="screen active">
         <div class="glass-panel onboarding-container">
             <h1>Benvenuto in <span class="highlight-text">Footly</span></h1>
-            <p>Inizia la tua scalata verso la gloria.</p>
+            <p>Crea il tuo club leggendario.</p>
             
             <div class="form-group">
                 <label for="team-name">Nome della Squadra:</label>
                 <input type="text" id="team-name" placeholder="Es. Real Milano..." autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label>Colori e Divisa:</label>
+                <div class="kit-selection-grid">
+                    <div>
+                        <label for="color-primary" style="font-size: 12px;">Colore 1:</label>
+                        <input type="color" id="color-primary" value="#10b981">
+                    </div>
+                    <div>
+                        <label for="color-secondary" style="font-size: 12px;">Colore 2:</label>
+                        <input type="color" id="color-secondary" value="#ffffff">
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label for="kit-style" style="font-size: 12px;">Stile Maglia:</label>
+                        <select id="kit-style" class="glass-select">
+                            <option value="solid" style="color: black;">Tinta Unita</option>
+                            <option value="stripes" style="color: black;">Strisce Verticali</option>
+                            <option value="halves" style="color: black;">Divisa a Metà</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
@@ -39,7 +60,6 @@
     </section>
 
     <section id="main-app-screen" class="screen hidden">
-        
         <header class="top-bar glass-panel">
             <div class="team-info">
                 <h2 id="display-team-name">Team Name</h2>
@@ -51,7 +71,7 @@
         </header>
 
         <main class="content-area" id="main-content">
-            </main>
+        </main>
 
         <nav class="bottom-nav glass-panel">
             <button class="nav-item active" data-target="home"><i class="fas fa-home"></i><span>Home</span></button>
