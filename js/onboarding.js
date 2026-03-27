@@ -6,7 +6,7 @@ const teamNameInput = document.getElementById('team-name');
 const leagueBtns = document.querySelectorAll('.league-btn');
 const startGameBtn = document.getElementById('start-game-btn');
 
-// ECCO LA FUNZIONE CHE MAIN.JS STA CERCANDO (Nota la parola "export"):
+// ECCO LA SOLUZIONE ALL'ERRORE: La parola chiave "export" permette a main.js di leggere questa funzione
 export function initOnboarding() {
     
     // Selezione del Campionato
@@ -36,9 +36,8 @@ export function initOnboarding() {
     });
 }
 
-// Funzione interna per sbloccare il bottone "Inizia"
+// Questa funzione NON ha l'export, quindi è "privata" e può essere usata solo dentro questo file
 function validateForm() {
-    // Il nome deve avere più di 2 caratteri e il campionato deve essere scelto
     if (gameState.userTeam.name.length > 2 && gameState.userTeam.league !== "") {
         startGameBtn.disabled = false;
         startGameBtn.classList.remove('disabled');
