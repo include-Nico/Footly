@@ -4,8 +4,10 @@ import { updateDashboardHeader, showNotification, showConfirm, showPlayerInfo } 
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation } from './players.js'; 
 
 const mainContent = document.getElementById('main-content');
-let selectedPlayerId = null; let draggedId = null; 
-let isSvincoloMode = false; let selectedForRelease = new Set();
+let selectedPlayerId = null; 
+let draggedId = null; 
+let isSvincoloMode = false; 
+let selectedForRelease = new Set();
 
 const FORMATIONS = {
     "2-3-1": { att: 0, def: 0, pos: [{role:'POR', t:'88%', l:'50%'}, {role:'DIF', t:'70%', l:'30%'}, {role:'DIF', t:'70%', l:'70%'}, {role:'CEN', t:'45%', l:'20%'}, {role:'CEN', t:'45%', l:'50%'}, {role:'CEN', t:'45%', l:'80%'}, {role:'ATT', t:'15%', l:'50%'}] },
@@ -29,6 +31,7 @@ export async function loadView(viewName) {
         else if (viewName === 'squad') renderSquad();
         else if (viewName === 'profile') renderProfile();
         else if (viewName === 'market') renderMarket();
+        else if (viewName === 'match') renderMatch();
 
     } catch (error) { console.error("Errore router:", error); }
 }
@@ -37,18 +40,276 @@ function getStarsHTML(strength) {
     let stars = 0;
     if(strength >= 88) stars = 5; else if(strength >= 80) stars = 4;
     else if(strength >= 72) stars = 3; else if(strength >= 64) stars = 2; else if(strength >= 50) stars = 1;
-    
     let html = '<div style="display:flex; gap:2px; color:var(--gold); font-size:10px; margin-top: 2px;">';
-    for(let i=1; i<=5; i++) {
-        if(i <= stars) html += '<i class="fas fa-star"></i>';
-        else html += '<i class="far fa-star" style="color:var(--border-dim);"></i>';
-    }
-    html += '</div>';
-    return html;
+    for(let i=1; i<=5; i++) { if(i <= stars) html += '<i class="fas fa-star"></i>'; else html += '<i class="far fa-star" style="color:var(--border-dim);"></i>'; }
+    html += '</div>'; return html;
 }
 
 // ==========================================
-// HOME, PARTITA E FINE STAGIONE
+// 1. IL MOTORE DELLA PARTITA
+// ==========================================
+function renderMatch() {
+    let minute = 0;
+    let homeScore = 0;
+    let awayScore = 0;
+    let timerInterval;
+    let isPaused = false;
+    let subsLeft = 5;
+    let tacBonusAtt = 0;
+    let tacBonusDef = 0;
+    let redCards = 0;
+
+    const userStr = getUserTeamStrength();
+    let opponents = gameState.world[gameState.userTeam.division];
+    let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
+    let nextOpponent = opponents[oppIndex];
+
+    document.getElementById('intro-matchday').textContent = gameState.userTeam.matchday;
+    document.getElementById('intro-home-name').textContent = gameState.userTeam.name;
+    document.getElementById('intro-away-name').textContent = nextOpponent.name;
+    document.getElementById('intro-home-str').innerHTML = `${userStr} ${getStarsHTML(userStr)}`;
+    document.getElementById('intro-away-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
+    
+    document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3);
+    document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3);
+
+    gameState.userTeam.players.forEach(p => { if(!p.status) p.status = { injured: 0, suspended: 0, yellowCards: 0 }; });
+    
+    const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
+    if(unavailable.length > 0) {
+        showNotification("Giocatori Indisponibili", "Hai schierato titolari infortunati o squalificati!", "error");
+        setTimeout(() => loadView('squad'), 2000);
+        return;
+    }
+
+    const logContainer = document.getElementById('match-log');
+    function addLog(text, type = '') {
+        const div = document.createElement('div');
+        div.className = `log-event ${type}`;
+        div.innerHTML = `<span style="font-weight:bold; color:var(--text-hint); width:30px;">${minute}'</span> <span>${text}</span>`;
+        logContainer.prepend(div);
+    }
+
+    document.getElementById('start-kickoff-btn').onclick = () => {
+        document.getElementById('match-intro').style.display = 'none';
+        document.getElementById('match-engine').style.display = 'flex';
+        startTimer();
+    };
+
+    function startTimer() {
+        isPaused = false;
+        timerInterval = setInterval(() => {
+            if(isPaused) return;
+            minute++;
+            document.getElementById('match-time').textContent = minute + "'";
+            document.getElementById('match-progress').style.width = (minute / 90 * 100) + "%";
+
+            if(minute === 15 || minute === 60) showTacticsModal();
+            if(minute === 45) { isPaused = true; showConfirm("Fine Primo Tempo", "Le squadre vanno a riposo.", () => { isPaused = false; }, "Inizia Secondo Tempo"); }
+            if(minute >= 90) { clearInterval(timerInterval); endGame(); }
+
+            if(!isPaused) simulateMinute();
+        }, 150); 
+    }
+
+    function simulateMinute() {
+        let cpuChance = (nextOpponent.strength / 100) * 0.04 + (tacBonusDef < 0 ? 0.02 : 0) + (redCards * 0.02); 
+        if(Math.random() < cpuChance) {
+            awayScore++;
+            document.getElementById('score-away').textContent = awayScore;
+            addLog(`<b>Gol di ${nextOpponent.name}!</b> Doccia fredda per i tifosi.`, 'log-cpu-goal');
+        }
+
+        let userChance = (userStr / 100) * 0.05 + (tacBonusAtt > 0 ? 0.02 : 0);
+        if(Math.random() < userChance) {
+            isPaused = true;
+            triggerGoalMiniGame();
+        }
+
+        if(Math.random() < 0.03) {
+            let p = getActivePlayer();
+            if(p) {
+                let rand = Math.random();
+                if(rand > 0.95) { p.status.injured = Math.floor(Math.random()*3)+1; addLog(`🤕 Brutto fallo! <b>${p.name}</b> esce per infortunio!`, 'log-injury'); }
+                else if(rand > 0.85) { p.status.suspended = 1; redCards++; addLog(`🟥 CARTELLINO ROSSO per <b>${p.name}</b>! Follia pura!`, 'log-red'); }
+                else { p.status.yellowCards++; addLog(`🟨 Giallo per <b>${p.name}</b>.`, 'log-yellow'); }
+            }
+        }
+    }
+
+    function getActivePlayer(posFilter = null) {
+        let active = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0);
+        if(posFilter) active = active.filter(p => p.position === posFilter || p.position === 'ATT');
+        if(active.length === 0) return null;
+        return active[Math.floor(Math.random() * active.length)];
+    }
+
+    function triggerGoalMiniGame() {
+        const modal = document.getElementById('goal-modal');
+        const shooter = getActivePlayer('ATT') || getActivePlayer();
+        if(!shooter) { isPaused = false; return; }
+
+        document.getElementById('shooter-name').textContent = `${shooter.name} (${shooter.position}) si prepara al tiro!`;
+        modal.classList.add('active');
+
+        let isShotTaken = false;
+        let shotTimer = setTimeout(() => {
+            if(!isShotTaken) {
+                modal.classList.remove('active');
+                addLog(`Incredibile! ${shooter.name} ha esitato troppo e ha perso palla.`);
+                isPaused = false;
+            }
+        }, 3000);
+
+        document.querySelectorAll('.goal-section').forEach(sec => {
+            sec.onclick = function() {
+                if(isShotTaken) return;
+                isShotTaken = true; clearTimeout(shotTimer);
+                
+                let successRate = shooter.position === 'ATT' ? 0.8 : (shooter.position === 'CEN' ? 0.6 : 0.3);
+                
+                if(Math.random() < successRate) {
+                    this.classList.add('goal-success');
+                    homeScore++; document.getElementById('score-home').textContent = homeScore;
+                    let assister = getActivePlayer('CEN') || getActivePlayer();
+                    addLog(`⚽ <b>GOOOAAALLLL!</b> Ha segnato <b>${shooter.name}</b>! ${assister && assister.id !== shooter.id ? '(Assist: '+assister.name+')' : ''}`, 'log-goal');
+                } else {
+                    this.classList.add('goal-fail');
+                    addLog(`❌ Miracolo del portiere! <b>${shooter.name}</b> si dispera.`);
+                }
+
+                setTimeout(() => {
+                    this.classList.remove('goal-success', 'goal-fail');
+                    modal.classList.remove('active');
+                    isPaused = false;
+                }, 1000);
+            };
+        });
+    }
+
+    function showTacticsModal() {
+        isPaused = true;
+        const modal = document.getElementById('tactics-modal');
+        modal.classList.add('active');
+        
+        document.querySelectorAll('.tactic-choice').forEach(btn => {
+            btn.onclick = (e) => {
+                let type = e.target.getAttribute('data-type');
+                if(type === 'att') { tacBonusAtt = 10; tacBonusDef = -10; addLog('🔄 Tattica: Squadra sbilanciata in avanti!'); }
+                if(type === 'def') { tacBonusAtt = -10; tacBonusDef = 10; addLog('🔄 Tattica: Baricentro basso, difesa a oltranza!'); }
+                if(type === 'bal') { tacBonusAtt = 0; tacBonusDef = 0; addLog('🔄 Tattica: Equilibrio ristabilito.'); }
+                modal.classList.remove('active');
+                isPaused = false;
+            };
+        });
+    }
+
+    document.getElementById('btn-pause-sub').onclick = () => {
+        isPaused = true;
+        const modal = document.getElementById('subs-modal');
+        const pitchList = document.getElementById('subs-pitch');
+        const benchList = document.getElementById('subs-bench');
+        
+        function renderSubsList() {
+            pitchList.innerHTML = ''; benchList.innerHTML = '';
+            document.getElementById('subs-modal-left').textContent = subsLeft;
+
+            gameState.userTeam.players.forEach(p => {
+                let statusHtml = '';
+                if(p.status.injured > 0) statusHtml = '🤕';
+                if(p.status.suspended > 0) statusHtml = '🟥';
+                
+                let card = document.createElement('div');
+                card.className = `sub-card ${p.status.suspended > 0 ? 'disabled' : ''}`;
+                card.innerHTML = `<span><b>${p.position}</b> ${p.name.split(' ')[1]}</span> <span>${p.overall} ${statusHtml}</span>`;
+                
+                card.onclick = () => {
+                    if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Non hai più sostituzioni.", "error"); return; }
+                    
+                    let currentlySelected = document.querySelector('.sub-card.selected');
+                    if(currentlySelected) {
+                        let id1 = currentlySelected.getAttribute('data-id');
+                        let id2 = p.id;
+                        let p1 = gameState.userTeam.players.find(pl => pl.id === id1);
+                        let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+                        
+                        if(p1.isStarter !== p2.isStarter) { 
+                            let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
+                            let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
+                            subsLeft--; addLog(`🔄 Cambio: Esce ${p1.isStarter ? p2.name : p1.name}, entra ${p1.isStarter ? p1.name : p2.name}`);
+                        }
+                        renderSubsList();
+                    } else {
+                        card.classList.add('selected');
+                    }
+                };
+                card.setAttribute('data-id', p.id);
+
+                if(p.isStarter) pitchList.appendChild(card);
+                else benchList.appendChild(card);
+            });
+        }
+
+        renderSubsList();
+        modal.classList.add('active');
+
+        document.getElementById('close-subs-btn').onclick = () => {
+            modal.classList.remove('active');
+            isPaused = false;
+        };
+    };
+
+    function endGame() {
+        gameState.userTeam.players.forEach(p => {
+            if(p.isStarter && p.status.suspended === 0) p.stats.appearances++;
+            if(p.status.injured > 0 && !p.isStarter) p.status.injured--;
+            if(p.status.suspended > 0 && !p.isStarter) p.status.suspended--;
+        });
+
+        gameState.userTeam.stats.played++;
+        gameState.userTeam.stats.goalsFor += homeScore;
+        gameState.userTeam.stats.goalsAgainst += awayScore;
+        let coinsEarned = homeScore * 50; 
+        
+        let title = "";
+        if (homeScore > awayScore) { gameState.userTeam.stats.won++; gameState.userTeam.stats.points += 3; coinsEarned += 500; title="Vittoria!"; }
+        else if (homeScore === awayScore) { gameState.userTeam.stats.drawn++; gameState.userTeam.stats.points += 1; coinsEarned += 200; title="Pareggio!"; }
+        else { gameState.userTeam.stats.lost++; coinsEarned += 50; title="Sconfitta!"; }
+
+        gameState.userTeam.coins += coinsEarned;
+
+        nextOpponent.played++; nextOpponent.goalsFor += awayScore; nextOpponent.goalsAgainst += homeScore;
+        if (awayScore > homeScore) { nextOpponent.won++; nextOpponent.points += 3; }
+        else if (awayScore === homeScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
+        else { nextOpponent.lost++; }
+
+        let otherCPUs = opponents.filter(t => t.name !== nextOpponent.name);
+        for (let i = 0; i < otherCPUs.length; i += 2) {
+            if(i+1 >= otherCPUs.length) break;
+            let t1 = otherCPUs[i]; let t2 = otherCPUs[i+1];
+            let t1Roll = Math.random() * (t1.strength + t2.strength);
+            let g1 = 0, g2 = 0;
+            if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
+            else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
+
+            t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
+            if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
+            
+            t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
+            if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
+        }
+
+        gameState.userTeam.matchday++;
+        saveGame();
+
+        showConfirm(title, `Partita conclusa: <b>${homeScore} - ${awayScore}</b><br><br>Hai guadagnato 💰${coinsEarned}.`, () => {
+            loadView('home');
+        }, "Torna alla Dashboard", false);
+    }
+}
+
+// ==========================================
+// 2. HOME E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -72,7 +333,6 @@ function renderHome() {
     let opponents = gameState.world[gameState.userTeam.division] || [];
 
     if (!isEndOfSeason && opponents.length > 0) {
-        // Assegna l'avversario in base alla giornata
         let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
         let nextOpponent = opponents[oppIndex];
         
@@ -89,10 +349,9 @@ function renderHome() {
         
         playBtn.onclick = () => {
             if(userStr === 0) { showNotification("Rosa Incompleta", "Metti almeno 7 giocatori titolari in campo!", "error"); return; }
-            simulateCurrentMatchday(userStr, nextOpponent, opponents);
+            loadView('match'); 
         };
     } else {
-        // Campionato Finito
         if (cpuTeamNameEl) cpuTeamNameEl.textContent = "Stagione Conclusa";
         document.getElementById('cpu-team-rating').innerHTML = "";
         document.getElementById('match-vs-badge').textContent = "🏆";
@@ -103,24 +362,13 @@ function renderHome() {
         playBtn.style.color = "#000";
         playBtn.style.borderColor = "var(--gold)";
         
-        playBtn.onclick = () => {
-            showConfirm("Fine Stagione", "Verranno calcolati i premi, l'invecchiamento dei giocatori e i campioni degli altri campionati. Procedere?", () => {
-                handleEndSeason();
-            });
-        };
+        playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo invecchiamento e premi...", () => { handleEndSeason(); }); };
     }
 
-    // Rendering Classifica
     if (opponents.length > 0) {
         let standings = [...opponents];
-        standings.push({
-            name: gameState.userTeam.name, isUser: true, strength: userStr,
-            points: gameState.userTeam.stats.points, played: gameState.userTeam.stats.played,
-            goalsFor: gameState.userTeam.stats.goalsFor, goalsAgainst: gameState.userTeam.stats.goalsAgainst
-        });
-
+        standings.push({ name: gameState.userTeam.name, isUser: true, strength: userStr, points: gameState.userTeam.stats.points, played: gameState.userTeam.stats.played, goalsFor: gameState.userTeam.stats.goalsFor, goalsAgainst: gameState.userTeam.stats.goalsAgainst });
         let sortedStandings = standings.sort((a, b) => b.points - a.points);
-
         if (tableBody) {
             tableBody.innerHTML = '';
             sortedStandings.forEach((team, index) => {
@@ -128,11 +376,8 @@ function renderHome() {
                 tableBody.innerHTML += `
                     <tr style="border-bottom: 1px solid var(--border-dim); ${trStyle}">
                         <td style="padding: 8px 4px;">${index + 1}</td>
-                        <td style="padding: 8px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${team.name}</td>
-                        <td style="padding: 8px 4px; text-align: center;">
-                            <span style="font-weight:bold; font-size:11px; margin-right:4px;">${team.strength}</span>
-                            ${getStarsHTML(team.strength)}
-                        </td>
+                        <td style="padding: 8px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">${team.name}</td>
+                        <td style="padding: 8px 4px; text-align: center;"><span style="font-weight:bold; font-size:11px; margin-right:4px;">${team.strength}</span>${getStarsHTML(team.strength)}</td>
                         <td style="padding: 8px 4px; text-align: center; font-weight: bold;">${team.points}</td>
                         <td style="padding: 8px 4px; text-align: center; color: var(--text-muted);">${team.played}</td>
                     </tr>
@@ -142,96 +387,22 @@ function renderHome() {
     }
 }
 
-function simulateCurrentMatchday(userStr, nextOpponent, allOpponents) {
-    // 1. Simula Partita Utente
-    const userRoll = Math.random() * (userStr + nextOpponent.strength);
-    let userGoals = 0, oppGoals = 0;
-    
-    if (userRoll <= userStr) {
-        userGoals = Math.floor(Math.random() * 4) + 1;
-        oppGoals = Math.floor(Math.random() * 2);
-        if (Math.random() > 0.8) oppGoals = userGoals;
-    } else {
-        oppGoals = Math.floor(Math.random() * 4) + 1;
-        userGoals = Math.floor(Math.random() * 2);
-        if (Math.random() > 0.8) userGoals = oppGoals;
-    }
-
-    gameState.userTeam.stats.played++;
-    gameState.userTeam.stats.goalsFor += userGoals;
-    gameState.userTeam.stats.goalsAgainst += oppGoals;
-    if (userGoals > oppGoals) { gameState.userTeam.stats.won++; gameState.userTeam.stats.points += 3; }
-    else if (userGoals === oppGoals) { gameState.userTeam.stats.drawn++; gameState.userTeam.stats.points += 1; }
-    else { gameState.userTeam.stats.lost++; }
-
-    nextOpponent.played++;
-    nextOpponent.goalsFor += oppGoals;
-    nextOpponent.goalsAgainst += userGoals;
-    if (oppGoals > userGoals) { nextOpponent.won++; nextOpponent.points += 3; }
-    else if (oppGoals === userGoals) { nextOpponent.drawn++; nextOpponent.points += 1; }
-    else { nextOpponent.lost++; }
-
-    // 2. Simula tutte le altre partite CPU della giornata
-    let otherCPUs = allOpponents.filter(t => t.name !== nextOpponent.name);
-    for (let i = 0; i < otherCPUs.length; i += 2) {
-        if(i+1 >= otherCPUs.length) break;
-        let t1 = otherCPUs[i]; let t2 = otherCPUs[i+1];
-        let t1Roll = Math.random() * (t1.strength + t2.strength);
-        let g1 = 0, g2 = 0;
-        
-        if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
-        else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
-
-        t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
-        if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
-        
-        t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
-        if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
-    }
-
-    gameState.userTeam.matchday++;
-    saveGame();
-
-    // Mostra il Risultato
-    let msgTitle = userGoals > oppGoals ? "Vittoria!" : (userGoals === oppGoals ? "Pareggio!" : "Sconfitta!");
-    let msgHTML = `<div style="text-align:center; font-size: 24px; font-weight:bold; margin: 20px 0;">
-        <span style="color:var(--accent);">${gameState.userTeam.name}</span> <span style="color:var(--text-primary);"> ${userGoals} - ${oppGoals} </span> <span style="color:var(--notif-error);">${nextOpponent.name}</span>
-    </div>`;
-
-    showConfirm(msgTitle, msgHTML, () => {
-        renderHome();
-    }, "Avanti", false);
-}
-
 function handleEndSeason() {
-    let retirements = [];
-    let evolutions = [];
-
-    // Sviluppo Utente
+    let retirements = []; let evolutions = [];
     gameState.userTeam.players = gameState.userTeam.players.filter(p => {
         const result = processEndOfSeason(p);
         if (result.retired) { retirements.push(p.name); return false; }
         if (result.growth !== 0) evolutions.push(`${p.name} ${result.growth > 0 ? '+'+result.growth : result.growth}`);
         return true;
     });
-
     while(gameState.userTeam.players.length < 12) {
         let regen = generatePlayer('CEN', false, 'BRONZE', true); 
         regen.name = "Vivaio " + generateRandomNameByNation(regen.nationKey);
-        gameState.userTeam.players.push(regen);
-        evolutions.push(`${regen.name} (Nuovo)`);
+        gameState.userTeam.players.push(regen); evolutions.push(`${regen.name} (Nuovo)`);
     }
 
-    let otherWinners = [];
-
-    // Sviluppo CPU e Vincitori altri Campionati
     [1, 2, 3].forEach(div => {
         if(gameState.world[div]) {
-            if (div !== gameState.userTeam.division) {
-                let bestTeam = [...gameState.world[div]].sort((a,b) => b.strength - a.strength)[0];
-                otherWinners.push(`Div ${div}: <span style="color:var(--gold);">${bestTeam.name}</span>`);
-            }
-
             gameState.world[div].forEach(team => {
                 team.roster = team.roster.filter(p => !processEndOfSeason(p).retired);
                 while(team.roster.length < 14) {
@@ -239,32 +410,22 @@ function handleEndSeason() {
                     let rarity = div === 1 ? 'GOLD' : (div === 2 ? 'SILVER' : 'BRONZE');
                     team.roster.push(generatePlayer(pos, false, rarity, true));
                 }
-                let totOverall = team.roster.slice(0,7).reduce((acc, p) => acc + p.overall, 0);
-                team.strength = Math.floor(totOverall / 7);
+                team.strength = Math.floor(team.roster.slice(0,7).reduce((acc, p) => acc + p.overall, 0) / 7);
                 team.points = 0; team.played = 0; team.won = 0; team.drawn = 0; team.lost = 0; team.goalsFor = 0; team.goalsAgainst = 0;
             });
         }
     });
 
-    // Premio Stagione: 150 Monete per ogni punto guadagnato
     const reward = gameState.userTeam.stats.points * 150;
     gameState.userTeam.coins += reward;
-
     gameState.userTeam.stats = { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 };
     gameState.userTeam.matchday = 1;
-    saveGame();
-    updateDashboardHeader();
-    
-    let msg = `<div style="margin-bottom: 15px;"><b>Premio Stagione:</b> 💰 <span style="color:var(--gold);">${reward.toLocaleString()}</span></div>`;
-    if(otherWinners.length > 0) msg += `<b>Campioni Altri Campionati:</b><br>${otherWinners.join('<br>')}<br><br>`;
-    msg += `<b>Ritiri Rosa:</b> <span style="color:var(--notif-error);">${retirements.length > 0 ? retirements.join(', ') : 'Nessuno'}</span><br><br>`;
-    msg += `<b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`;
-    
-    showConfirm("🏆 Stagione Conclusa!", msg, () => { renderHome(); }, "Inizia Nuova Stagione", false);
+    saveGame(); updateDashboardHeader();
+    showConfirm("🏆 Stagione Conclusa!", `<b>Premio:</b> 💰 <span style="color:var(--gold);">${reward.toLocaleString()}</span><br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`, () => { renderHome(); }, "Nuova Stagione", false);
 }
 
 // ==========================================
-// RENDER SQUADRA, MERCATO, PROFILO
+// 3. SQUADRA, DRAG & DROP E SVINCOLO
 // ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
@@ -330,6 +491,11 @@ function renderSquad() {
             const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
             let displayOverall = isOOP ? Math.floor(p.overall * 0.7) : p.overall;
             let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo! -30% Stats"><i class="fas fa-exclamation"></i></div>` : '';
+            
+            // Icone stato
+            if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
+            if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato!"><i class="fas fa-square"></i></div>`;
+
             let isSelected = selectedPlayerId === p.id ? 'selected' : '';
             let dimmedClass = isSvincoloMode ? 'dimmed' : ''; 
             const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
@@ -351,8 +517,13 @@ function renderSquad() {
     reserves.forEach(p => {
         let cardClass = isSvincoloMode ? (selectedForRelease.has(p.id) ? 'release-selected' : '') : (selectedPlayerId === p.id ? 'selected' : '');
         const flag = p.nationality ? p.nationality.split(' ')[0] : '';
+        let warningHTML = '';
+        if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
+        if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
+
         bench.innerHTML += `
             <div class="player-card player-card-interactive ${cardClass}" draggable="${!isSvincoloMode}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                ${warningHTML}
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
                 <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                 <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
@@ -403,6 +574,9 @@ function renderSquad() {
     });
 }
 
+// ==========================================
+// 4. MERCATO E PROFILO
+// ==========================================
 function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
     const resultsContainer = document.getElementById('market-results');

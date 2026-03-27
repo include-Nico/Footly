@@ -1,0 +1,98 @@
+<div class="match-view" style="height: 100%; display: flex; flex-direction: column; background: var(--bg-deep); position: absolute; inset: 0; z-index: 50;">
+    
+    <div id="match-intro" style="position: absolute; inset: 0; background: var(--bg-surface); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center;">
+        <h2 style="color: var(--accent); margin-bottom: 5px;">Giornata <span id="intro-matchday"></span></h2>
+        <p style="color: var(--text-hint); font-size: 12px; margin-bottom: 30px;">Stadio di Casa</p>
+        
+        <div style="display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; margin-bottom: 40px;">
+            <div style="flex: 1; text-align: right;">
+                <div style="font-size: 40px;">⚽</div>
+                <h3 id="intro-home-name" style="margin-top: 10px;">Tu</h3>
+                <div id="intro-home-str" style="color: var(--gold); font-weight: bold;"></div>
+            </div>
+            <div style="font-size: 24px; font-weight: bold; color: var(--text-muted);">VS</div>
+            <div style="flex: 1; text-align: left;">
+                <div style="font-size: 40px;">🤖</div>
+                <h3 id="intro-away-name" style="margin-top: 10px;">CPU</h3>
+                <div id="intro-away-str" style="color: var(--gold); font-weight: bold;"></div>
+            </div>
+        </div>
+        
+        <button id="start-kickoff-btn" class="primary-btn" style="max-width: 250px;">Fischio d'Inizio <i class="fas fa-whistle"></i></button>
+    </div>
+
+    <div id="match-engine" style="display: none; flex-direction: column; height: 100%;">
+        
+        <div style="background: var(--bg-card); padding: 15px 20px; border-bottom: 1px solid var(--border-dim); display: flex; justify-content: space-between; align-items: center;">
+            <div style="text-align: center; flex: 1;">
+                <div id="score-home-name" style="font-size: 12px; color: var(--text-hint); text-transform: uppercase;">HOME</div>
+                <div id="score-home" style="font-family: 'Barlow Condensed'; font-size: 36px; font-weight: bold; color: var(--accent);">0</div>
+            </div>
+            <div style="text-align: center; flex: 1;">
+                <div id="match-time" style="font-family: 'Barlow Condensed'; font-size: 24px; font-weight: bold; color: var(--text-primary);">00'</div>
+                <div class="progress-bar-bg" style="width: 100px; height: 6px; background: var(--bg-surface); border-radius: 3px; margin: 4px auto 0; overflow: hidden;">
+                    <div id="match-progress" style="height: 100%; width: 0%; background: var(--accent); transition: width 0.2s linear;"></div>
+                </div>
+            </div>
+            <div style="text-align: center; flex: 1;">
+                <div id="score-away-name" style="font-size: 12px; color: var(--text-hint); text-transform: uppercase;">AWAY</div>
+                <div id="score-away" style="font-family: 'Barlow Condensed'; font-size: 36px; font-weight: bold; color: var(--notif-error);">0</div>
+            </div>
+        </div>
+
+        <div id="match-log" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: var(--bg-deep);">
+            <div style="text-align: center; color: var(--text-muted); font-size: 11px;">La partita è iniziata!</div>
+        </div>
+
+        <div style="padding: 15px; background: var(--bg-card); border-top: 1px solid var(--border-dim); display: flex; gap: 10px;">
+            <button id="btn-pause-sub" class="glass-btn" style="flex: 1;"><i class="fas fa-pause"></i> Sostituzioni (<span id="subs-left">5</span>)</button>
+        </div>
+
+    </div>
+
+    <div id="tactics-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="color: var(--accent); text-align: center; margin-bottom: 15px;">Scelta Tattica</h3>
+            <p style="font-size: 13px; color: var(--text-hint); text-align: center; margin-bottom: 20px;">Come vuoi impostare la squadra in questa fase?</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="glass-btn tactic-choice" data-type="att">Attacco Totale (Difesa scoperta)</button>
+                <button class="glass-btn tactic-choice" data-type="def">Catenaccio (Nessun attacco)</button>
+                <button class="glass-btn tactic-choice" data-type="bal">Equilibrio</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="goal-modal" class="modal-overlay" style="background: rgba(0,0,0,0.9);">
+        <div class="modal-box" style="background: transparent; border: none; box-shadow: none;">
+            <h2 style="color: white; text-align: center; margin-bottom: 5px; text-shadow: 0 2px 4px black;">OCCASIONE GOL!</h2>
+            <p id="shooter-name" style="color: var(--gold); text-align: center; margin-bottom: 20px; font-weight: bold;"></p>
+            
+            <div class="goal-grid">
+                <div class="goal-section" data-zone="1"></div>
+                <div class="goal-section" data-zone="2"></div>
+                <div class="goal-section" data-zone="3"></div>
+                <div class="goal-section" data-zone="4"></div>
+                <div class="goal-section" data-zone="5"></div>
+                <div class="goal-section" data-zone="6"></div>
+            </div>
+            <p style="color: white; text-align: center; margin-top: 15px; font-size: 12px;">Scegli dove tirare!</p>
+        </div>
+    </div>
+
+    <div id="subs-modal" class="modal-overlay">
+        <div class="modal-box" style="width: 95%; max-width: 400px; padding: 15px; max-height: 80vh; overflow-y: auto;">
+            <h3 style="text-align: center; margin-bottom: 15px;">Sostituzioni (<span id="subs-modal-left">5</span>)</h3>
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <div style="font-size: 10px; text-align: center; color: var(--text-hint); margin-bottom: 5px;">IN CAMPO</div>
+                    <div id="subs-pitch" style="display: flex; flex-direction: column; gap: 5px;"></div>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size: 10px; text-align: center; color: var(--text-hint); margin-bottom: 5px;">PANCHINA</div>
+                    <div id="subs-bench" style="display: flex; flex-direction: column; gap: 5px;"></div>
+                </div>
+            </div>
+            <button id="close-subs-btn" class="primary-btn" style="margin-top: 15px; padding: 10px;">Riprendi Partita</button>
+        </div>
+    </div>
+</div>

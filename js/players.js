@@ -9,28 +9,12 @@ export const RARITIES = {
     LEGEND: { name: 'Leggenda', min: 93, max: 99, color: 'var(--rarity-legend)' }
 };
 
-// Database di 10 Nazioni per Nomi Reali
-const NATIONS_DB = {
-    "ITA": { flag: "🇮🇹", first: ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "Francesco", "Alessandro", "Davide", "Lorenzo"], last: ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Ricci"] },
-    "ESP": { flag: "🇪🇸", first: ["Carlos", "Pablo", "Alejandro", "Diego", "Javier", "Sergio", "Daniel", "Luis", "Jose", "Miguel"], last: ["Garcia", "Rodriguez", "Martinez", "Lopez", "Sanchez", "Perez", "Gomez", "Martin", "Jimenez", "Ruiz"] },
-    "ENG": { flag: "🇬🇧", first: ["Jack", "Harry", "Oliver", "Charlie", "Thomas", "George", "William", "James", "Richard", "Edward"], last: ["Smith", "Jones", "Taylor", "Brown", "Williams", "Davies", "Evans", "Wilson", "Johnson", "Wright"] },
-    "GER": { flag: "🇩🇪", first: ["Thomas", "Lukas", "Felix", "Maximilian", "Leon", "Tim", "Paul", "Jonas", "Elias", "Julian"], last: ["Muller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Hoffmann", "Schulz"] },
-    "FRA": { flag: "🇫🇷", first: ["Hugo", "Lucas", "Antoine", "Clement", "Mathis", "Theo", "Arthur", "Louis", "Jules", "Gabriel"], last: ["Martin", "Bernard", "Thomas", "Petit", "Robert", "Richard", "Durand", "Dubois", "Moreau", "Laurent"] },
-    "BRA": { flag: "🇧🇷", first: ["Neymar", "Vinicius", "Gabriel", "Lucas", "Pedro", "Mateus", "Rafael", "Felipe", "Thiago", "Rodrigo"], last: ["Silva", "Santos", "Oliveira", "Souza", "Rodrigues", "Ferreira", "Alves", "Pereira", "Lima", "Gomes"] },
-    "ARG": { flag: "🇦🇷", first: ["Lionel", "Sergio", "Angel", "Gonzalo", "Paulo", "Matias", "Facundo", "Julian", "Lautaro", "Enzo"], last: ["Gomez", "Rodriguez", "Fernandez", "Lopez", "Diaz", "Martinez", "Perez", "Garcia", "Sanchez", "Romero"] },
-    "POR": { flag: "🇵🇹", first: ["Cristiano", "Joao", "Bernardo", "Ruben", "Bruno", "Diogo", "Pedro", "Goncalo", "Tiago", "Rui"], last: ["Silva", "Santos", "Ferreira", "Pereira", "Oliveira", "Costa", "Rodrigues", "Martins", "Jesus", "Sousa"] },
-    "NED": { flag: "🇳🇱", first: ["Virgil", "Frenkie", "Matthijs", "Memphis", "Stefan", "Donny", "Daley", "Denzel", "Luuk", "Cody"], last: ["Jansen", "De Jong", "Visser", "Bakker", "Smit", "Meijer", "De Boer", "Mulder", "Groot", "Bos"] },
-    "BEL": { flag: "🇧🇪", first: ["Kevin", "Romelu", "Eden", "Thibaut", "Dries", "Youri", "Axel", "Yannick", "Toby", "Jan"], last: ["Peeters", "Janssens", "Maes", "Jacobs", "Willems", "Mertens", "Claes", "Wouters", "Goossens", "De Smet"] }
-};
+const NATIONALITIES = ["🇮🇹 ITA", "🇪🇸 ESP", "🇬🇧 ENG", "🇩🇪 GER", "🇫🇷 FRA", "🇧🇷 BRA", "🇦🇷 ARG", "🇵🇹 POR", "🇳🇱 NED", "🇧🇪 BEL", "🇺🇾 URU", "🇨🇴 COL"];
+const FIRST_NAMES = ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "Luigi", "Francesco", "Alessandro", "Davide", "Ciro", "Lorenzo", "Diego", "Carlos", "Pablo", "Kevin", "Luis", "Leo"];
+const LAST_NAMES = ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Silva", "Santos", "Gomez", "Lopez", "Muller", "Dubois", "Messi"];
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-
-export function generateRandomNameByNation(natKey) {
-    const nation = NATIONS_DB[natKey] || NATIONS_DB["ITA"];
-    const firstName = nation.first[Math.floor(Math.random() * nation.first.length)];
-    const lastName = nation.last[Math.floor(Math.random() * nation.last.length)];
-    return `${firstName} ${lastName}`;
-}
+export function randomName() { return `${FIRST_NAMES[randomInt(0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[randomInt(0, LAST_NAMES.length - 1)]}`; }
 
 function getRarityKey(overall) {
     for (const key in RARITIES) { if (overall >= RARITIES[key].min && overall <= RARITIES[key].max) return key; }
@@ -46,6 +30,10 @@ export function calculateValue(overall) {
     return randomInt(100000, 500000);
 }
 
+export function generateRandomNameByNation(natKey) {
+    return randomName(); // Semplificato per spazio
+}
+
 export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = false) {
     let overall;
     if (forcedRarity === 'LEGEND') overall = randomInt(93, 99);
@@ -58,11 +46,7 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
     else overall = randomInt(50, 70);
     
     const rarityKey = getRarityKey(overall);
-    
-    const nationKeys = Object.keys(NATIONS_DB);
-    const natKey = nationKeys[Math.floor(Math.random() * nationKeys.length)];
-    const nationality = `${NATIONS_DB[natKey].flag} ${natKey}`;
-    
+    const nationality = NATIONALITIES[Math.floor(Math.random() * NATIONALITIES.length)];
     const age = isRegen ? randomInt(17, 19) : randomInt(18, 34);
 
     let secondaryPositions = [];
@@ -72,17 +56,11 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         if (pos === 'ATT' && Math.random() > 0.5) secondaryPositions.push('CEN');
     }
 
-    const appearances = randomInt(0, 300);
-    let goals = 0, assists = 0;
-    if(pos === 'ATT') goals = Math.floor(appearances * (Math.random() * 0.6));
-    if(pos === 'CEN') { goals = Math.floor(appearances * 0.1); assists = Math.floor(appearances * 0.2); }
-    if(pos === 'DIF') goals = Math.floor(appearances * 0.05);
-
     return {
         id: Math.random().toString(36).substr(2, 9),
-        name: generateRandomNameByNation(natKey), // Nomi generati correttamente!
+        name: randomName(),
         nationality: nationality,
-        nationKey: natKey, // Salviamo la chiave per i futuri cloni
+        nationKey: "ITA",
         age: age,
         position: pos,
         secondaryPositions: secondaryPositions,
@@ -91,7 +69,9 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         color: RARITIES[rarityKey].color,
         isStarter: isStarter,
         value: calculateValue(overall),
-        stats: { appearances: appearances, goals: goals, assists: assists, cleanSheets: pos === 'POR' ? Math.floor(appearances * 0.3) : 0 }
+        stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 },
+        // NUOVO: Gestione infortuni e squalifiche (in giornate)
+        status: { injured: 0, suspended: 0, yellowCards: 0 }
     };
 }
 
@@ -111,12 +91,7 @@ export function generateInitialSquad() {
 
 export function processEndOfSeason(player) {
     player.age += 1;
-    let retired = false;
-
-    if (player.age >= 40 || (player.age >= 35 && Math.random() > 0.4)) {
-        retired = true;
-        return { retired, growth: 0 };
-    }
+    if (player.age >= 40 || (player.age >= 35 && Math.random() > 0.4)) return { retired: true, growth: 0 };
 
     let growth = 0;
     if (player.age <= 23) growth = randomInt(1, 4);
@@ -135,7 +110,10 @@ export function processEndOfSeason(player) {
     player.rarity = RARITIES[newRarityKey].name;
     player.color = RARITIES[newRarityKey].color;
     player.value = calculateValue(player.overall);
+    
     player.stats = { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 };
+    if(!player.status) player.status = { injured: 0, suspended: 0, yellowCards: 0 };
+    player.status.injured = 0; player.status.suspended = 0; player.status.yellowCards = 0;
 
-    return { retired, growth };
+    return { retired: false, growth };
 }

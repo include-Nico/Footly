@@ -295,3 +295,43 @@ input[type="color"] { width: 100%; height: 38px; border: 1px solid var(--border-
     background-image: linear-gradient(to bottom, rgba(240, 82, 82, 0.2), transparent) !important;
 }
 .dimmed { opacity: 0.4; pointer-events: none; filter: grayscale(100%); }
+
+/* ─── STILI PARTITA (MATCH ENGINE) ──────────────── */
+.match-view { font-family: 'DM Sans', sans-serif; }
+
+.log-event {
+    background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 8px; font-size: 13px;
+    animation: slide-in 0.3s ease forwards; display: flex; gap: 10px; align-items: center; border-left: 3px solid transparent;
+}
+.log-goal { border-left-color: var(--accent); background: rgba(0, 245, 160, 0.1); }
+.log-cpu-goal { border-left-color: var(--notif-error); background: rgba(240, 82, 82, 0.1); }
+.log-yellow { border-left-color: var(--gold); }
+.log-red { border-left-color: var(--notif-error); }
+.log-injury { border-left-color: #f43f5e; }
+
+@keyframes slide-in { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+/* Mini-gioco Porta da Calcio */
+.goal-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 5px;
+    width: 100%; height: 180px; border: 5px solid white; border-bottom: none;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/></svg>');
+    position: relative;
+}
+.goal-section {
+    background: rgba(0,0,0,0.4); cursor: pointer; transition: background 0.2s; border: 1px dashed rgba(255,255,255,0.2);
+}
+.goal-section:hover { background: rgba(0, 245, 160, 0.3); }
+
+/* Risultato Tiro */
+.goal-success { background: rgba(0, 245, 160, 0.8) !important; animation: flash-green 0.5s; }
+.goal-fail { background: rgba(240, 82, 82, 0.8) !important; animation: flash-red 0.5s; }
+@keyframes flash-green { 0% { box-shadow: 0 0 30px #00f5a0; } 100% { box-shadow: none; } }
+@keyframes flash-red { 0% { box-shadow: 0 0 30px #f05252; } 100% { box-shadow: none; } }
+
+.sub-card {
+    background: var(--bg-surface); border: 1px solid var(--border-dim); padding: 8px; border-radius: 6px;
+    font-size: 11px; cursor: pointer; display: flex; justify-content: space-between;
+}
+.sub-card.selected { border-color: var(--accent); background: rgba(0,245,160,0.1); }
+.sub-card.disabled { opacity: 0.4; pointer-events: none; }
