@@ -20,15 +20,23 @@
         <div class="pitch-circle"></div>
         <div class="pitch-box-top"></div>
         <div class="pitch-box-bottom"></div>
-        
-        <div id="pitch-players" style="position: absolute; inset: 0; width: 100%; height: 100%;">
-            </div>
+        <div id="pitch-players" style="position: absolute; inset: 0; width: 100%; height: 100%;"></div>
     </div>
 
     <div class="divider" style="margin: 20px 0;"></div>
     
-    <div class="section-label" style="text-align: center; margin-bottom: 15px;">Panchina (Trascina per scambiare, clicca 💰 per cedere)</div>
-    
-    <div id="bench-players" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div class="section-label" style="margin: 0;">Panchina</div>
+        <div style="display: flex; gap: 8px;">
+            <button id="btn-info" class="glass-btn" style="padding: 6px 10px; font-size: 11px; display: none;"><i class="fas fa-info-circle"></i> Info</button>
+            <button id="btn-svincola-mode" class="glass-btn" style="padding: 6px 10px; font-size: 11px; border-color: var(--text-hint); color: var(--text-muted);"><i class="fas fa-trash-can"></i> Svincola</button>
         </div>
+    </div>
+    
+    <div id="bench-players" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px;">
+        </div>
+    
+    <button id="btn-confirm-svincolo" class="glass-btn" style="width: 100%; padding: 12px; background: rgba(240, 82, 82, 0.1); color: var(--notif-error); border-color: var(--notif-error); font-weight: bold; display: none;">
+        Conferma Svincolo (0)
+    </button>
 </div>

@@ -30,28 +30,37 @@ export function initializeLeague(userTeamName, leagueName, division) {
 
     let standings = [];
 
-    // Squadra Utente
     standings.push({
         name: userTeamName,
         isUser: true,
-        strength: 60, // L'utente parte con un team da 60 circa
+        strength: 60, 
         points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0,
-        roster: [] // I giocatori dell'utente sono salvati in gameState.userTeam.players
+        roster: [] 
     });
 
-    // Generazione Squadre CPU
     cpuTeamNames.forEach(teamName => {
         let roster = [];
         let totalStarterOverall = 0;
         
-        // Creiamo 14 giocatori per CPU (i primi 7 titolari dettano la forza della squadra)
         for(let i=0; i<14; i++) {
             const pos = ['POR', 'DIF', 'DIF', 'CEN', 'CEN', 'ATT'][Math.floor(Math.random()*6)];
             
-            // Adattiamo i giocatori alla divisione per non renderli troppo forti
+            // FIX MERCATO: Generazione ponderata per avere giocatori interessanti
             let forcedRarity = 'BRONZE';
-            if(division === 2) forcedRarity = Math.random() > 0.6 ? 'SILVER' : 'BRONZE';
-            if(division === 1) forcedRarity = Math.random() > 0.5 ? 'GOLD' : 'SILVER';
+            const rand = Math.random();
+            if(division === 3) {
+                if(rand > 0.95) forcedRarity = 'GOLD';
+                else if(rand > 0.75) forcedRarity = 'SILVER';
+            } else if(division === 2) {
+                if(rand > 0.90) forcedRarity = 'RAREGOLD';
+                else if(rand > 0.60) forcedRarity = 'GOLD';
+                else if(rand > 0.2) forcedRarity = 'SILVER';
+            } else {
+                if(rand > 0.90) forcedRarity = 'EPIC';
+                else if(rand > 0.70) forcedRarity = 'SUPERRARE';
+                else if(rand > 0.40) forcedRarity = 'GOLD';
+                else forcedRarity = 'SILVER';
+            }
 
             const p = generatePlayer(pos, i < 7, forcedRarity);
             roster.push(p);
@@ -61,7 +70,7 @@ export function initializeLeague(userTeamName, leagueName, division) {
         standings.push({
             name: teamName,
             isUser: false,
-            strength: Math.floor(totalStarterOverall / 7), // Forza reale basata sui titolari
+            strength: Math.floor(totalStarterOverall / 7), 
             points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0,
             roster: roster
         });

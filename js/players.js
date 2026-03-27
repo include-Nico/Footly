@@ -1,5 +1,4 @@
 // js/players.js
-
 export const RARITIES = {
     BRONZE: { name: 'Bronzo', min: 50, max: 64, color: 'var(--rarity-bronze)' },
     SILVER: { name: 'Argento', min: 65, max: 74, color: 'var(--rarity-silver)' },
@@ -16,7 +15,6 @@ const LAST_NAMES = ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano"
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-// ESPORTIAMO QUESTA FUNZIONE PER USARLA NEL MERCATO
 export function randomName() { return `${FIRST_NAMES[randomInt(0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[randomInt(0, LAST_NAMES.length - 1)]}`; }
 
 function determineRarity(overall) {
@@ -47,7 +45,9 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
     const rarityKey = determineRarity(overall);
     const nationality = NATIONALITIES[Math.floor(Math.random() * NATIONALITIES.length)];
     const value = calculateValue(overall);
+    const age = randomInt(18, 36);
 
+    // Ruoli secondari
     let secondaryPositions = [];
     if (overall >= 74) {
         if (pos === 'DIF' && Math.random() > 0.5) secondaryPositions.push('CEN');
@@ -55,17 +55,31 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
         if (pos === 'ATT' && Math.random() > 0.5) secondaryPositions.push('CEN');
     }
 
+    // Statistiche di Background
+    const appearances = randomInt(0, 300);
+    let goals = 0, assists = 0;
+    if(pos === 'ATT') goals = Math.floor(appearances * (Math.random() * 0.6));
+    if(pos === 'CEN') { goals = Math.floor(appearances * 0.1); assists = Math.floor(appearances * 0.2); }
+    if(pos === 'DIF') goals = Math.floor(appearances * 0.05);
+
     return {
         id: Math.random().toString(36).substr(2, 9),
         name: randomName(),
         nationality: nationality,
+        age: age,
         position: pos,
         secondaryPositions: secondaryPositions,
         overall: overall,
         rarity: RARITIES[rarityKey].name,
         color: RARITIES[rarityKey].color,
         isStarter: isStarter,
-        value: value
+        value: value,
+        stats: {
+            appearances: appearances,
+            goals: goals,
+            assists: assists,
+            cleanSheets: pos === 'POR' ? Math.floor(appearances * 0.3) : 0
+        }
     };
 }
 

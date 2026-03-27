@@ -267,3 +267,31 @@ input[type="color"] { width: 100%; height: 38px; border: 1px solid var(--border-
     border-color: rgba(255,255,255,0.8);
     color: rgba(255,255,255,0.8);
 }
+
+/* ─── MODAL CUSTOM E SVINCOLO ───────────────────── */
+.modal-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+
+.modal-box {
+    background: var(--bg-card); border: 1px solid var(--border-dim);
+    border-radius: var(--radius-lg); padding: 24px; width: 90%; max-width: 380px;
+    transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+}
+.modal-overlay.active .modal-box { transform: translateY(0); }
+
+.modal-buttons { display: flex; gap: 12px; margin-top: 24px; }
+
+/* Stile carte in Modalità Svincolo */
+.release-selected {
+    border-color: var(--notif-error) !important;
+    box-shadow: 0 0 15px var(--notif-error) !important;
+    transform: scale(1.1) !important;
+    background-image: linear-gradient(to bottom, rgba(240, 82, 82, 0.2), transparent) !important;
+}
+.dimmed { opacity: 0.4; pointer-events: none; filter: grayscale(100%); }
