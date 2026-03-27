@@ -38,7 +38,7 @@ export function generatePlayer(pos, isStarter, forcedRarity = null) {
 }
 
 export function generateInitialSquad() {
-    // Pacchetto Starter: 2 Giocatori Argento garantiti, 10 Bronzo
+    // 2 Argento Garantiti, 10 Bronzo
     return [
         generatePlayer('POR', true, 'BRONZE'),
         generatePlayer('DIF', true, 'SILVER'), generatePlayer('DIF', true, 'BRONZE'),

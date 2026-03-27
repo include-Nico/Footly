@@ -11,7 +11,6 @@ export async function loadView(viewName) {
         const html = await response.text();
         mainContent.innerHTML = html;
 
-        // Se l'utente clicca sulla scheda "Squadra", lanciamo la funzione per disegnare le carte
         if (viewName === 'squad') {
             renderSquad();
         }
@@ -22,24 +21,20 @@ export async function loadView(viewName) {
     }
 }
 
-// Funzione che disegna dinamicamente le carte giocatore sul campo e in panchina
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
     const bench = document.getElementById('bench-players');
     
     if(!pitch || !bench) return;
 
-    // Svuotiamo il campo prima di disegnare
     pitch.innerHTML = '';
     bench.innerHTML = '';
 
-    // Controlliamo se ci sono giocatori salvati
     if (!gameState.userTeam.players || gameState.userTeam.players.length === 0) {
         pitch.innerHTML = `<div style="color: var(--text-hint); text-align: center; width: 100%;">Nessun giocatore in rosa. Vai al mercato!</div>`;
         return;
     }
 
-    // Disegniamo ogni giocatore in base al suo stato (Titolare o Riserva)
     gameState.userTeam.players.forEach(p => {
         const cardHTML = `
             <div class="player-card" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">

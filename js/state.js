@@ -3,7 +3,7 @@ export const gameState = {
     userTeam: {
         name: "",
         league: "",
-        division: 3, // Si parte dalla 3° Divisione
+        division: 3, // Nuova Feature: si parte dalla 3a divisione
         coins: 10000,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
@@ -21,17 +21,14 @@ export function loadGame() {
     const savedData = localStorage.getItem('footly_save_data');
     if (savedData) {
         const parsedData = JSON.parse(savedData);
-        
-        // Uniamo i vecchi dati salvati con la struttura nuova
         Object.assign(gameState.userTeam, parsedData.userTeam);
         gameState.currentView = parsedData.currentView || "home";
 
-        // FIX: Se il vecchio salvataggio non aveva la divisione, la impostiamo a 3
+        // FIX: Se il salvataggio vecchio non aveva la divisione, imposta a 3
         if (!gameState.userTeam.division) {
             gameState.userTeam.division = 3;
-            saveGame(); // Salviamo subito per correggere il file
+            saveGame();
         }
-        
         return true;
     }
     return false;

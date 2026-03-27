@@ -22,7 +22,6 @@ export function switchToMainApp() {
 
 export function updateDashboardHeader() {
     elements.displayTeamName.textContent = gameState.userTeam.name;
-    // Mostriamo Campionato e Divisione!
     elements.displayLeague.textContent   = `${gameState.userTeam.league} · Div ${gameState.userTeam.division}`;
     elements.coinsDisplay.textContent    = gameState.userTeam.coins.toLocaleString('it-IT');
 }

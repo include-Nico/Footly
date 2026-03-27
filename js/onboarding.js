@@ -30,11 +30,9 @@ export function initOnboarding() {
         gameState.userTeam.colors.secondary = colorSecondaryInput.value;
         gameState.userTeam.kitStyle         = kitStyleSelect.value;
         
-        // Genera giocatori e Salva
         gameState.userTeam.players = generateInitialSquad();
         saveGame();
 
-        // Lancia l'animazione di apertura pacchetto!
         showPackOpening();
     });
 }
@@ -45,9 +43,7 @@ function validateForm() {
     startGameBtn.classList.toggle('disabled', !valid);
 }
 
-// LOGICA APERTURA PACCHETTO
 function showPackOpening() {
-    // Nascondiamo l'onboarding
     elements.onboardingScreen.classList.remove('active');
     elements.onboardingScreen.classList.add('hidden');
 
@@ -59,14 +55,11 @@ function showPackOpening() {
 
     overlay.style.display = 'flex';
     
-    // Clicca per svelare
     unopened.onclick = () => {
         unopened.style.display = 'none';
         opened.style.display = 'flex';
-        
         cardsContainer.innerHTML = '';
         
-        // Disegna le carte una per una in stile cascata
         gameState.userTeam.players.forEach((p, index) => {
             setTimeout(() => {
                 cardsContainer.innerHTML += `
@@ -80,7 +73,6 @@ function showPackOpening() {
         });
     };
 
-    // Fine apertura, andiamo al gioco!
     finishBtn.onclick = () => {
         overlay.style.display = 'none';
         updateDashboardHeader();

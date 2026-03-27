@@ -4,14 +4,13 @@ import { elements, switchToMainApp, updateDashboardHeader, showNotification } fr
 import { gameState, loadGame } from './state.js';
 import { loadView } from './router.js';
 
-// ─── AVVIO ────────────────────────────────────────
 if (loadGame()) {
     updateDashboardHeader();
     switchToMainApp();
 
     showNotification(
         `Bentornato, ${gameState.userTeam.name}!`,
-        `Campionato di ${gameState.userTeam.league} · ${gameState.userTeam.coins.toLocaleString('it-IT')} monete`,
+        `Campionato di ${gameState.userTeam.league} · Div ${gameState.userTeam.division}`,
         'success',
         4500
     );
@@ -19,7 +18,6 @@ if (loadGame()) {
     initOnboarding();
 }
 
-// ─── ROUTING NAV ──────────────────────────────────
 elements.navItems.forEach(nav => {
     nav.addEventListener('click', () => {
         const targetView = nav.getAttribute('data-target');
