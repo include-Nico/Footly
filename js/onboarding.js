@@ -1,6 +1,7 @@
 // js/onboarding.js
 import { gameState, saveGame } from './state.js';
 import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
+import { generateInitialSquad } from './players.js'; // Importiamo il generatore!
 
 const teamNameInput    = document.getElementById('team-name');
 const leagueBtns       = document.querySelectorAll('.league-btn');
@@ -29,15 +30,17 @@ export function initOnboarding() {
         gameState.userTeam.colors.primary   = colorPrimaryInput.value;
         gameState.userTeam.colors.secondary = colorSecondaryInput.value;
         gameState.userTeam.kitStyle         = kitStyleSelect.value;
+        
+        // GENERA I 12 GIOCATORI!
+        gameState.userTeam.players = generateInitialSquad();
 
         saveGame();
         updateDashboardHeader();
         switchToMainApp();
 
-        // Notifica benvenuto
         showNotification(
             `Benvenuto, ${gameState.userTeam.name}!`,
-            `Il tuo club è stato creato nel campionato di ${gameState.userTeam.league}.`,
+            `Abbiamo assegnato i primi 12 giocatori alla tua rosa.`,
             'success',
             5000
         );

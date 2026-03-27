@@ -1,60 +1,14 @@
-<div class="home-view glass-panel">
-
-    <div class="section-label">Prossima Partita · Giornata 1 di 30</div>
-
-    <div class="match-card">
-        <div class="match-teams">
-            <div class="team-block">
-                <div class="team-crest" id="user-crest">⚽</div>
-                <div class="team-name-label" id="home-team-name">La tua squadra</div>
+<div class="squad-view">
+    <div class="section-label" style="margin-bottom: 10px;">Titolari (2-3-1)</div>
+    
+    <div class="pitch-container" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 20px;">
+        <div id="pitch-players" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 100%;">
             </div>
-            <div class="vs-badge">VS</div>
-            <div class="team-block">
-                <div class="team-crest">🤖</div>
-                <div class="team-name-label">FC CPU</div>
-            </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div style="display:flex;gap:8px;font-size:11px;color:var(--text-hint);">
-            <span><i class="fas fa-location-dot" style="margin-right:4px;color:var(--accent);"></i>Casa</span>
-            <span style="margin-left:auto"><i class="fas fa-calendar" style="margin-right:4px;"></i>Oggi</span>
-        </div>
     </div>
 
-    <button class="play-btn" id="play-match-btn">
-        <div class="play-icon"><i class="fas fa-play"></i></div>
-        Gioca Ora
-    </button>
-
-    <div class="divider" style="margin-top:20px;"></div>
-
-    <div class="section-label" style="margin-bottom:12px;">Statistiche Stagione</div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div style="background:var(--bg-surface);border:1px solid var(--border-dim);border-radius:var(--radius-sm);padding:12px;text-align:center;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--accent);">0</div>
-            <div style="font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Vittorie</div>
+    <div class="divider"></div>
+    <div class="section-label" style="margin-bottom: 10px;">Panchina</div>
+    
+    <div id="bench-players" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
         </div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-dim);border-radius:var(--radius-sm);padding:12px;text-align:center;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--text-muted);">0</div>
-            <div style="font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Pareggi</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-dim);border-radius:var(--radius-sm);padding:12px;text-align:center;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--notif-error);">0</div>
-            <div style="font-size:10px;color:var(--text-hint);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Sconfitte</div>
-        </div>
-    </div>
-
 </div>
-
-<script>
-    // Aggiorna nome squadra nel match card
-    const state = JSON.parse(localStorage.getItem('footly_save_data') || '{}');
-    const name = state?.userTeam?.name;
-    if (name) {
-        const el = document.getElementById('home-team-name');
-        if (el) el.textContent = name;
-    }
-</script>

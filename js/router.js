@@ -1,51 +1,46 @@
-// js/onboarding.js
-import { gameState, saveGame } from './state.js';
-import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
+// js/router.js
+import { gameState } from './state.js';
 
-const teamNameInput    = document.getElementById('team-name');
-const leagueBtns       = document.querySelectorAll('.league-btn');
-const startGameBtn     = document.getElementById('start-game-btn');
-const colorPrimaryInput  = document.getElementById('color-primary');
-const colorSecondaryInput = document.getElementById('color-secondary');
-const kitStyleSelect   = document.getElementById('kit-style');
+const mainContent = document.getElementById('main-content');
 
-export function initOnboarding() {
+export async function loadView(viewName) {
+    try {
+        const response = await fetch(`views/${viewName}.html`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const html = await response.text();
+        mainContent.innerHTML = html;
 
-    leagueBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            leagueBtns.forEach(b => b.classList.remove('active-league'));
-            btn.classList.add('active-league');
-            gameState.userTeam.league = btn.getAttribute('data-league');
-            validateForm();
-        });
-    });
+        // Se apriamo la scheda Squadra, disegniamo le carte
+        if (viewName === 'squad') {
+            renderSquad();
+        }
 
-    teamNameInput.addEventListener('input', (e) => {
-        gameState.userTeam.name = e.target.value.trim();
-        validateForm();
-    });
-
-    startGameBtn.addEventListener('click', () => {
-        gameState.userTeam.colors.primary   = colorPrimaryInput.value;
-        gameState.userTeam.colors.secondary = colorSecondaryInput.value;
-        gameState.userTeam.kitStyle         = kitStyleSelect.value;
-
-        saveGame();
-        updateDashboardHeader();
-        switchToMainApp();
-
-        // Notifica benvenuto
-        showNotification(
-            `Benvenuto, ${gameState.userTeam.name}!`,
-            `Il tuo club è stato creato nel campionato di ${gameState.userTeam.league}.`,
-            'success',
-            5000
-        );
-    });
+    } catch (error) {
+        console.error("Errore router:", error);
+    }
 }
 
-function validateForm() {
-    const valid = gameState.userTeam.name.length > 2 && gameState.userTeam.league !== '';
-    startGameBtn.disabled = !valid;
-    startGameBtn.classList.toggle('disabled', !valid);
+function renderSquad() {
+    const pitch = document.getElementById('pitch-players');
+    const bench = document.getElementById('bench-players');
+    if(!pitch || !bench) return;
+
+    pitch.innerHTML = '';
+    bench.innerHTML = '';
+
+    // Disegna ogni giocatore
+    gameState.userTeam.players.forEach(p => {
+        const cardHTML = `
+            <div class="player-card" style="border: 1px solid ${p.color}; box-shadow: 0 4px 10px ${p.color}40;">
+                <div class="card-overall" style="color: ${p.color};">${p.overall}</div>
+                <div class="card-pos">${p.position}</div>
+                <div class="card-name">${p.name.split(' ')[1]}</div> </div>
+        `;
+
+        if (p.isStarter) {
+            pitch.innerHTML += cardHTML;
+        } else {
+            bench.innerHTML += cardHTML;
+        }
+    });
 }

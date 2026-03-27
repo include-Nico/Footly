@@ -472,7 +472,6 @@ input[type="color"] {
         var(--bg-surface);
     background-size: 30px 30px;
     border: 1px solid var(--border-accent);
-    height: 280px;
     border-radius: var(--radius-md);
     position: relative;
     display: flex;
@@ -651,4 +650,53 @@ input[type="color"] {
     height: 1px;
     background: var(--border-dim);
     margin: 16px 0;
+}
+
+/* ─── PLAYER CARDS ──────────────────────────────── */
+.player-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    width: 75px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.05), transparent);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.player-card:hover {
+    transform: translateY(-3px);
+}
+
+.card-overall {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.card-pos {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin: 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.card-name {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
 }
