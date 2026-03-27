@@ -53,7 +53,6 @@ export function showNotification(title, message = '', type = 'info', duration = 
     if (duration > 0) setTimeout(dismiss, duration);
 }
 
-// FIX: Aggiunto parametro hideCancel per obbligare l'utente ad andare avanti (Fine partita, Primo tempo)
 export function showConfirm(title, message, onConfirm, confirmText = "Conferma", isDanger = false, hideCancel = false) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';

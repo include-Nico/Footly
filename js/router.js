@@ -7,6 +7,8 @@ const mainContent = document.getElementById('main-content');
 let selectedPlayerId = null; let draggedId = null; 
 let isSvincoloMode = false; let selectedForRelease = new Set();
 
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
 const FORMATIONS = {
     "2-3-1": { att: 0, def: 0, pos: [{role:'POR', t:'88%', l:'50%'}, {role:'DIF', t:'70%', l:'30%'}, {role:'DIF', t:'70%', l:'70%'}, {role:'CEN', t:'45%', l:'20%'}, {role:'CEN', t:'45%', l:'50%'}, {role:'CEN', t:'45%', l:'80%'}, {role:'ATT', t:'15%', l:'50%'}] },
     "3-2-1": { att: -10, def: 15, pos: [{role:'POR', t:'88%', l:'50%'}, {role:'DIF', t:'70%', l:'20%'}, {role:'DIF', t:'70%', l:'50%'}, {role:'DIF', t:'70%', l:'80%'}, {role:'CEN', t:'40%', l:'35%'}, {role:'CEN', t:'40%', l:'65%'}, {role:'ATT', t:'15%', l:'50%'}] },
@@ -42,7 +44,7 @@ function getStarsHTML(strength) {
 }
 
 // ==========================================
-// IL MOTORE DELLA PARTITA ( MATCH ENGINE 2.0 )
+// 1. IL MOTORE DELLA PARTITA 3.0
 // ==========================================
 function renderMatch() {
     let minute = 0; let homeScore = 0; let awayScore = 0; let timerInterval;
@@ -61,6 +63,8 @@ function renderMatch() {
     document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3);
     document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3);
 
+    gameState.userTeam.players.forEach(p => { if(!p.status) p.status = { injured: 0, suspended: 0, yellowCards: 0 }; });
+    
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
     if(unavailable.length > 0) { showNotification("Indisponibili!", "Hai schierato titolari infortunati o squalificati!", "error"); setTimeout(() => loadView('squad'), 2000); return; }
 
@@ -69,6 +73,14 @@ function renderMatch() {
         const div = document.createElement('div'); div.className = `log-event ${type}`;
         div.innerHTML = `<span style="font-weight:bold; color:var(--text-hint); width:30px;">${minute}'</span> <span>${text}</span>`;
         logContainer.prepend(div);
+    }
+
+    // PRE-CALCOLO DELLE OCCASIONI (Max 5 a partita)
+    let totalChances = randomInt(2, 5); 
+    let chanceMinutes = [];
+    while(chanceMinutes.length < totalChances) {
+        let m = randomInt(5, 88);
+        if(!chanceMinutes.includes(m) && ![15, 30, 45, 60, 75].includes(m)) chanceMinutes.push(m);
     }
 
     document.getElementById('start-kickoff-btn').onclick = () => {
@@ -85,11 +97,15 @@ function renderMatch() {
             document.getElementById('match-time').textContent = minute + "'";
             document.getElementById('match-progress').style.width = (minute / 90 * 100) + "%";
 
-            if(minute === 15 || minute === 60) showTacticsModal();
-            // FINE PRIMO TEMPO: Tasto "Gestione Squadra" e niente tasto Annulla! (hideCancel = true)
+            // Eventi Programmati
+            if(minute === 15 || minute === 30 || minute === 60 || minute === 75) showTacticsModal();
+            
+            // FINE PRIMO TEMPO (Apre direttamente la gestione squadra)
             if(minute === 45) { 
                 isPaused = true; 
-                showConfirm("Fine Primo Tempo", "Le squadre rientrano negli spogliatoi. Puoi effettuare i cambi tattici.", () => { document.getElementById('btn-pause-sub').click(); }, "Gestione Squadra", false, true); 
+                showConfirm("Fine Primo Tempo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni e preparati al secondo tempo.", () => { 
+                    document.getElementById('btn-pause-sub').click(); 
+                }, "Gestione Squadra", false, true); // hideCancel = true
             }
             if(minute >= 90) { clearInterval(timerInterval); endGame(); }
 
@@ -98,68 +114,83 @@ function renderMatch() {
     }
 
     function simulateMinute() {
-        // Calcolo Forze Specifiche per Ruolo (SCONTRO DIRETTO)
-        let cpuStarters = nextOpponent.roster.slice(0,7);
-        let cpuAtt = cpuStarters.filter(p=>p.position==='ATT' || p.position==='CEN');
-        let cpuDef = cpuStarters.filter(p=>p.position==='DIF' || p.position==='POR');
-        if(cpuAtt.length===0) cpuAtt = cpuStarters; if(cpuDef.length===0) cpuDef = cpuStarters;
-        let cpuAttAvg = cpuAtt.reduce((s, p)=>s+p.overall, 0)/cpuAtt.length;
-        let cpuDefAvg = cpuDef.reduce((s, p)=>s+p.overall, 0)/cpuDef.length;
-        
-        let userAttPlayers = gameState.userTeam.players.filter(p=>p.isStarter && (p.position==='ATT'||p.position==='CEN') && p.status.injured===0 && p.status.suspended===0);
-        let userDefPlayers = gameState.userTeam.players.filter(p=>p.isStarter && (p.position==='DIF'||p.position==='POR') && p.status.injured===0 && p.status.suspended===0);
-        if(userAttPlayers.length===0) userAttPlayers = gameState.userTeam.players.filter(p=>p.isStarter);
-        if(userDefPlayers.length===0) userDefPlayers = gameState.userTeam.players.filter(p=>p.isStarter);
-        let userAttAvg = userAttPlayers.reduce((s, p)=>s+p.overall, 0)/userAttPlayers.length;
-        let userDefAvg = userDefPlayers.reduce((s, p)=>s+p.overall, 0)/userDefPlayers.length;
+        // Se è il minuto esatto in cui deve avvenire una chance...
+        if (chanceMinutes.includes(minute)) {
+            isPaused = true;
+            
+            let cpuStarters = nextOpponent.roster.slice(0,7);
+            let cpuAtt = cpuStarters.filter(p=>p.position==='ATT' || p.position==='CEN');
+            let cpuDef = cpuStarters.filter(p=>p.position==='DIF' || p.position==='POR');
+            if(cpuAtt.length===0) cpuAtt = cpuStarters; if(cpuDef.length===0) cpuDef = cpuStarters;
+            let cpuAttAvg = cpuAtt.reduce((s, p)=>s+p.overall, 0)/cpuAtt.length;
+            let cpuDefAvg = cpuDef.reduce((s, p)=>s+p.overall, 0)/cpuDef.length;
+            
+            let userAttPlayers = gameState.userTeam.players.filter(p=>p.isStarter && (p.position==='ATT'||p.position==='CEN') && p.status.injured===0 && p.status.suspended===0);
+            let userDefPlayers = gameState.userTeam.players.filter(p=>p.isStarter && (p.position==='DIF'||p.position==='POR') && p.status.injured===0 && p.status.suspended===0);
+            if(userAttPlayers.length===0) userAttPlayers = gameState.userTeam.players.filter(p=>p.isStarter);
+            if(userDefPlayers.length===0) userDefPlayers = gameState.userTeam.players.filter(p=>p.isStarter);
+            let userAttAvg = userAttPlayers.reduce((s, p)=>s+p.overall, 0)/userAttPlayers.length;
+            let userDefAvg = userDefPlayers.reduce((s, p)=>s+p.overall, 0)/userDefPlayers.length;
 
-        // Probabilità matematiche
-        let cpuChance = (cpuAttAvg / (cpuAttAvg + userDefAvg)) * 0.05 + (tacBonusDef < 0 ? 0.02 : 0) + (redCards * 0.02);
-        let userChance = (userAttAvg / (userAttAvg + cpuDefAvg)) * 0.05 + (tacBonusAtt > 0 ? 0.02 : 0);
+            // Pesi per decidere a chi capita l'occasione
+            let userWeight = userAttAvg + tacBonusAtt;
+            let cpuWeight = cpuAttAvg - (tacBonusDef * 0.5) + (redCards * 15);
 
-        if(Math.random() < cpuChance) {
-            if(Math.random() < 0.15) { 
-                isPaused = true; triggerPenalty(false); // Rigore CONTRO
+            if(Math.random() * (userWeight + cpuWeight) < userWeight) {
+                // OCCASIONE UTENTE
+                if(Math.random() < 0.15) { triggerPenalty(true); } // 15% è Rigore
+                else {
+                    let shooter = userAttPlayers[Math.floor(Math.random()*userAttPlayers.length)];
+                    let baseSuccess = (shooter.overall / (shooter.overall + cpuDefAvg)); 
+                    if(shooter.position==='ATT') baseSuccess += 0.2;
+                    if(shooter.position==='DIF') baseSuccess -= 0.1;
+                    triggerGoalMiniGame(shooter, baseSuccess);
+                }
             } else {
-                awayScore++; document.getElementById('score-away').textContent = awayScore;
-                let scorer = cpuAtt[Math.floor(Math.random()*cpuAtt.length)];
-                addLog(`<b>Gol di ${scorer.name} (${nextOpponent.name})!</b> La difesa si è fatta sorprendere.`, 'log-cpu-goal');
-            }
-        } else if(Math.random() < userChance) {
-            if(Math.random() < 0.15) { 
-                isPaused = true; triggerPenalty(true); // Rigore A FAVORE
-            } else {
-                isPaused = true;
-                let shooter = userAttPlayers[Math.floor(Math.random()*userAttPlayers.length)];
-                let baseSuccess = (shooter.overall / (shooter.overall + cpuDefAvg)); // Scontro Diretto (Es. 80 / 160 = 0.5 base)
-                if(shooter.position==='ATT') baseSuccess += 0.2;
-                if(shooter.position==='DIF') baseSuccess -= 0.1;
-                triggerGoalMiniGame(shooter, baseSuccess);
+                // OCCASIONE CPU
+                if(Math.random() < 0.15) { triggerPenalty(false); }
+                else {
+                    let cpuSuccessRate = (cpuAttAvg / (cpuAttAvg + userDefAvg)) - (tacBonusDef * 0.01);
+                    if(Math.random() < cpuSuccessRate) {
+                        awayScore++; document.getElementById('score-away').textContent = awayScore;
+                        let scorer = cpuAtt[Math.floor(Math.random()*cpuAtt.length)];
+                        addLog(`<b>Gol di ${scorer.name} (${nextOpponent.name})!</b> La difesa si è fatta sorprendere.`, 'log-cpu-goal');
+                    } else {
+                        addLog(`Parata! Ottimo intervento della tua difesa contro l'attacco CPU.`);
+                    }
+                    isPaused = false;
+                }
             }
         }
 
-        // Cartellini e Infortuni
-        if(Math.random() < 0.03) {
+        // Cartellini e Infortuni (drasticamente ridotti)
+        if(Math.random() < 0.008) { // Meno dell'1% a minuto
             let active = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0);
             if(active.length > 0) {
                 let p = active[Math.floor(Math.random() * active.length)];
                 let rand = Math.random();
-                if(rand > 0.95) { p.status.injured = Math.floor(Math.random()*3)+1; addLog(`🤕 Brutto fallo! <b>${p.name}</b> esce per infortunio! Sostituiscilo!`, 'log-injury'); }
-                else if(rand > 0.85) { p.status.suspended = 1; redCards++; addLog(`🟥 ROSSO per <b>${p.name}</b>! Lascia la squadra in 10!`, 'log-red'); }
+                if(rand > 0.90) { p.status.injured = Math.floor(Math.random()*2)+1; addLog(`🤕 Scontro duro! <b>${p.name}</b> zoppica vistosamente. Sostituiscilo!`, 'log-injury'); }
+                else if(rand > 0.85) { p.status.suspended = 1; redCards++; addLog(`🟥 ROSSO per <b>${p.name}</b>! Fallaccio da dietro!`, 'log-red'); }
                 else { p.status.yellowCards++; addLog(`🟨 Ammonito <b>${p.name}</b>.`, 'log-yellow'); }
             }
         }
     }
 
-    // LOGICA CALCI DI RIGORE
+    function getActivePlayer(posFilter = null) {
+        let active = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0);
+        if(posFilter) active = active.filter(p => p.position === posFilter || p.position === 'ATT');
+        if(active.length === 0) return null;
+        return active[Math.floor(Math.random() * active.length)];
+    }
+
     function triggerPenalty(isUserShooter) {
         const modal = document.getElementById('goal-modal');
-        let shooterName = isUserShooter ? (gameState.userTeam.players.find(p=>p.isStarter && p.position==='ATT' && p.status.injured===0 && p.status.suspended===0)?.name || "Tuo Giocatore") : "Attaccante CPU";
+        let shooterName = isUserShooter ? (getActivePlayer('ATT')?.name || "Tuo Giocatore") : "Attaccante CPU";
         
         document.getElementById('goal-modal-title').textContent = isUserShooter ? "RIGORE A FAVORE!" : "RIGORE CONTRO!";
         document.getElementById('goal-modal-title').style.color = isUserShooter ? "var(--accent)" : "var(--notif-error)";
         document.getElementById('shooter-name').textContent = isUserShooter ? `${shooterName} sul dischetto.` : "Tuffati per parare!";
-        document.getElementById('goal-helper-text').textContent = isUserShooter ? "Scegli l'angolo dove tirare!" : "Indovina l'angolo!";
+        document.getElementById('goal-helper-text').textContent = isUserShooter ? "Scegli l'angolo dove tirare!" : "Indovina l'angolo in cui si tufferà il portiere!";
         
         modal.classList.add('active');
         let isShotTaken = false;
@@ -185,13 +216,13 @@ function renderMatch() {
                 
                 if(isUserShooter) {
                     if(idx === cpuZone) {
-                        this.classList.add('goal-fail'); addLog(`❌ Rigore PARATO! Il portiere intuisce tutto.`, 'log-red');
+                        this.classList.add('goal-fail'); addLog(`❌ Rigore PARATO! Il portiere intuisce l'angolo.`, 'log-red');
                     } else {
                         this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore; addLog(`⚽ <b>GOOOAAALLLL!</b> Rigore glaciale di ${shooterName}!`, 'log-goal');
                     }
                 } else {
                     if(idx === cpuZone) {
-                        this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore!`, 'log-goal');
+                        this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore intuendo l'angolo giusto!`, 'log-goal');
                     } else {
                         this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; addLog(`⚽ Gol della CPU. Portiere spiazzato.`, 'log-cpu-goal');
                     }
@@ -212,7 +243,7 @@ function renderMatch() {
 
         let isShotTaken = false;
         let shotTimer = setTimeout(() => {
-            if(!isShotTaken) { modal.classList.remove('active'); addLog(`Incredibile! ${shooter.name} ha perso l'attimo.`); isPaused = false; }
+            if(!isShotTaken) { modal.classList.remove('active'); addLog(`Incredibile! ${shooter.name} ha perso l'attimo per tirare.`); isPaused = false; }
         }, 3000);
 
         const oldGrid = document.querySelector('.goal-grid');
@@ -226,9 +257,10 @@ function renderMatch() {
                 
                 if(Math.random() < successRate) {
                     this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore;
-                    addLog(`⚽ <b>GOOOAAALLLL!</b> Ha segnato <b>${shooter.name}</b>!`, 'log-goal');
+                    let assister = getActivePlayer('CEN');
+                    addLog(`⚽ <b>GOOOAAALLLL!</b> Tiro imparabile di <b>${shooter.name}</b>! ${assister && assister.id !== shooter.id ? '(Assist: '+assister.name+')' : ''}`, 'log-goal');
                 } else {
-                    this.classList.add('goal-fail'); addLog(`❌ Miracolo del portiere! <b>${shooter.name}</b> si dispera.`);
+                    this.classList.add('goal-fail'); addLog(`❌ Miracolo del portiere su <b>${shooter.name}</b>!`);
                 }
                 setTimeout(() => { this.classList.remove('goal-success', 'goal-fail'); modal.classList.remove('active'); isPaused = false; }, 1500);
             };
@@ -242,15 +274,14 @@ function renderMatch() {
         document.querySelectorAll('.tactic-choice').forEach(btn => {
             btn.onclick = (e) => {
                 let type = e.target.getAttribute('data-type');
-                if(type === 'att') { tacBonusAtt = 10; tacBonusDef = -10; addLog('🔄 Tattica: Squadra sbilanciata in avanti!'); }
-                if(type === 'def') { tacBonusAtt = -10; tacBonusDef = 10; addLog('🔄 Tattica: Baricentro basso, difesa a oltranza!'); }
+                if(type === 'att') { tacBonusAtt = 15; tacBonusDef = -15; addLog('🔄 Tattica: Squadra sbilanciata in avanti!'); }
+                if(type === 'def') { tacBonusAtt = -15; tacBonusDef = 15; addLog('🔄 Tattica: Baricentro basso, catenaccio!'); }
                 if(type === 'bal') { tacBonusAtt = 0; tacBonusDef = 0; addLog('🔄 Tattica: Equilibrio ristabilito.'); }
                 modal.classList.remove('active'); isPaused = false;
             };
         });
     }
 
-    // GESTIONE SQUADRA IN PARTITA (PITCH E DRAG&DROP IDENTICO ALLA ROSA)
     document.getElementById('btn-pause-sub').onclick = () => {
         isPaused = true;
         const modal = document.getElementById('subs-modal');
@@ -259,7 +290,7 @@ function renderMatch() {
 
         document.getElementById('close-subs-btn').onclick = () => {
             modal.classList.remove('active');
-            isPaused = false; // Riprende il gioco
+            isPaused = false;
         };
     };
 
@@ -280,22 +311,18 @@ function renderMatch() {
                 let displayOverall = isOOP ? Math.floor(p.overall * 0.7) : p.overall;
                 let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
                 if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
-                if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato!"><i class="fas fa-square"></i></div>`;
+                if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
                 
                 let isSelected = selectedPlayerId === p.id ? 'selected' : '';
-                const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
-                
-                // I giocatori espulsi non possono essere trascinati per la sostituzione
-                let isDraggable = (p.status.suspended === 0) ? "true" : "false";
                 let disabledClass = (p.status.suspended > 0) ? "disabled" : "";
 
                 pitch.innerHTML += `
                     <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
                         <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                        <div class="player-card match-card-interactive ${isSelected} ${disabledClass}" draggable="${isDraggable}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                        <div class="player-card match-card-interactive ${isSelected} ${disabledClass}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                             ${warningHTML}
                             <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
+                            <div class="card-pos">${p.position}</div>
                             <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                         </div>
                     </div>
@@ -305,18 +332,16 @@ function renderMatch() {
 
         reserves.forEach(p => {
             let isSelected = selectedPlayerId === p.id ? 'selected' : '';
-            const flag = p.nationality ? p.nationality.split(' ')[0] : '';
             let warningHTML = '';
             if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
             if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato!"><i class="fas fa-square"></i></div>`;
-            let isDraggable = (p.status.suspended === 0 && p.status.injured === 0) ? "true" : "false";
             let disabledClass = (p.status.suspended > 0 || p.status.injured > 0) ? "disabled" : "";
 
             bench.innerHTML += `
-                <div class="player-card match-card-interactive ${isSelected} ${disabledClass}" draggable="${isDraggable}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                <div class="player-card match-card-interactive ${isSelected} ${disabledClass}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                     ${warningHTML}
                     <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
-                    <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
+                    <div class="card-pos">${p.position}</div>
                     <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                 </div>
             `;
@@ -327,11 +352,10 @@ function renderMatch() {
             let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
             let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
             
-            // Consuma una sostituzione solo se uno entra dalla panchina
             if(p1.isStarter !== p2.isStarter) {
                 if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
                 subsLeft--;
-                addLog(`🔄 Sostituzione: Entra ${p1.isStarter ? p2.name : p1.name}.`);
+                addLog(`🔄 Sostituzione: Esce ${p1.isStarter ? p1.name : p2.name}, entra ${p1.isStarter ? p2.name : p1.name}.`);
             }
             
             let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
@@ -350,26 +374,16 @@ function renderMatch() {
 
         document.querySelectorAll('.match-card-interactive').forEach(card => {
             if(card.classList.contains('disabled')) return;
-
             card.onclick = (e) => {
                 e.stopPropagation(); 
                 const id = card.getAttribute('data-id');
                 if (!selectedPlayerId) { selectedPlayerId = id; renderMatchSubsList(); } 
                 else { if (selectedPlayerId === id) selectedPlayerId = null; else executeMatchSwap(selectedPlayerId, id); selectedPlayerId = null; renderMatchSubsList(); }
             };
-
-            card.addEventListener('dragstart', (e) => { draggedId = card.getAttribute('data-id'); setTimeout(() => card.style.opacity = '0.4', 0); });
-            card.addEventListener('dragend', () => { card.style.opacity = '1'; draggedId = null; });
-            card.addEventListener('dragover', (e) => e.preventDefault());
-            card.addEventListener('drop', (e) => { e.preventDefault(); const targetId = card.getAttribute('data-id'); if (draggedId) executeMatchSwap(draggedId, targetId); });
-            card.addEventListener('touchstart', (e) => { draggedId = card.getAttribute('data-id'); card.style.opacity = '0.6'; }, {passive: true});
-            card.addEventListener('touchend', (e) => { card.style.opacity = '1'; if (!draggedId) return; const touch = e.changedTouches[0]; const targetElement = document.elementFromPoint(touch.clientX, touch.clientY); if (targetElement) { const targetCard = targetElement.closest('.match-card-interactive'); const emptySlot = targetElement.closest('.empty-slot'); if (targetCard) { const targetId = targetCard.getAttribute('data-id'); if (targetId) executeMatchSwap(draggedId, targetId); } else if (emptySlot) { const targetIdx = parseInt(emptySlot.getAttribute('data-idx')); executeMatchMove(draggedId, targetIdx); } } draggedId = null; });
         });
 
         document.querySelectorAll('.empty-slot').forEach(slot => {
             slot.onclick = () => { const targetIdx = parseInt(slot.getAttribute('data-idx')); if (selectedPlayerId) { executeMatchMove(selectedPlayerId, targetIdx); selectedPlayerId = null; renderMatchSubsList(); } }
-            slot.addEventListener('dragover', (e) => e.preventDefault());
-            slot.addEventListener('drop', (e) => { e.preventDefault(); const targetIdx = parseInt(slot.getAttribute('data-idx')); if (draggedId) executeMatchMove(draggedId, targetIdx); });
         });
     }
 
@@ -416,15 +430,14 @@ function renderMatch() {
         gameState.userTeam.matchday++;
         saveGame();
 
-        // FINE PARTITA: Tasto Annulla rimosso (hideCancel = true)
         showConfirm(title, `Partita conclusa: <b>${homeScore} - ${awayScore}</b><br><br>Hai guadagnato 💰${coinsEarned}.`, () => {
             loadView('home');
-        }, "Torna alla Dashboard", false, true);
+        }, "Torna alla Dashboard", false, true); // hideCancel = true (Forza ad andare avanti)
     }
 }
 
 // ==========================================
-// RENDER HOME & ALTRE VIE
+// 2. HOME E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -539,9 +552,9 @@ function handleEndSeason() {
     showConfirm("🏆 Stagione Conclusa!", `<b>Premio:</b> 💰 <span style="color:var(--gold);">${reward.toLocaleString()}</span><br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`, () => { renderHome(); }, "Nuova Stagione", false, true);
 }
 
-// ---------------------------------------------------------
-// FUNZIONI SQUAD, MARKET E PROFILE INVARIATE DAL MESSAGGIO PRECEDENTE
-// ---------------------------------------------------------
+// ==========================================
+// 3. SQUADRA E INFO
+// ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
     const bench = document.getElementById('bench-players');
@@ -616,7 +629,7 @@ function renderSquad() {
             pitch.innerHTML += `
                 <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
                     <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                    <div class="player-card player-card-interactive ${isSelected} ${dimmedClass}" draggable="${!isSvincoloMode}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                    <div class="player-card player-card-interactive ${isSelected} ${dimmedClass}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                         ${warningHTML}
                         <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
                         <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
@@ -635,7 +648,7 @@ function renderSquad() {
         if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
 
         bench.innerHTML += `
-            <div class="player-card player-card-interactive ${cardClass}" draggable="${!isSvincoloMode}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+            <div class="player-card player-card-interactive ${cardClass}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                 ${warningHTML}
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
                 <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
@@ -669,24 +682,16 @@ function renderSquad() {
             if (!selectedPlayerId) { selectedPlayerId = id; renderSquad(); } 
             else { if (selectedPlayerId === id) selectedPlayerId = null; else executeSwap(selectedPlayerId, id); selectedPlayerId = null; renderSquad(); }
         };
-
-        if(!isSvincoloMode) {
-            card.addEventListener('dragstart', (e) => { draggedId = card.getAttribute('data-id'); setTimeout(() => card.style.opacity = '0.4', 0); });
-            card.addEventListener('dragend', () => { card.style.opacity = '1'; draggedId = null; });
-            card.addEventListener('dragover', (e) => e.preventDefault());
-            card.addEventListener('drop', (e) => { e.preventDefault(); const targetId = card.getAttribute('data-id'); if (draggedId) executeSwap(draggedId, targetId); });
-            card.addEventListener('touchstart', (e) => { draggedId = card.getAttribute('data-id'); card.style.opacity = '0.6'; }, {passive: true});
-            card.addEventListener('touchend', (e) => { card.style.opacity = '1'; if (!draggedId) return; const touch = e.changedTouches[0]; const targetElement = document.elementFromPoint(touch.clientX, touch.clientY); if (targetElement) { const targetCard = targetElement.closest('.player-card-interactive'); const emptySlot = targetElement.closest('.empty-slot'); if (targetCard) { const targetId = targetCard.getAttribute('data-id'); if (targetId) executeSwap(draggedId, targetId); } else if (emptySlot) { const targetIdx = parseInt(emptySlot.getAttribute('data-idx')); executeMove(draggedId, targetIdx); } } draggedId = null; });
-        }
     });
 
     document.querySelectorAll('.empty-slot').forEach(slot => {
         slot.onclick = () => { if(isSvincoloMode) return; const targetIdx = parseInt(slot.getAttribute('data-idx')); if (selectedPlayerId) { executeMove(selectedPlayerId, targetIdx); selectedPlayerId = null; renderSquad(); } }
-        slot.addEventListener('dragover', (e) => e.preventDefault());
-        slot.addEventListener('drop', (e) => { if(isSvincoloMode) return; e.preventDefault(); const targetIdx = parseInt(slot.getAttribute('data-idx')); if (draggedId) executeMove(draggedId, targetIdx); });
     });
 }
 
+// ==========================================
+// 4. MERCATO E PROFILO
+// ==========================================
 function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
     const resultsContainer = document.getElementById('market-results');
