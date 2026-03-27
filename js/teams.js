@@ -1,6 +1,6 @@
 // js/teams.js
+import { generatePlayer } from './players.js';
 
-// Database dei club per nazione e divisione (Nomi storpiati no-copyright)
 const LEAGUES_DB = {
     "Italia": {
         1: ["Piemonte Bianconero", "Milano Diavolo", "Milano Biscione", "Napoli Vesuvio", "Roma Lupa", "Roma Aquila", "Bergamo Dea", "Firenze Viola", "Torino Granata", "Bologna Rossoblu", "Genova Grifone", "Sassuolo Neroverde", "Udine Friuli", "Verona Gialloblu"],
@@ -17,7 +17,6 @@ const LEAGUES_DB = {
         2: ["Leicester Volpi", "Leeds Bianchi", "Southampton Santi", "Sunderland Gatti", "Middlesbrough Rossi", "Ipswich Trattori", "Norwich Canarini", "West Bromwich", "Coventry Azzurri", "Millwall Leoni", "Swansea Cigni", "Cardiff Draghi", "Stoke Vasai", "Preston Gigli"],
         3: ["Portsmouth Pompey", "Bolton Trotters", "Charlton Addicks", "Derby Arieti", "Sheffield Gufi", "Reading Reali", "Wigan Latics", "Barnsley Rossi", "Blackpool Mandarini", "Rotherham", "Leyton Orient", "Carlisle Blu", "Port Vale", "Crewe Alexandra"]
     },
-    // Fallback generico per Germania, Francia e Portogallo per non appesantire il file
     "Default": {
         1: ["Bayern Monaco FC", "Dortmund Gialli", "Parigi Saint", "Marsiglia OM", "Lione OL", "Porto Draghi", "Lisbona Aquile", "Sporting Leoni", "Lipsia RB", "Lille Mastini", "Monaco Principato", "Leverkusen", "Francoforte", "Stoccarda"],
         2: ["Amburgo SV", "Schalke Blu", "Bordeaux FC", "Saint-Etienne", "Metz FC", "Boavista", "Braga Guerrieri", "Hannover 96", "Norimberga", "Auxerre", "Guingamp", "Sochaux", "Norimberga", "Kaiserslautern"],
@@ -25,60 +24,65 @@ const LEAGUES_DB = {
     }
 };
 
-// Genera la classifica iniziale con le squadre CPU e la squadra dell'utente
 export function initializeLeague(userTeamName, leagueName, division) {
     const db = LEAGUES_DB[leagueName] || LEAGUES_DB["Default"];
-    const cpuTeamNames = db[division] || db[3]; // Fallback alla div 3 se non trovata
-
-    // Determiniamo la forza base in base alla divisione (Div 1: 80-95, Div 2: 70-80, Div 3: 55-70)
-    let minStr = 55, maxStr = 70;
-    if (division === 2) { minStr = 70; maxStr = 80; }
-    if (division === 1) { minStr = 80; maxStr = 95; }
+    const cpuTeamNames = db[division] || db[3];
 
     let standings = [];
 
-    // Aggiungi la squadra dell'utente
+    // Squadra Utente
     standings.push({
         name: userTeamName,
         isUser: true,
-        strength: Math.floor((minStr + maxStr) / 2), // Forza media stimata
-        points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0
+        strength: 60, // L'utente parte con un team da 60 circa
+        points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0,
+        roster: [] // I giocatori dell'utente sono salvati in gameState.userTeam.players
     });
 
-    // Aggiungi le 14 squadre CPU
+    // Generazione Squadre CPU
     cpuTeamNames.forEach(teamName => {
+        let roster = [];
+        let totalStarterOverall = 0;
+        
+        // Creiamo 14 giocatori per CPU (i primi 7 titolari dettano la forza della squadra)
+        for(let i=0; i<14; i++) {
+            const pos = ['POR', 'DIF', 'DIF', 'CEN', 'CEN', 'ATT'][Math.floor(Math.random()*6)];
+            
+            // Adattiamo i giocatori alla divisione per non renderli troppo forti
+            let forcedRarity = 'BRONZE';
+            if(division === 2) forcedRarity = Math.random() > 0.6 ? 'SILVER' : 'BRONZE';
+            if(division === 1) forcedRarity = Math.random() > 0.5 ? 'GOLD' : 'SILVER';
+
+            const p = generatePlayer(pos, i < 7, forcedRarity);
+            roster.push(p);
+            if(i < 7) totalStarterOverall += p.overall;
+        }
+
         standings.push({
             name: teamName,
             isUser: false,
-            strength: Math.floor(Math.random() * (maxStr - minStr + 1)) + minStr,
-            points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0
+            strength: Math.floor(totalStarterOverall / 7), // Forza reale basata sui titolari
+            points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0,
+            roster: roster
         });
     });
 
     return standings;
 }
 
-// Simulatore Partita "Testa a Testa" per squadre CPU
 export function simulateCPUMatch(teamA, teamB) {
     const totalStrength = teamA.strength + teamB.strength;
     const randomRoll = Math.random() * totalStrength;
 
-    let goalsA = 0;
-    let goalsB = 0;
-
-    // Chi vince il roll iniziale ha più probabilità di segnare di più
+    let goalsA = 0, goalsB = 0;
     if (randomRoll <= teamA.strength) {
-        // Vantaggio Team A
-        goalsA = Math.floor(Math.random() * 3) + 1; // 1-3 gol
-        goalsB = Math.floor(Math.random() * 2);     // 0-1 gol
-        // 20% di probabilità di pareggio casuale (il calcio è strano!)
+        goalsA = Math.floor(Math.random() * 3) + 1;
+        goalsB = Math.floor(Math.random() * 2);
         if (Math.random() > 0.8) goalsB = goalsA;
     } else {
-        // Vantaggio Team B
         goalsB = Math.floor(Math.random() * 3) + 1;
         goalsA = Math.floor(Math.random() * 2);
         if (Math.random() > 0.8) goalsA = goalsB;
     }
-
     return { goalsA, goalsB };
 }
