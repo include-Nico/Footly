@@ -9,12 +9,27 @@ export const RARITIES = {
     LEGEND: { name: 'Leggenda', min: 93, max: 99, color: 'var(--rarity-legend)' }
 };
 
-const NATIONALITIES = ["🇮🇹 ITA", "🇪🇸 ESP", "🇬🇧 ENG", "🇩🇪 GER", "🇫🇷 FRA", "🇧🇷 BRA", "🇦🇷 ARG", "🇵🇹 POR", "🇳🇱 NED", "🇧🇪 BEL", "🇺🇾 URU", "🇨🇴 COL"];
-const FIRST_NAMES = ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "Luigi", "Francesco", "Alessandro", "Davide", "Ciro", "Lorenzo", "Diego", "Carlos", "Pablo", "Kevin", "Luis", "Leo"];
-const LAST_NAMES = ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Silva", "Santos", "Gomez", "Lopez", "Muller", "Dubois", "Messi"];
+const NATIONS_DB = {
+    "ITA": { flag: "🇮🇹", first: ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "Francesco", "Alessandro", "Davide", "Lorenzo"], last: ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Ricci"] },
+    "ESP": { flag: "🇪🇸", first: ["Carlos", "Pablo", "Alejandro", "Diego", "Javier", "Sergio", "Daniel", "Luis", "Jose", "Miguel"], last: ["Garcia", "Rodriguez", "Martinez", "Lopez", "Sanchez", "Perez", "Gomez", "Martin", "Jimenez", "Ruiz"] },
+    "ENG": { flag: "🇬🇧", first: ["Jack", "Harry", "Oliver", "Charlie", "Thomas", "George", "William", "James", "Richard", "Edward"], last: ["Smith", "Jones", "Taylor", "Brown", "Williams", "Davies", "Evans", "Wilson", "Johnson", "Wright"] },
+    "GER": { flag: "🇩🇪", first: ["Thomas", "Lukas", "Felix", "Maximilian", "Leon", "Tim", "Paul", "Jonas", "Elias", "Julian"], last: ["Muller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Hoffmann", "Schulz"] },
+    "FRA": { flag: "🇫🇷", first: ["Hugo", "Lucas", "Antoine", "Clement", "Mathis", "Theo", "Arthur", "Louis", "Jules", "Gabriel"], last: ["Martin", "Bernard", "Thomas", "Petit", "Robert", "Richard", "Durand", "Dubois", "Moreau", "Laurent"] },
+    "BRA": { flag: "🇧🇷", first: ["Neymar", "Vinicius", "Gabriel", "Lucas", "Pedro", "Mateus", "Rafael", "Felipe", "Thiago", "Rodrigo"], last: ["Silva", "Santos", "Oliveira", "Souza", "Rodrigues", "Ferreira", "Alves", "Pereira", "Lima", "Gomes"] },
+    "ARG": { flag: "🇦🇷", first: ["Lionel", "Sergio", "Angel", "Gonzalo", "Paulo", "Matias", "Facundo", "Julian", "Lautaro", "Enzo"], last: ["Gomez", "Rodriguez", "Fernandez", "Lopez", "Diaz", "Martinez", "Perez", "Garcia", "Sanchez", "Romero"] },
+    "POR": { flag: "🇵🇹", first: ["Cristiano", "Joao", "Bernardo", "Ruben", "Bruno", "Diogo", "Pedro", "Goncalo", "Tiago", "Rui"], last: ["Silva", "Santos", "Ferreira", "Pereira", "Oliveira", "Costa", "Rodrigues", "Martins", "Jesus", "Sousa"] },
+    "NED": { flag: "🇳🇱", first: ["Virgil", "Frenkie", "Matthijs", "Memphis", "Stefan", "Donny", "Daley", "Denzel", "Luuk", "Cody"], last: ["Jansen", "De Jong", "Visser", "Bakker", "Smit", "Meijer", "De Boer", "Mulder", "Groot", "Bos"] },
+    "BEL": { flag: "🇧🇪", first: ["Kevin", "Romelu", "Eden", "Thibaut", "Dries", "Youri", "Axel", "Yannick", "Toby", "Jan"], last: ["Peeters", "Janssens", "Maes", "Jacobs", "Willems", "Mertens", "Claes", "Wouters", "Goossens", "De Smet"] }
+};
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-export function randomName() { return `${FIRST_NAMES[randomInt(0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[randomInt(0, LAST_NAMES.length - 1)]}`; }
+
+export function generateRandomNameByNation(natKey) {
+    const nation = NATIONS_DB[natKey] || NATIONS_DB["ITA"];
+    const firstName = nation.first[Math.floor(Math.random() * nation.first.length)];
+    const lastName = nation.last[Math.floor(Math.random() * nation.last.length)];
+    return `${firstName} ${lastName}`;
+}
 
 function getRarityKey(overall) {
     for (const key in RARITIES) { if (overall >= RARITIES[key].min && overall <= RARITIES[key].max) return key; }
@@ -30,8 +45,6 @@ export function calculateValue(overall) {
     return randomInt(100000, 500000);
 }
 
-export function generateRandomNameByNation(natKey) { return randomName(); }
-
 export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = false) {
     let overall;
     if (forcedRarity === 'LEGEND') overall = randomInt(93, 99);
@@ -44,7 +57,12 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
     else overall = randomInt(50, 70);
     
     const rarityKey = getRarityKey(overall);
-    const nationality = NATIONALITIES[Math.floor(Math.random() * NATIONALITIES.length)];
+    
+    // FIX: Scelta Nazione
+    const nationKeys = Object.keys(NATIONS_DB);
+    const natKey = nationKeys[Math.floor(Math.random() * nationKeys.length)];
+    const nationality = `${NATIONS_DB[natKey].flag} ${natKey}`;
+    
     const age = isRegen ? randomInt(17, 19) : randomInt(18, 34);
 
     let secondaryPositions = [];
@@ -56,9 +74,9 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
 
     return {
         id: Math.random().toString(36).substr(2, 9),
-        name: randomName(),
+        name: generateRandomNameByNation(natKey), // Usa la nazione corretta!
         nationality: nationality,
-        nationKey: "ITA",
+        nationKey: natKey, // FIX: Salviamo la nazione vera
         age: age,
         position: pos,
         secondaryPositions: secondaryPositions,
@@ -69,7 +87,7 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         value: calculateValue(overall),
         stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 },
         status: { injured: 0, suspended: 0, yellowCards: 0 },
-        trainingBoost: 0 // NUOVO: Traccia l'allenamento pagato dal player
+        trainingBoost: 0 
     };
 }
 
@@ -92,20 +110,17 @@ export function processEndOfSeason(player) {
     if (player.age >= 40 || (player.age >= 35 && Math.random() > 0.4)) return { retired: true, growth: 0 };
 
     let growth = 0;
-    // Crescita Base per Età
     if (player.age <= 23) growth = randomInt(1, 4);
     else if (player.age > 23 && player.age <= 28) growth = randomInt(0, 2);
     else if (player.age > 28 && player.age <= 32) growth = randomInt(-1, 1);
     else growth = randomInt(-3, -1);
 
-    // Crescita per Prestazioni
     if (player.stats.appearances > 10) growth += 1;
     if (player.stats.goals > 5) growth += 1;
 
-    // NUOVO: Aggiunta del Boost Allenamento pagato durante l'anno
     if (player.trainingBoost && player.trainingBoost > 0) {
         growth += player.trainingBoost;
-        player.trainingBoost = 0; // Reset a fine stagione
+        player.trainingBoost = 0;
     }
 
     player.overall += growth;

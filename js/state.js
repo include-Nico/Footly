@@ -8,11 +8,11 @@ export const gameState = {
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
         formation: "2-3-1",
-        matchday: 1, // NUOVO: Tiene traccia della giornata corrente
+        matchday: 1,
         players: [],
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
     },
-    world: { 1: [], 2: [], 3: [] },
+    world: {}, // Ora conterrà: { "Italia": {1:[], 2:[], 3:[]}, "Spagna": {...} }
     currentView: "home"
 };
 
@@ -31,7 +31,7 @@ export function loadGame() {
 
         if (!gameState.userTeam.division) gameState.userTeam.division = 3;
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
-        if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1; // Fallback
+        if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1;
         
         saveGame();
         return true;
