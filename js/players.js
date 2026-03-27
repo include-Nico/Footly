@@ -30,9 +30,7 @@ export function calculateValue(overall) {
     return randomInt(100000, 500000);
 }
 
-export function generateRandomNameByNation(natKey) {
-    return randomName(); // Semplificato per spazio
-}
+export function generateRandomNameByNation(natKey) { return randomName(); }
 
 export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = false) {
     let overall;
@@ -70,8 +68,8 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         isStarter: isStarter,
         value: calculateValue(overall),
         stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 },
-        // NUOVO: Gestione infortuni e squalifiche (in giornate)
-        status: { injured: 0, suspended: 0, yellowCards: 0 }
+        status: { injured: 0, suspended: 0, yellowCards: 0 },
+        trainingBoost: 0 // NUOVO: Traccia l'allenamento pagato dal player
     };
 }
 
@@ -94,13 +92,21 @@ export function processEndOfSeason(player) {
     if (player.age >= 40 || (player.age >= 35 && Math.random() > 0.4)) return { retired: true, growth: 0 };
 
     let growth = 0;
+    // Crescita Base per Età
     if (player.age <= 23) growth = randomInt(1, 4);
     else if (player.age > 23 && player.age <= 28) growth = randomInt(0, 2);
     else if (player.age > 28 && player.age <= 32) growth = randomInt(-1, 1);
     else growth = randomInt(-3, -1);
 
+    // Crescita per Prestazioni
     if (player.stats.appearances > 10) growth += 1;
     if (player.stats.goals > 5) growth += 1;
+
+    // NUOVO: Aggiunta del Boost Allenamento pagato durante l'anno
+    if (player.trainingBoost && player.trainingBoost > 0) {
+        growth += player.trainingBoost;
+        player.trainingBoost = 0; // Reset a fine stagione
+    }
 
     player.overall += growth;
     if (player.overall > 99) player.overall = 99;
