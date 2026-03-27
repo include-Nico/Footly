@@ -9,10 +9,8 @@ export const gameState = {
         kitStyle: "solid",
         formation: "2-3-1",
         players: [],
-        // Statistiche di squadra per la stagione in corso
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
     },
-    // Contiene tutte le squadre CPU divise per divisione (1, 2, 3)
     world: { 1: [], 2: [], 3: [] },
     currentView: "home"
 };
@@ -42,4 +40,14 @@ export function loadGame() {
 export function resetGame() {
     localStorage.removeItem('footly_save_data');
     location.reload(); 
+}
+
+// NUOVO: Calcola la forza della TUA squadra (media dei 7 titolari)
+export function getUserTeamStrength() {
+    if(!gameState.userTeam.players || gameState.userTeam.players.length === 0) return 0;
+    let starters = gameState.userTeam.players.filter(p => p.isStarter);
+    if(starters.length === 0) return 0;
+    
+    let sum = starters.reduce((acc, p) => acc + p.overall, 0);
+    return Math.floor(sum / starters.length);
 }

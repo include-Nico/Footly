@@ -6,12 +6,14 @@
         <div class="match-teams">
             <div class="team-block">
                 <div class="team-crest" id="user-crest">⚽</div>
-                <div class="team-name-label" id="home-team-name">La tua squadra</div>
+                <div class="team-name-label" id="home-team-name" style="margin-top:4px;">La tua squadra</div>
+                <div id="home-team-rating" style="display:flex; flex-direction:column; align-items:center; margin-top:2px;"></div>
             </div>
             <div class="vs-badge">VS</div>
             <div class="team-block">
                 <div class="team-crest">🤖</div>
-                <div class="team-name-label" id="cpu-team-name">Avversario</div>
+                <div class="team-name-label" id="cpu-team-name" style="margin-top:4px;">Avversario</div>
+                <div id="cpu-team-rating" style="display:flex; flex-direction:column; align-items:center; margin-top:2px;"></div>
             </div>
         </div>
 
@@ -42,16 +44,15 @@
         <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; color: var(--text-primary);">
             <thead>
                 <tr style="color: var(--text-hint); border-bottom: 1px solid var(--border-dim);">
-                    <th style="padding: 6px 4px; width: 10%;">#</th>
-                    <th style="padding: 6px 4px; width: 50%;">Squadra</th>
+                    <th style="padding: 6px 4px; width: 5%;">#</th>
+                    <th style="padding: 6px 4px; width: 45%;">Squadra</th>
+                    <th style="padding: 6px 4px; text-align: center; width: 25%;">Forza</th>
                     <th style="padding: 6px 4px; text-align: center;">PT</th>
                     <th style="padding: 6px 4px; text-align: center;">G</th>
-                    <th style="padding: 6px 4px; text-align: center;">DR</th>
                 </tr>
             </thead>
             <tbody id="league-table-body">
             </tbody>
         </table>
     </div>
-
 </div>

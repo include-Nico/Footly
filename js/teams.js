@@ -1,51 +1,69 @@
 // js/teams.js
 import { generatePlayer } from './players.js';
 
+// SOLO 4 CAMPIONATI
 const LEAGUES_DB = {
     "Italia": {
         1: ["Piemonte Bianconero", "Milano Diavolo", "Milano Biscione", "Napoli Vesuvio", "Roma Lupa", "Roma Aquila", "Bergamo Dea", "Firenze Viola", "Torino Granata", "Bologna Rossoblu", "Genova Grifone", "Sassuolo Neroverde", "Udine Friuli", "Verona Gialloblu"],
         2: ["Palermo Aquile", "Bari Galletti", "Venezia Leoni", "Parma Crociati", "Brescia Rondinelle", "Lecce Lupi", "Cagliari Sardi", "Pisa Torre", "Como Lariani", "Cremona Tigri", "Frosinone Giallo", "Ascoli Picchio", "Spezia Bianconeri", "Catanzaro Sud"],
-        3: ["Catania Elefante", "Foggia Satanelli", "Avellino Lupi", "Padova Scudi", "Vicenza Rossi", "Mantova Virgiliani", "Cesena Cavallucci", "Spal Estensi", "Taranto Delfini", "Juve Stabia", "Latina Pontini", "Arezzo Cavallo", "Rimini Riviera"] // 13 CPU, il 14esimo è l'utente
+        3: ["Catania Elefante", "Foggia Satanelli", "Avellino Lupi", "Padova Scudi", "Vicenza Rossi", "Mantova Virgiliani", "Cesena Cavallucci", "Spal Estensi", "Taranto Delfini", "Juve Stabia", "Latina Pontini", "Arezzo Cavallo", "Rimini Riviera"]
     },
-    // Default Generico
-    "Default": {
-        1: ["Real Madrid FC", "Barcellona FC", "Manchester Rossi", "Monaco Bayern", "Parigi Saint", "Londra Cannoni", "Liverpool Reds", "Madrid Colchoneros", "Londra Blues", "Tottenham", "Marsiglia OM", "Dortmund", "Porto Draghi", "Lisbona Aquile"],
-        2: ["Siviglia FC", "Valencia", "Everton", "Newcastle", "Lione OL", "Lipsia RB", "Leverkusen", "Sporting", "Betis", "Aston Villa", "West Ham", "Brighton", "Lille", "Francoforte"],
-        3: ["Villarreal", "Celta", "Fulham", "Palace", "Bordeaux", "Stoccarda", "Braga", "Amburgo", "Schalke", "Saint-Etienne", "Leicester", "Leeds", "Southampton", "Boavista"]
+    "Spagna": {
+        1: ["Madrid Blanca", "Catalogna FC", "Madrid Colchoneros", "Siviglia FC", "Betis Bianco-Verde", "Valencia Pipistrelli", "Baschi Bilbao", "Real San Sebastian", "Villarreal Gialli", "Celta Galizia", "Osasuna Rossi", "Getafe Azzurri", "Maiorca Isole", "Almeria FC"],
+        2: ["Saragozza Leoni", "Sporting Gijon", "Tenerife Canarie", "Las Palmas", "Levante Rane", "Eibar Armeros", "Alaves Babazorros", "Valladolid Pucela", "Oviedo Blu", "Burgos CF", "Cartagena", "Huesca Rossi", "Mirandes", "Leganes"],
+        3: ["Deportivo La Coruna", "Racing Santander", "Murcia Imperial", "Cordoba Califfi", "Ibiza FC", "Marbella", "Recreativo Huelva", "Logrones", "Numancia", "Gimnastic", "Cultural Leonesa", "Ponferradina", "Sabadell"]
+    },
+    "Inghilterra": {
+        1: ["Manchester Rossi", "Manchester Azzurri", "Londra Cannoni", "Londra Blues", "Liverpool Reds", "Tottenham Spurs", "Newcastle Magpies", "Aston Villa Leoni", "West Ham Martelli", "Everton Toffees", "Brighton Gabbiani", "Fulham Cottagers", "Crystal Palace Aquile", "Lupi Wolverhampton"],
+        2: ["Leicester Volpi", "Leeds Bianchi", "Southampton Santi", "Sunderland Gatti", "Middlesbrough Rossi", "Ipswich Trattori", "Norwich Canarini", "West Bromwich", "Coventry Azzurri", "Millwall Leoni", "Swansea Cigni", "Cardiff Draghi", "Stoke Vasai", "Preston Gigli"],
+        3: ["Portsmouth Pompey", "Bolton Trotters", "Charlton Addicks", "Derby Arieti", "Sheffield Gufi", "Reading Reali", "Wigan Latics", "Barnsley Rossi", "Blackpool Mandarini", "Rotherham", "Leyton Orient", "Carlisle Blu", "Port Vale"]
+    },
+    "Germania": {
+        1: ["Bayern Monaco FC", "Dortmund Gialli", "Lipsia RB", "Leverkusen", "Francoforte", "Stoccarda", "Wolfsburg", "Monchengladbach", "Friburgo", "Brema", "Berlino Azzurri", "Hoffenheim", "Colonia", "Magonza"],
+        2: ["Amburgo SV", "Schalke Blu", "Hannover 96", "Norimberga", "Kaiserslautern", "Dusseldorf", "Sankt Pauli", "Karlsruhe", "Bochum", "Paderborn", "Kiel", "Magdeburgo", "Greuther Furth", "Rostock"],
+        3: ["Monaco 1860", "Dinamo Dresda", "Osnabruck", "Saarbrucken", "Duisburg", "Essen", "Bielefeld", "Mannheim", "Aue", "Hallescher", "Wiesbaden", "Verl", "Ingolstadt"]
     }
 };
 
-// Costruisce l'Ecosistema Globale all'Onboarding
 export function initializeWorld(leagueName) {
-    const db = LEAGUES_DB[leagueName] || LEAGUES_DB["Default"];
+    const db = LEAGUES_DB[leagueName] || LEAGUES_DB["Italia"];
     let world = { 1: [], 2: [], 3: [] };
 
-    // Genera squadre e rose per ogni divisione
     [1, 2, 3].forEach(division => {
-        let cpuTeamNames = db[division];
+        let cpuTeamNames = db[division] || db[3];
         
         cpuTeamNames.forEach(teamName => {
             let roster = [];
             let totalStarterOverall = 0;
             
+            // LOGICA RESTRITTIVA RICHIESTA
+            let hasTopTier = false; // Flag per max 1 Epic/Legend
+            
             for(let i=0; i<14; i++) {
                 const pos = ['POR', 'DIF', 'DIF', 'CEN', 'CEN', 'ATT'][Math.floor(Math.random()*6)];
                 
-                // La magia: Div 1 ha Epic/Legend, Div 2 ha Gold/Rare, Div 3 ha Bronze/Silver!
                 let forcedRarity = 'BRONZE';
                 const rand = Math.random();
+
                 if(division === 1) {
-                    if(rand > 0.95) forcedRarity = 'LEGEND';
-                    else if(rand > 0.70) forcedRarity = 'EPIC';
-                    else if(rand > 0.30) forcedRarity = 'SUPERRARE';
+                    // Solo se non ha un Top Tier, ha una chance (50%) di trovarne UNO
+                    if(rand > 0.90 && !hasTopTier && Math.random() > 0.5) { 
+                        forcedRarity = Math.random() > 0.8 ? 'LEGEND' : 'EPIC';
+                        hasTopTier = true; // Bloccato! Massimo 1 per squadra.
+                    } else if(rand > 0.80) forcedRarity = 'SUPERRARE';
+                    else if(rand > 0.40) forcedRarity = 'RAREGOLD';
                     else forcedRarity = 'GOLD';
-                } else if(division === 2) {
-                    if(rand > 0.90) forcedRarity = 'RAREGOLD';
+                } 
+                else if(division === 2) {
+                    // MAX ORO RARO in Div 2
+                    if(rand > 0.85) forcedRarity = 'RAREGOLD';
                     else if(rand > 0.40) forcedRarity = 'GOLD';
                     else forcedRarity = 'SILVER';
-                } else {
-                    if(rand > 0.90) forcedRarity = 'GOLD';
-                    else if(rand > 0.60) forcedRarity = 'SILVER';
+                } 
+                else { // Div 3
+                    // MAX ARGENTO in Div 3
+                    if(rand > 0.80) forcedRarity = 'SILVER';
+                    else forcedRarity = 'BRONZE';
                 }
 
                 const p = generatePlayer(pos, i < 7, forcedRarity);
@@ -64,4 +82,21 @@ export function initializeWorld(leagueName) {
     });
 
     return world;
+}
+
+export function simulateCPUMatch(teamA, teamB) {
+    const totalStrength = teamA.strength + teamB.strength;
+    const randomRoll = Math.random() * totalStrength;
+
+    let goalsA = 0, goalsB = 0;
+    if (randomRoll <= teamA.strength) {
+        goalsA = Math.floor(Math.random() * 3) + 1;
+        goalsB = Math.floor(Math.random() * 2);
+        if (Math.random() > 0.8) goalsB = goalsA;
+    } else {
+        goalsB = Math.floor(Math.random() * 3) + 1;
+        goalsA = Math.floor(Math.random() * 2);
+        if (Math.random() > 0.8) goalsA = goalsB;
+    }
+    return { goalsA, goalsB };
 }
