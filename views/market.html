@@ -3,15 +3,15 @@
     <div style="text-align: center; margin-bottom: 20px;">
         <i class="fas fa-satellite-dish" style="font-size: 32px; color: var(--accent); margin-bottom: 10px;"></i>
         <h3>Rete Scouting</h3>
-        <p style="font-size: 12px; color: var(--text-hint);">Cerca talenti nelle rose delle squadre avversarie.</p>
+        <p style="font-size: 12px; color: var(--text-hint);">Cerca talenti nelle rose delle squadre mondiali.</p>
     </div>
 
     <div style="background: var(--bg-surface); padding: 15px; border-radius: var(--radius-md); border: 1px solid var(--border-dim); margin-bottom: 20px;">
-        <input type="text" id="market-search-name" placeholder="Cerca nome..." style="margin-bottom: 10px;">
+        <input type="text" id="market-search-name" placeholder="Cerca per nome..." style="margin-bottom: 10px;">
         
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <select id="market-pos" class="glass-select" style="margin-top: 0; flex: 1;">
-                <option value="">Ruolo</option>
+                <option value="">Ruolo (Tutti)</option>
                 <option value="POR">Portiere</option>
                 <option value="DIF">Difensore</option>
                 <option value="CEN">Centrocampista</option>
@@ -19,10 +19,39 @@
             </select>
             
             <select id="market-rarity" class="glass-select" style="margin-top: 0; flex: 1;">
-                <option value="">Qualità</option>
+                <option value="">Qualità (Tutte)</option>
                 <option value="Bronzo">Bronzo</option>
                 <option value="Argento">Argento</option>
                 <option value="Oro">Oro</option>
+                <option value="Oro Raro">Oro Raro</option>
+                <option value="Super Raro">Super Raro</option>
+                <option value="Epico">Epico</option>
+                <option value="Leggenda">Leggenda</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <select id="market-nation" class="glass-select" style="margin-top: 0; flex: 1;">
+                <option value="">Nazione (Tutte)</option>
+                <option value="ITA">🇮🇹 ITA</option>
+                <option value="ESP">🇪🇸 ESP</option>
+                <option value="ENG">🇬🇧 ENG</option>
+                <option value="GER">🇩🇪 GER</option>
+                <option value="FRA">🇫🇷 FRA</option>
+                <option value="BRA">🇧🇷 BRA</option>
+                <option value="ARG">🇦🇷 ARG</option>
+                <option value="POR">🇵🇹 POR</option>
+                <option value="NED">🇳🇱 NED</option>
+                <option value="BEL">🇧🇪 BEL</option>
+                <option value="URU">🇺🇾 URU</option>
+                <option value="COL">🇨🇴 COL</option>
+            </select>
+
+            <select id="market-age" class="glass-select" style="margin-top: 0; flex: 1;">
+                <option value="">Età (Tutte)</option>
+                <option value="17-21">17 - 21 (Giovani)</option>
+                <option value="22-29">22 - 29 (Apice)</option>
+                <option value="30-40">30+ (Esperti)</option>
             </select>
         </div>
         
