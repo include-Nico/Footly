@@ -140,6 +140,22 @@ export function startMatchEngine() {
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
                     p.energy = Math.max(0, p.energy - matchLoss);
+                    
+                    // FIX: Infortuni e cartellini calcolati anche durante la simulazione rapida
+                    if(Math.random() < 0.08) { 
+                        if(Math.random() > 0.6) {
+                            p.status.injured = Math.floor(Math.random()*2)+1;
+                        } else {
+                            p.matchYellows = 1; 
+                            p.stats.yellowCards++; 
+                            p.status.yellowCards++;
+                            if (Math.random() < 0.05) { 
+                                p.status.suspended = 2; 
+                                p.status.yellowCards = 0; 
+                                p.stats.redCards++;
+                            }
+                        }
+                    }
                 });
 
                 const currentF = FORMATIONS[gameState.userTeam.formation];
@@ -408,7 +424,6 @@ export function startMatchEngine() {
         }
     }
 
-    // --- NUOVO SISTEMA MINIGIOCO RIGORI ---
     function triggerPenalty(isUserShooter, reason = 'chance') {
         const modal = document.getElementById('goal-modal');
         let userShooter = isUserShooter ? (getRandomShooter() || getActivePlayer()) : null;
@@ -438,7 +453,6 @@ export function startMatchEngine() {
             document.getElementById('goal-helper-text').textContent = `Indovina l'angolo! Hai ${winningCount} zone su 6 per parare!`;
         }
 
-        // Genera le zone vincenti nascoste
         let allZones = [0, 1, 2, 3, 4, 5];
         allZones.sort(() => Math.random() - 0.5);
         let winningZones = allZones.slice(0, winningCount);
@@ -501,7 +515,6 @@ export function startMatchEngine() {
         });
     }
 
-    // --- NUOVO SISTEMA MINIGIOCO GOL SU AZIONE ---
     function triggerGoalMiniGame(shooterPlayer, isCPU, assisterPlayer = null, reason = 'chance') {
         const modal = document.getElementById('goal-modal');
         const titleEl = document.getElementById('goal-modal-title');
@@ -678,8 +691,8 @@ export function startMatchEngine() {
         reserves.forEach(p => {
             let isSelected = selectedPlayerId === p.id ? 'selected' : '';
             let warningHTML = '';
-            if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
-            if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato!"><i class="fas fa-square"></i></div>`;
+            if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
+            if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
             else if (p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
 
             let disabledClass = (p.status.suspended > 0 || p.status.injured > 0) ? "disabled" : "";
@@ -742,6 +755,7 @@ export function startMatchEngine() {
                 p.status.injured--;
             }
             
+            // --- FIX DIFFIDE ---
             if (p.status.suspended === 1) {
                 p.status.suspended = 0; 
             } 
@@ -752,8 +766,12 @@ export function startMatchEngine() {
                 p.status.suspended = 1; 
                 p.status.yellowCards = 0;
             }
+            else if (p.status.yellowCards === 1 && p.matchYellows === 0 && p.isStarter) {
+                // Sconta la diffida se gioca titolare e non prende nessun altro cartellino!
+                p.status.yellowCards = 0;
+            }
 
-            if(p.isStarter && p.status.suspended === 0) {
+            if(p.isStarter && p.status.suspended === 0 && p.status.injured === 0) {
                 p.stats.appearances++;
                 if(awayScore === 0 && (p.position === 'POR' || p.position === 'DIF')) p.stats.cleanSheets = (p.stats.cleanSheets || 0) + 1;
                 p.energy += randomInt(20, 40); 
