@@ -24,7 +24,8 @@ function getEnergyBarHTML(p) {
 }
 
 export function startMatchEngine() {
-    let minute = 0; let homeScore = 0; let awayScore = 0; 
+    let minute = 0; 
+    let userScore = 0; let cpuScore = 0; 
     let subsLeft = 5; let tacBonusAtt = 0; let tacBonusDef = 0;
     let selectedPlayerId = null; 
     
@@ -55,23 +56,55 @@ export function startMatchEngine() {
     let nextOpponent = opponents[oppIndex];
     let cpuDynamicStrength = nextOpponent.strength;
 
+    // LOGICA CASA/TRASFERTA
+    const isHomeMatch = (gameState.userTeam.matchday % 2 !== 0);
+
     gameState.userTeam.players.forEach(p => { 
         if(!p.status) p.status = { injured: 0, suspended: 0, yellowCards: 0 };
         p.matchYellows = 0; 
     });
 
+    // Funzione per aggiornare i gol nella UI
+    function updateScoreUI() {
+        document.getElementById(isHomeMatch ? 'score-home' : 'score-away').textContent = userScore;
+        document.getElementById(isHomeMatch ? 'score-away' : 'score-home').textContent = cpuScore;
+    }
+
     function updateMatchHeaderStr() {
         const str = getUserTeamStrength(); 
-        document.getElementById('intro-home-str').innerHTML = `${str} ${getStarsHTML(str)}`;
+        if (isHomeMatch) {
+            document.getElementById('intro-home-str').innerHTML = `${str} ${getStarsHTML(str)}`;
+        } else {
+            document.getElementById('intro-away-str').innerHTML = `${str} ${getStarsHTML(str)}`;
+        }
     }
     
+    // Imposta la visualizzazione pre-partita
     document.getElementById('intro-matchday').textContent = gameState.userTeam.matchday;
-    document.getElementById('intro-home-name').textContent = gameState.userTeam.name;
-    document.getElementById('intro-away-name').textContent = nextOpponent.name;
+    document.getElementById('intro-stadium').textContent = isHomeMatch ? "Stadio di Casa" : "Stadio in Trasferta (Ospiti)";
+    
+    if (isHomeMatch) {
+        document.getElementById('intro-home-icon').textContent = "⚽";
+        document.getElementById('intro-away-icon').textContent = "🤖";
+        document.getElementById('intro-home-name').textContent = gameState.userTeam.name;
+        document.getElementById('intro-away-name').textContent = nextOpponent.name;
+        document.getElementById('intro-away-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
+        
+        document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
+        document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
+    } else {
+        document.getElementById('intro-home-icon').textContent = "🤖";
+        document.getElementById('intro-away-icon').textContent = "⚽";
+        document.getElementById('intro-home-name').textContent = nextOpponent.name;
+        document.getElementById('intro-home-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
+        document.getElementById('intro-away-name').textContent = gameState.userTeam.name;
+        
+        document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
+        document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
+    }
+    
     updateMatchHeaderStr();
-    document.getElementById('intro-away-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
-    document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3);
-    document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3);
+    updateScoreUI();
 
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
     if(unavailable.length > 0) { showNotification("Indisponibili!", "Hai schierato titolari infortunati o squalificati!", "error"); setTimeout(() => loadView('squad'), 2000); return; }
@@ -118,10 +151,6 @@ export function startMatchEngine() {
     }
     if(Math.random() > 0.4) chanceMinutes.push(90 + randomInt(1, stoppageTime)); 
 
-    document.getElementById('btn-intro-sim').innerHTML = `Simula Rapida (💎 5) <i class="fas fa-bolt"></i>`;
-    document.getElementById('btn-intro-sim').style.borderColor = "#00d4ff";
-    document.getElementById('btn-intro-sim').style.color = "#00d4ff";
-
     document.getElementById('start-kickoff-btn').onclick = () => {
         document.getElementById('match-intro').style.display = 'none';
         document.getElementById('match-engine').style.display = 'flex';
@@ -141,7 +170,6 @@ export function startMatchEngine() {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
                     p.energy = Math.max(0, p.energy - matchLoss);
                     
-                    // FIX: Infortuni e cartellini calcolati anche durante la simulazione rapida
                     if(Math.random() < 0.08) { 
                         if(Math.random() > 0.6) {
                             p.status.injured = Math.floor(Math.random()*2)+1;
@@ -165,16 +193,16 @@ export function startMatchEngine() {
                 let diff = Math.abs(getUserTeamStrength() - nextOpponent.strength);
                 let totalSimChances = randomInt(3, 5) + Math.floor(diff / 8);
 
-                homeScore = 0; awayScore = 0;
+                userScore = 0; cpuScore = 0;
                 for(let i=0; i<totalSimChances; i++) {
                     if (Math.random() * (wUser + wCpu) <= wUser) { 
-                        if(Math.random() > 0.4) homeScore++; 
+                        if(Math.random() > 0.4) userScore++; 
                     } else { 
-                        if(Math.random() > 0.4) awayScore++; 
+                        if(Math.random() > 0.4) cpuScore++; 
                     }
                 }
 
-                for(let i=0; i<homeScore; i++) {
+                for(let i=0; i<userScore; i++) {
                     let scorer = getRandomShooter();
                     if(scorer) scorer.stats.goals++;
                 }
@@ -466,7 +494,7 @@ export function startMatchEngine() {
                     addLog(`❌ Tempo scaduto! ${shooterName} scivola sul dischetto.`);
                     modal.classList.remove('active'); resumeMatch(reason);
                 } else { 
-                    awayScore++; document.getElementById('score-away').textContent = awayScore; 
+                    cpuScore++; updateScoreUI();
                     addLog(`⚽ Gol di ${shooterName} su rigore. Sei rimasto immobile.`, 'log-cpu-goal'); 
                     modal.classList.remove('active');
                     showMatchBanner('goal-cpu', 'GOL SUBITO', `⚽ ${shooterName}`, () => { resumeMatch(reason); });
@@ -490,7 +518,7 @@ export function startMatchEngine() {
                         this.classList.add('goal-fail'); addLog(`❌ Rigore PARATO! Il portiere intuisce l'angolo.`, 'log-red'); 
                         setTimeout(() => { this.classList.remove('goal-fail'); modal.classList.remove('active'); resumeMatch(reason); }, 1200);
                     } else { 
-                        this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore; 
+                        this.classList.add('goal-success'); userScore++; updateScoreUI(); 
                         if(userShooter) userShooter.stats.goals++;
                         addLog(`⚽ <b>GOOOAAALLLL!</b> Rigore perfetto di ${shooterName}!`, 'log-goal'); 
                         setTimeout(() => { 
@@ -503,7 +531,7 @@ export function startMatchEngine() {
                         this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore intuendo l'angolo giusto!`, 'log-goal'); 
                         setTimeout(() => { this.classList.remove('goal-success'); modal.classList.remove('active'); resumeMatch(reason); }, 1200);
                     } else { 
-                        this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; 
+                        this.classList.add('goal-fail'); cpuScore++; updateScoreUI(); 
                         addLog(`⚽ Gol di ${shooterName}. Portiere spiazzato.`, 'log-cpu-goal'); 
                         setTimeout(() => { 
                             this.classList.remove('goal-fail'); modal.classList.remove('active'); 
@@ -563,7 +591,7 @@ export function startMatchEngine() {
         let shotTimer = setTimeout(() => {
             if(!isResolved) {
                 if(isCPU) { 
-                    awayScore++; document.getElementById('score-away').textContent = awayScore; 
+                    cpuScore++; updateScoreUI(); 
                     addLog(`⚽ Gol di ${shooterName}! Il portiere è rimasto immobile.`, 'log-cpu-goal'); 
                     modal.classList.remove('active');
                     let astText = assisterPlayer ? `<br><span style="font-size:12px; color:white;"><i class="fas fa-shoe-prints"></i> Assist: ${assisterPlayer.name}</span>` : '';
@@ -589,7 +617,7 @@ export function startMatchEngine() {
                         this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Tiro parato incredibilmente!`, 'log-goal');
                         setTimeout(() => { this.classList.remove('goal-success'); modal.classList.remove('active'); resumeMatch(reason); }, 1200);
                     } else {
-                        this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; 
+                        this.classList.add('goal-fail'); cpuScore++; updateScoreUI(); 
                         addLog(`⚽ Gol di ${shooterName}. Tuffo dalla parte sbagliata.`, 'log-cpu-goal'); 
                         setTimeout(() => { 
                             this.classList.remove('goal-fail'); modal.classList.remove('active'); 
@@ -599,7 +627,7 @@ export function startMatchEngine() {
                     }
                 } else {
                     if(isWin) {
-                        this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore;
+                        this.classList.add('goal-success'); userScore++; updateScoreUI();
                         shooterPlayer.stats.goals++;
                         if(assisterPlayer) assisterPlayer.stats.assists++;
                         addLog(`⚽ <b>GOOOAAALLLL!</b> Rete implacabile di <b>${shooterPlayer.name}</b>!`, 'log-goal');
@@ -755,7 +783,6 @@ export function startMatchEngine() {
                 p.status.injured--;
             }
             
-            // --- FIX DIFFIDE ---
             if (p.status.suspended === 1) {
                 p.status.suspended = 0; 
             } 
@@ -767,13 +794,12 @@ export function startMatchEngine() {
                 p.status.yellowCards = 0;
             }
             else if (p.status.yellowCards === 1 && p.matchYellows === 0 && p.isStarter) {
-                // Sconta la diffida se gioca titolare e non prende nessun altro cartellino!
                 p.status.yellowCards = 0;
             }
 
             if(p.isStarter && p.status.suspended === 0 && p.status.injured === 0) {
                 p.stats.appearances++;
-                if(awayScore === 0 && (p.position === 'POR' || p.position === 'DIF')) p.stats.cleanSheets = (p.stats.cleanSheets || 0) + 1;
+                if(cpuScore === 0 && (p.position === 'POR' || p.position === 'DIF')) p.stats.cleanSheets = (p.stats.cleanSheets || 0) + 1;
                 p.energy += randomInt(20, 40); 
             } else {
                 p.energy += randomInt(80, 100); 
@@ -795,22 +821,22 @@ export function startMatchEngine() {
         }
 
         gameState.userTeam.stats.played++;
-        gameState.userTeam.stats.goalsFor += homeScore;
-        gameState.userTeam.stats.goalsAgainst += awayScore;
-        let coinsEarned = homeScore * 50; 
+        gameState.userTeam.stats.goalsFor += userScore;
+        gameState.userTeam.stats.goalsAgainst += cpuScore;
+        let coinsEarned = userScore * 50; 
         
         let title = "";
-        if (homeScore > awayScore) { gameState.userTeam.stats.won++; gameState.userTeam.stats.points += 3; coinsEarned += 500; title="Vittoria!"; }
-        else if (homeScore === awayScore) { gameState.userTeam.stats.drawn++; gameState.userTeam.stats.points += 1; coinsEarned += 200; title="Pareggio!"; }
+        if (userScore > cpuScore) { gameState.userTeam.stats.won++; gameState.userTeam.stats.points += 3; coinsEarned += 500; title="Vittoria!"; }
+        else if (userScore === cpuScore) { gameState.userTeam.stats.drawn++; gameState.userTeam.stats.points += 1; coinsEarned += 200; title="Pareggio!"; }
         else { gameState.userTeam.stats.lost++; coinsEarned += 50; title="Sconfitta!"; }
 
         gameState.userTeam.coins += coinsEarned;
         updateDashboardHeader();
 
         processCpuTeam(nextOpponent);
-        nextOpponent.played++; nextOpponent.goalsFor += awayScore; nextOpponent.goalsAgainst += homeScore;
-        if (awayScore > homeScore) { nextOpponent.won++; nextOpponent.points += 3; }
-        else if (awayScore === homeScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
+        nextOpponent.played++; nextOpponent.goalsFor += cpuScore; nextOpponent.goalsAgainst += userScore;
+        if (cpuScore > userScore) { nextOpponent.won++; nextOpponent.points += 3; }
+        else if (cpuScore === userScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
         else { nextOpponent.lost++; }
 
         for (const lg in gameState.world) {
@@ -836,7 +862,7 @@ export function startMatchEngine() {
         gameState.userTeam.matchday++;
         saveGame();
 
-        showConfirm(title, `Partita conclusa: <b>${homeScore} - ${awayScore}</b><br><br>Hai guadagnato 💰${coinsEarned}. I tuoi titolari sono affaticati, falli riposare nella prossima partita!`, () => {
+        showConfirm(title, `Partita conclusa: <b>${userScore} - ${cpuScore}</b><br><br>Hai guadagnato 💰${coinsEarned}. I tuoi titolari sono affaticati, falli riposare nella prossima partita!`, () => {
             loadView('home');
         }, "Torna alla Dashboard", false, true); 
     }

@@ -2,17 +2,17 @@
     
     <div id="match-intro" style="position: absolute; inset: 0; background: var(--bg-surface); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center;">
         <h2 style="color: var(--accent); margin-bottom: 5px;">Giornata <span id="intro-matchday"></span></h2>
-        <p style="color: var(--text-hint); font-size: 12px; margin-bottom: 30px;">Stadio di Casa</p>
+        <p id="intro-stadium" style="color: var(--text-hint); font-size: 12px; margin-bottom: 30px;">Stadio di Casa</p>
         
         <div style="display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; margin-bottom: 30px;">
             <div style="flex: 1; text-align: right;">
-                <div style="font-size: 40px;">⚽</div>
+                <div id="intro-home-icon" style="font-size: 40px;">⚽</div>
                 <h3 id="intro-home-name" style="margin-top: 10px;">Tu</h3>
                 <div id="intro-home-str" style="color: var(--gold); font-weight: bold;"></div>
             </div>
             <div style="font-size: 24px; font-weight: bold; color: var(--text-muted);">VS</div>
             <div style="flex: 1; text-align: left;">
-                <div style="font-size: 40px;">🤖</div>
+                <div id="intro-away-icon" style="font-size: 40px;">🤖</div>
                 <h3 id="intro-away-name" style="margin-top: 10px;">CPU</h3>
                 <div id="intro-away-str" style="color: var(--gold); font-weight: bold;"></div>
             </div>
@@ -20,7 +20,7 @@
         
         <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 260px;">
             <button id="start-kickoff-btn" class="primary-btn" style="margin-top: 0;">Fischio d'Inizio <i class="fas fa-whistle"></i></button>
-            <button id="btn-intro-sim" class="glass-btn" style="border-color: var(--gold); color: var(--gold); padding: 14px;">Simula Rapida (💰100) <i class="fas fa-bolt"></i></button>
+            <button id="btn-intro-sim" class="glass-btn" style="border-color: #00d4ff; color: #00d4ff; padding: 14px;">Simula Rapida (💎 5) <i class="fas fa-bolt"></i></button>
             <button id="btn-intro-squad" class="glass-btn" style="padding: 14px;">Gestione Squadra <i class="fas fa-users"></i></button>
             <button id="btn-intro-home" class="glass-btn" style="padding: 14px;">Torna alla Home <i class="fas fa-arrow-left"></i></button>
         </div>
