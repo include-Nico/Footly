@@ -28,11 +28,10 @@ export function startMatchEngine() {
     let subsLeft = 5; let tacBonusAtt = 0; let tacBonusDef = 0;
     let selectedPlayerId = null; 
     
-    // GESTIONE TEMPO INFALLIBILE
     let timerInterval = null;
     let pauseReasons = new Set();
     let currentSpeedIdx = 0;
-    const speeds = [400, 100]; // Tolto il 3x (troppo veloce e buggy)
+    const speeds = [400, 100]; 
     const speedLabels = ["1x", "2x"];
     
     let stoppageTime = randomInt(2, 6);
@@ -44,7 +43,6 @@ export function startMatchEngine() {
     let nextOpponent = opponents[oppIndex];
     let cpuDynamicStrength = nextOpponent.strength;
 
-    // Resetta le ammonizioni temporanee della partita in corso
     gameState.userTeam.players.forEach(p => { p.matchYellows = 0; });
 
     function updateMatchHeaderStr() {
@@ -99,10 +97,13 @@ export function startMatchEngine() {
         let m = randomInt(5, 88);
         if(!chanceMinutes.includes(m) && ![15, 30, 45, 60, 75, 90].includes(m)) chanceMinutes.push(m);
     }
-    // Occasione disperata nel recupero (60% di possibilità)
     if(Math.random() > 0.4) chanceMinutes.push(90 + randomInt(1, stoppageTime)); 
 
-    // --- CONTROLLI PRE-PARTITA ---
+    // --- NUOVA SIMULAZIONE (GEMME INVECE DI MONETE) ---
+    document.getElementById('btn-intro-sim').innerHTML = `Simula Rapida (💎 5) <i class="fas fa-bolt"></i>`;
+    document.getElementById('btn-intro-sim').style.borderColor = "#00d4ff";
+    document.getElementById('btn-intro-sim').style.color = "#00d4ff";
+
     document.getElementById('start-kickoff-btn').onclick = () => {
         document.getElementById('match-intro').style.display = 'none';
         document.getElementById('match-engine').style.display = 'flex';
@@ -113,9 +114,9 @@ export function startMatchEngine() {
     document.getElementById('btn-intro-home').onclick = () => loadView('home');
     
     document.getElementById('btn-intro-sim').onclick = () => {
-        if(gameState.userTeam.coins >= 100) {
-            showConfirm("Simulazione Rapida", "Vuoi saltare la partita per 💰100 monete?", () => {
-                gameState.userTeam.coins -= 100;
+        if(gameState.userTeam.gems >= 5) {
+            showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
+                gameState.userTeam.gems -= 5;
                 updateDashboardHeader();
                 
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
@@ -146,24 +147,16 @@ export function startMatchEngine() {
                 document.getElementById('match-intro').style.display = 'none';
                 endGame();
             });
-        } else { showNotification('Fondi Insufficienti', 'Servono 💰100 monete per simulare.', 'error'); }
+        } else { showNotification('Gemme Insufficienti', 'Servono 💎 5 Gemme per simulare.', 'error'); }
     };
 
-    // --- SISTEMA DI PAUSA INFALLIBILE ---
     function startTimerLoop() {
         if(timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(matchTick, speeds[currentSpeedIdx]);
     }
-    function pauseMatch(reason) {
-        pauseReasons.add(reason);
-    }
-    function resumeMatch(reason) {
-        pauseReasons.delete(reason);
-    }
-    function startTimer() {
-        pauseReasons.clear();
-        startTimerLoop();
-    }
+    function pauseMatch(reason) { pauseReasons.add(reason); }
+    function resumeMatch(reason) { pauseReasons.delete(reason); }
+    function startTimer() { pauseReasons.clear(); startTimerLoop(); }
 
     document.getElementById('btn-match-speed').onclick = (e) => {
         currentSpeedIdx = (currentSpeedIdx + 1) % speeds.length;
@@ -179,15 +172,12 @@ export function startMatchEngine() {
         else document.getElementById('match-time').textContent = minute + "'";
         document.getElementById('match-progress').style.width = (Math.min(minute, 90) / 90 * 100) + "%";
 
-        if(minute === 15 || minute === 30 || minute === 60 || minute === 75) {
-            triggerMatchEvent();
-        }
+        if(minute === 15 || minute === 30 || minute === 60 || minute === 75) triggerMatchEvent();
         else if(minute === 45) { 
             pauseMatch('halftime');
             addLog("L'arbitro fischia la fine del primo tempo.");
             showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni.", () => { 
-                resumeMatch('halftime');
-                document.getElementById('btn-pause-sub').click(); 
+                resumeMatch('halftime'); document.getElementById('btn-pause-sub').click(); 
             }, "Gestione Squadra", false, true); 
         }
         else if(minute === 90 && !addedTimeAnnounced) {
@@ -205,20 +195,12 @@ export function startMatchEngine() {
     }
 
     function applyYellowCard(p, reason) {
-        p.matchYellows++;
-        p.stats.yellowCards++; 
-        p.status.yellowCards++;
+        p.matchYellows++; p.stats.yellowCards++; p.status.yellowCards++;
 
         if (p.matchYellows === 2) {
-            p.status.suspended = 2; // Rosso in-game
-            p.stats.redCards++;
-            p.status.yellowCards = 0; 
+            p.status.suspended = 2; p.stats.redCards++; p.status.yellowCards = 0; 
             addLog(`🟥 DOPPIO GIALLO! <b>${p.name}</b> viene espulso!`, 'log-red');
-            showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}<br><span style="font-size:12px;">Doppio Giallo</span>`, () => { 
-                updateMatchHeaderStr();
-                renderMatchSubsList(); 
-                resumeMatch(reason); 
-            });
+            showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}<br><span style="font-size:12px;">Doppio Giallo</span>`, () => { updateMatchHeaderStr(); renderMatchSubsList(); resumeMatch(reason); });
         } else if (p.status.yellowCards >= 2) {
             addLog(`🟨 Ammonito <b>${p.name}</b>. Era diffidato, salterà la prossima gara!`, 'log-yellow');
             showMatchBanner('yellow', 'AMMONIZIONE', `🟨 ${p.name}<br><span style="font-size:12px;color:var(--text-hint);">Diffidato: salterà la prossima gara.</span>`, () => { resumeMatch(reason); });
@@ -229,19 +211,13 @@ export function startMatchEngine() {
     }
 
     function applyRedCard(p, reason) {
-        p.status.suspended = 2; 
-        p.status.yellowCards = 0;
-        p.stats.redCards++;
+        p.status.suspended = 2; p.status.yellowCards = 0; p.stats.redCards++;
         addLog(`🟥 ROSSO DIRETTO! <b>${p.name}</b> finisce negli spogliatoi!`, 'log-red');
-        showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}`, () => { 
-            updateMatchHeaderStr();
-            renderMatchSubsList(); 
-            resumeMatch(reason); 
-        });
+        showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}`, () => { updateMatchHeaderStr(); renderMatchSubsList(); resumeMatch(reason); });
     }
 
     function simulateMinute() {
-        gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
+        gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0).forEach(p => {
             let fatigueChance = p.position === 'POR' ? 0.05 : 0.4;
             if(Math.random() < fatigueChance && p.energy > 0) p.energy--;
         });
@@ -274,7 +250,7 @@ export function startMatchEngine() {
                 }
                 triggerGoalMiniGame(oppShooter, true, oppAssister, 'chance');
             }
-            return; // Previene l'esecuzione di cartellini in contemporanea!
+            return; 
         }
 
         if(Math.random() < 0.01) {
@@ -286,9 +262,7 @@ export function startMatchEngine() {
                     p.status.injured = Math.floor(Math.random()*2)+1; 
                     addLog(`🤕 Brutto contrasto! <b>${p.name}</b> è infortunato!`, 'log-injury'); 
                     showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { renderMatchSubsList(); resumeMatch('foul'); });
-                } else { 
-                    applyYellowCard(p, 'foul');
-                }
+                } else { applyYellowCard(p, 'foul'); }
             }
         }
     }
@@ -725,6 +699,11 @@ export function startMatchEngine() {
             }
             if(p.energy > 100) p.energy = 100;
         });
+
+        // Decrementa Boost a fine gara
+        if(gameState.userTeam.activeBoostMatches > 0) {
+            gameState.userTeam.activeBoostMatches--;
+        }
 
         gameState.userTeam.stats.played++;
         gameState.userTeam.stats.goalsFor += homeScore;

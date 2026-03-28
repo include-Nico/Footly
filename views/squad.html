@@ -15,6 +15,10 @@
         <span id="tactics-def" style="color: var(--notif-info);">DIF: +0%</span>
     </div>
 
+    <div id="super-boost-indicator" style="display: none; text-align: center; margin-bottom: 10px; font-size: 11px; color: var(--rarity-epic); font-weight: bold; animation: pulse-pack 2s infinite;">
+        <i class="fas fa-fire"></i> SUPER BOOST ATTIVO (+15% FORZA) PER <span id="boost-matches-left"></span> PARTITE!
+    </div>
+
     <div class="pitch-container" id="pitch-container" style="height: 420px; width: 100%;">
         <div class="pitch-line-center"></div>
         <div class="pitch-circle"></div>
@@ -27,24 +31,25 @@
     
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <div class="section-label" style="margin: 0;">Panchina</div>
-        <button id="btn-open-hub" class="glass-btn" style="padding: 8px 15px; font-size: 12px; border-color: var(--gold); color: var(--gold);">
-            <i class="fas fa-clipboard-user"></i> Hub Squadra
-        </button>
+        <div style="display: flex; gap: 5px;">
+            <button id="btn-open-inventory" class="glass-btn" style="padding: 8px 12px; font-size: 12px; border-color: #00d4ff; color: #00d4ff;">
+                <i class="fas fa-briefcase"></i> Bonus
+            </button>
+            <button id="btn-open-hub" class="glass-btn" style="padding: 8px 12px; font-size: 12px; border-color: var(--gold); color: var(--gold);">
+                <i class="fas fa-clipboard-user"></i> Hub
+            </button>
+        </div>
     </div>
     
-    <div id="bench-players" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px;">
-        </div>
+    <div id="bench-players" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px;"></div>
     
     <div id="hub-modal" class="modal-overlay">
         <div class="modal-box" style="width: 100%; max-width: 480px; height: 90vh; padding: 0; display: flex; flex-direction: column; background: var(--bg-deep); border: 1px solid var(--border-dim); overflow: hidden;">
-            
             <div style="padding: 15px; background: var(--bg-card); border-bottom: 1px solid var(--border-dim); display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="color: var(--gold); margin: 0;"><i class="fas fa-clipboard-user"></i> Hub Squadra</h3>
+                <h3 id="hub-title" style="color: var(--gold); margin: 0;"><i class="fas fa-clipboard-user"></i> Hub Squadra</h3>
                 <button id="close-hub-btn" class="glass-btn" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-xmark"></i></button>
             </div>
-            
-            <div id="hub-content" style="flex: 1; overflow-y: auto; padding: 15px;">
-                </div>
+            <div id="hub-content" style="flex: 1; overflow-y: auto; padding: 15px;"></div>
         </div>
     </div>
 </div>

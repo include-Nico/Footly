@@ -7,6 +7,9 @@ export const gameState = {
         league: "",
         division: 3,
         coins: 10000,
+        gems: 50, // Gemme iniziali
+        inventory: { healAll: 0, healPlayer: 0, superBoosts: 0 },
+        activeBoostMatches: 0,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
         formation: "2-3-1",
@@ -34,6 +37,10 @@ export function loadGame() {
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
         if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1;
         
+        if (gameState.userTeam.gems === undefined) gameState.userTeam.gems = 50;
+        if (!gameState.userTeam.inventory) gameState.userTeam.inventory = { healAll: 0, healPlayer: 0, superBoosts: 0 };
+        if (gameState.userTeam.activeBoostMatches === undefined) gameState.userTeam.activeBoostMatches = 0;
+
         if (gameState.userTeam.players) {
             gameState.userTeam.players.forEach(p => { 
                 if (p.energy === undefined) p.energy = 100; 
@@ -60,11 +67,16 @@ export function getUserTeamStrength() {
     if(starters.length === 0) return 0;
     
     let sum = starters.reduce((acc, p) => {
-        // Se il giocatore è stato appena espulso in partita (suspended === 2), non aiuta la squadra!
         if (p.status && p.status.suspended === 2) return acc; 
         return acc + getEffectiveOverall(p);
     }, 0);
     
-    // La media viene comunque divisa per l'intera formazione, facendo crollare l'Overall!
-    return Math.floor(sum / starters.length); 
+    let baseStr = Math.floor(sum / starters.length); 
+    
+    // APPLICA SUPER BOOST! (+15%)
+    if (gameState.userTeam.activeBoostMatches > 0) {
+        baseStr = Math.floor(baseStr * 1.15);
+    }
+    
+    return baseStr;
 }
