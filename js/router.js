@@ -9,11 +9,32 @@ let selectedPlayerId = null; let draggedId = null;
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
+// --- FIX: COORDINATE DELLE FORMAZIONI SPAZIATE PER EVITARE SOVRAPPOSIZIONI ---
 export const FORMATIONS = {
-    "2-3-1": { att: 0, def: 0, pos: [{role:'POR', t:'88%', l:'50%'}, {role:'DIF', t:'70%', l:'30%'}, {role:'DIF', t:'70%', l:'70%'}, {role:'CEN', t:'45%', l:'20%'}, {role:'CEN', t:'45%', l:'50%'}, {role:'CEN', t:'45%', l:'80%'}, {role:'ATT', t:'15%', l:'50%'}] },
-    "3-2-1": { att: -10, def: 15, pos: [{role:'POR', t:'88%', l:'50%'}, {role:'DIF', t:'70%', l:'20%'}, {role:'DIF', t:'70%', l:'50%'}, {role:'DIF', t:'70%', l:'80%'}, {role:'CEN', t:'40%', l:'35%'}, {role:'CEN', t:'40%', l:'65%'}, {role:'ATT', t:'15%', l:'50%'}] },
-    "2-2-2": { att: 15, def: -10, pos: [{role:'POR', t:'88%', l:'50%'}, {role:'DIF', t:'72%', l:'30%'}, {role:'DIF', t:'72%', l:'70%'}, {role:'CEN', t:'45%', l:'30%'}, {role:'CEN', t:'45%', l:'70%'}, {role:'ATT', t:'18%', l:'35%'}, {role:'ATT', t:'18%', l:'65%'}] },
-    "1-4-1": { att: 5, def: 5, pos: [{role:'POR', t:'88%', l:'50%'}, {role:'DIF', t:'75%', l:'50%'}, {role:'CEN', t:'48%', l:'20%'}, {role:'CEN', t:'38%', l:'40%'}, {role:'CEN', t:'38%', l:'60%'}, {role:'CEN', t:'48%', l:'80%'}, {role:'ATT', t:'15%', l:'50%'}] }
+    "2-3-1": { att: 0, def: 0, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, 
+        {role:'CEN', t:'42%', l:'20%'}, {role:'CEN', t:'42%', l:'50%'}, {role:'CEN', t:'42%', l:'80%'}, 
+        {role:'ATT', t:'16%', l:'50%'}
+    ] },
+    "3-2-1": { att: -10, def: 15, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'20%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'DIF', t:'66%', l:'80%'}, 
+        {role:'CEN', t:'42%', l:'35%'}, {role:'CEN', t:'42%', l:'65%'}, 
+        {role:'ATT', t:'16%', l:'50%'}
+    ] },
+    "2-2-2": { att: 15, def: -10, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, 
+        {role:'CEN', t:'42%', l:'30%'}, {role:'CEN', t:'42%', l:'70%'}, 
+        {role:'ATT', t:'16%', l:'35%'}, {role:'ATT', t:'16%', l:'65%'}
+    ] },
+    "1-4-1": { att: 5, def: 5, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'50%'}, 
+        {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, 
+        {role:'ATT', t:'16%', l:'50%'}
+    ] }
 };
 
 export async function loadView(viewName) {
@@ -26,14 +47,13 @@ export async function loadView(viewName) {
 
         selectedPlayerId = null;
 
-        // FIX: Forza la barra di navigazione in basso a illuminarsi correttamente!
         updateNavUI(viewName);
 
         if (viewName === 'home') renderHome();
         else if (viewName === 'squad') renderSquad();
         else if (viewName === 'profile') renderProfile();
         else if (viewName === 'market') renderMarket();
-        else if (viewName === 'store') renderStore();
+        else if (viewName === 'store') renderStore(); 
         else if (viewName === 'match') startMatchEngine();
 
     } catch (error) { console.error("Errore router:", error); }
