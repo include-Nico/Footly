@@ -37,7 +37,6 @@ export function startMatchEngine() {
     let stoppageTime = randomInt(2, 6);
     let addedTimeAnnounced = false;
 
-    // --- SNAPSHOT PRE-PARTITA (Evita che i cambi siano permanenti) ---
     const originalFormation = gameState.userTeam.formation;
     const originalLineup = gameState.userTeam.players.map(p => ({
         id: p.id,
@@ -409,17 +408,41 @@ export function startMatchEngine() {
         }
     }
 
+    // --- NUOVO SISTEMA MINIGIOCO RIGORI ---
     function triggerPenalty(isUserShooter, reason = 'chance') {
         const modal = document.getElementById('goal-modal');
         let userShooter = isUserShooter ? (getRandomShooter() || getActivePlayer()) : null;
         let oppShooter = getRandomOpponentPlayer(['ATT', 'CEN']) || getRandomOpponentPlayer();
         let shooterName = isUserShooter ? (userShooter?.name || "Tuo Giocatore") : oppShooter.name;
         
+        let userStr = getUserTeamStrength();
+        let cpuStr = nextOpponent.strength;
+        let baseRatio = userStr / (userStr + cpuStr);
+        let winningCount = 3;
+
         document.getElementById('goal-modal-title').textContent = isUserShooter ? "RIGORE A FAVORE!" : "RIGORE CONTRO!";
         document.getElementById('goal-modal-title').style.color = isUserShooter ? "var(--accent)" : "var(--notif-error)";
         document.getElementById('shooter-name').textContent = isUserShooter ? `${shooterName} sul dischetto.` : "Tuffati per parare!";
-        document.getElementById('goal-helper-text').textContent = isUserShooter ? "Scegli l'angolo dove tirare!" : "Indovina l'angolo!";
-        
+
+        if (isUserShooter) {
+            let finalProb = Math.max(0.3, Math.min(0.9, baseRatio + 0.2)); 
+            winningCount = Math.round(finalProb * 6);
+            if(winningCount < 2) winningCount = 2; 
+            if(winningCount > 5) winningCount = 5;
+            document.getElementById('goal-helper-text').textContent = `Scegli dove tirare! Hai ${winningCount} zone vincenti su 6!`;
+        } else {
+            let finalProb = Math.max(0.1, Math.min(0.7, baseRatio - 0.1)); 
+            winningCount = Math.round(finalProb * 6);
+            if(winningCount < 1) winningCount = 1;
+            if(winningCount > 4) winningCount = 4;
+            document.getElementById('goal-helper-text').textContent = `Indovina l'angolo! Hai ${winningCount} zone su 6 per parare!`;
+        }
+
+        // Genera le zone vincenti nascoste
+        let allZones = [0, 1, 2, 3, 4, 5];
+        allZones.sort(() => Math.random() - 0.5);
+        let winningZones = allZones.slice(0, winningCount);
+
         modal.classList.add('active');
         let isShotTaken = false;
         
@@ -445,10 +468,11 @@ export function startMatchEngine() {
             sec.onclick = function() {
                 if(isShotTaken) return;
                 isShotTaken = true; clearTimeout(shotTimer);
-                let cpuZone = Math.floor(Math.random() * 6);
+                
+                let isWin = winningZones.includes(idx);
                 
                 if(isUserShooter) {
-                    if(idx === cpuZone) { 
+                    if(!isWin) { 
                         this.classList.add('goal-fail'); addLog(`❌ Rigore PARATO! Il portiere intuisce l'angolo.`, 'log-red'); 
                         setTimeout(() => { this.classList.remove('goal-fail'); modal.classList.remove('active'); resumeMatch(reason); }, 1200);
                     } else { 
@@ -461,7 +485,7 @@ export function startMatchEngine() {
                         }, 1200);
                     }
                 } else {
-                    if(idx === cpuZone) { 
+                    if(isWin) { 
                         this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore intuendo l'angolo giusto!`, 'log-goal'); 
                         setTimeout(() => { this.classList.remove('goal-success'); modal.classList.remove('active'); resumeMatch(reason); }, 1200);
                     } else { 
@@ -477,6 +501,7 @@ export function startMatchEngine() {
         });
     }
 
+    // --- NUOVO SISTEMA MINIGIOCO GOL SU AZIONE ---
     function triggerGoalMiniGame(shooterPlayer, isCPU, assisterPlayer = null, reason = 'chance') {
         const modal = document.getElementById('goal-modal');
         const titleEl = document.getElementById('goal-modal-title');
@@ -484,18 +509,44 @@ export function startMatchEngine() {
         const helpEl = document.getElementById('goal-helper-text');
         
         let shooterName = isCPU ? shooterPlayer.name : shooterPlayer.name;
+        
+        let userStr = getUserTeamStrength();
+        let cpuStr = nextOpponent.strength;
+        let baseRatio = userStr / (userStr + cpuStr);
+        let winningCount = 3;
 
         if (isCPU) {
             titleEl.textContent = "DIFENDI LA PORTA!"; titleEl.style.color = "var(--notif-error)";
-            descEl.textContent = `Tiro pericoloso di ${shooterName}!`; helpEl.textContent = "Tuffati! Clicca sull'angolo per parare!";
+            descEl.textContent = `Tiro pericoloso di ${shooterName}!`; 
+            
+            let userGK = getActivePlayer(['POR']); 
+            let gkBonus = userGK ? (getEffectiveOverall(userGK) - cpuStr) / 200 : 0; 
+            let finalProb = Math.max(0.15, Math.min(0.85, baseRatio + gkBonus));
+            
+            winningCount = Math.round(finalProb * 6);
+            if(winningCount < 1) winningCount = 1;
+            if(winningCount > 5) winningCount = 5;
+            helpEl.textContent = `Tuffati! Hai ${winningCount} zone su 6 di parare!`;
         } else {
             titleEl.textContent = "OCCASIONE GOL!"; titleEl.style.color = "var(--accent)";
-            descEl.textContent = `${shooterName} davanti alla porta!`; helpEl.textContent = "Scegli dove piazzarla!";
+            descEl.textContent = `${shooterName} davanti alla porta!`; 
+            
+            let attBonus = (getEffectiveOverall(shooterPlayer) - cpuStr) / 200;
+            let finalProb = Math.max(0.15, Math.min(0.85, baseRatio + attBonus));
+            
+            winningCount = Math.round(finalProb * 6);
+            if(winningCount < 1) winningCount = 1;
+            if(winningCount > 5) winningCount = 5;
+            helpEl.textContent = `Scegli dove piazzarla! ${winningCount} zone su 6 sono GOL!`;
         }
 
-        modal.classList.add('active');
+        let allZones = [0, 1, 2, 3, 4, 5];
+        allZones.sort(() => Math.random() - 0.5);
+        let winningZones = allZones.slice(0, winningCount);
 
+        modal.classList.add('active');
         let isResolved = false;
+
         let shotTimer = setTimeout(() => {
             if(!isResolved) {
                 if(isCPU) { 
@@ -518,37 +569,23 @@ export function startMatchEngine() {
                 if(isResolved) return;
                 isResolved = true; clearTimeout(shotTimer);
                 
+                let isWin = winningZones.includes(idx);
+
                 if (isCPU) {
-                    let cpuTarget = Math.floor(Math.random() * 6);
-                    if(idx === cpuTarget) {
+                    if(isWin) {
                         this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Tiro parato incredibilmente!`, 'log-goal');
                         setTimeout(() => { this.classList.remove('goal-success'); modal.classList.remove('active'); resumeMatch(reason); }, 1200);
                     } else {
-                        let userGK = getActivePlayer(['POR']); 
-                        let saveChance = userGK ? (getEffectiveOverall(userGK) / 100) * 0.3 : 0.1;
-                        if(Math.random() < saveChance) { 
-                            this.classList.add('goal-success'); addLog(`🧤 Il portiere ci arriva con la punta delle dita! Parata!`, 'log-goal'); 
-                            setTimeout(() => { this.classList.remove('goal-success'); modal.classList.remove('active'); resumeMatch(reason); }, 1200);
-                        } else { 
-                            this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; 
-                            addLog(`⚽ Gol di ${shooterName}. Tuffo dalla parte sbagliata.`, 'log-cpu-goal'); 
-                            setTimeout(() => { 
-                                this.classList.remove('goal-fail'); modal.classList.remove('active'); 
-                                let astText = assisterPlayer ? `<br><span style="font-size:12px; color:white;"><i class="fas fa-shoe-prints"></i> Assist: ${assisterPlayer.name}</span>` : '';
-                                showMatchBanner('goal-cpu', 'GOL SUBITO', `⚽ ${shooterName}${astText}`, () => { resumeMatch(reason); });
-                            }, 1200);
-                        }
+                        this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; 
+                        addLog(`⚽ Gol di ${shooterName}. Tuffo dalla parte sbagliata.`, 'log-cpu-goal'); 
+                        setTimeout(() => { 
+                            this.classList.remove('goal-fail'); modal.classList.remove('active'); 
+                            let astText = assisterPlayer ? `<br><span style="font-size:12px; color:white;"><i class="fas fa-shoe-prints"></i> Assist: ${assisterPlayer.name}</span>` : '';
+                            showMatchBanner('goal-cpu', 'GOL SUBITO', `⚽ ${shooterName}${astText}`, () => { resumeMatch(reason); });
+                        }, 1200);
                     }
                 } else {
-                    const currentF = FORMATIONS[gameState.userTeam.formation];
-                    let totalTacAtt = tacBonusAtt + currentF.att;
-                    
-                    let baseSuccess = (getEffectiveOverall(shooterPlayer) / 100) * 0.9;
-                    if(shooterPlayer.position === 'ATT') baseSuccess += 0.1; 
-                    if(shooterPlayer.position === 'DIF') baseSuccess -= 0.2;
-                    baseSuccess += (totalTacAtt / 100) * 0.5;
-
-                    if(Math.random() < baseSuccess) {
+                    if(isWin) {
                         this.classList.add('goal-success'); homeScore++; document.getElementById('score-home').textContent = homeScore;
                         shooterPlayer.stats.goals++;
                         if(assisterPlayer) assisterPlayer.stats.assists++;
@@ -726,7 +763,6 @@ export function startMatchEngine() {
             if(p.energy > 100) p.energy = 100;
         });
 
-        // RIPRISTINO FORMAZIONE INIZIALE PRE-PARTITA
         gameState.userTeam.formation = originalFormation;
         gameState.userTeam.players.forEach(p => {
             let orig = originalLineup.find(o => o.id === p.id);
