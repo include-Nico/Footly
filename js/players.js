@@ -1,5 +1,4 @@
 // js/players.js
-
 export const RARITIES = {
     BRONZE: { name: 'Bronzo', min: 40, max: 64, color: 'var(--rarity-bronze)' },
     SILVER: { name: 'Argento', min: 65, max: 74, color: 'var(--rarity-silver)' },
@@ -11,7 +10,7 @@ export const RARITIES = {
 };
 
 const NATIONS_DB = {
-    "ITA": { flag: "🇮🇹", first: ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "Francesco", "Alessandro", "Davide", "Lorenzo", "Nicolò", "Thomas"], last: ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Ricci", "Troiano" , "Corbellari", "Casamassima", "Gilberti"] },
+    "ITA": { flag: "🇮🇹", first: ["Luca", "Mario", "Andrea", "Giovanni", "Paolo", "Marco", "Francesco", "Alessandro", "Davide", "Lorenzo"], last: ["Rossi", "Bianchi", "Russo", "Ferrari", "Esposito", "Romano", "Gallo", "Costa", "Fontana", "Ricci"] },
     "ESP": { flag: "🇪🇸", first: ["Carlos", "Pablo", "Alejandro", "Diego", "Javier", "Sergio", "Daniel", "Luis", "Jose", "Miguel"], last: ["Garcia", "Rodriguez", "Martinez", "Lopez", "Sanchez", "Perez", "Gomez", "Martin", "Jimenez", "Ruiz"] },
     "ENG": { flag: "🇬🇧", first: ["Jack", "Harry", "Oliver", "Charlie", "Thomas", "George", "William", "James", "Richard", "Edward"], last: ["Smith", "Jones", "Taylor", "Brown", "Williams", "Davies", "Evans", "Wilson", "Johnson", "Wright"] },
     "GER": { flag: "🇩🇪", first: ["Thomas", "Lukas", "Felix", "Maximilian", "Leon", "Tim", "Paul", "Jonas", "Elias", "Julian"], last: ["Muller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Hoffmann", "Schulz"] },
@@ -44,14 +43,10 @@ export function calculateValue(overall) {
     return randomInt(100000, 500000);
 }
 
-// ─── FIX ENERGIA E INFORTUNI ───
 export function getEffectiveOverall(player) {
     if (player.energy === undefined) player.energy = 100;
-    
-    // Il portiere al massimo perde il 5% di forza. Gli altri giocatori al massimo il 25%.
     let maxDrop = player.position === 'POR' ? 0.05 : 0.25;
     let penalty = (1 - (player.energy / 100)) * maxDrop;
-    
     return Math.floor(player.overall * (1 - penalty));
 }
 
@@ -92,10 +87,10 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         color: RARITIES[rarityKey].color,
         isStarter: isStarter,
         value: calculateValue(overall),
-        stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 },
-        status: { injured: 0, suspended: 0, yellowCards: 0 },
+        stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0, yellowCards: 0, redCards: 0 },
+        status: { injured: 0, suspended: 0 },
         trainingBoost: 0,
-        energy: 100 // Inizializza a 100 di base
+        energy: 100 
     };
 }
 
@@ -126,7 +121,6 @@ export function processEndOfSeason(player) {
     if (player.stats.appearances > 10) growth += 1;
     if (player.stats.goals > 5) growth += 1;
 
-    // Aggiunge la spinta degli allenamenti pagati nell'Hub
     if (player.trainingBoost && player.trainingBoost > 0) {
         growth += player.trainingBoost;
         player.trainingBoost = 0;
@@ -141,11 +135,9 @@ export function processEndOfSeason(player) {
     player.color = RARITIES[newRarityKey].color;
     player.value = calculateValue(player.overall);
     
-    player.stats = { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 };
-    if(!player.status) player.status = { injured: 0, suspended: 0, yellowCards: 0 };
-    player.status.injured = 0; player.status.suspended = 0; player.status.yellowCards = 0;
-    
-    // Ripristina energie a fine anno
+    player.stats = { appearances: 0, goals: 0, assists: 0, cleanSheets: 0, yellowCards: 0, redCards: 0 };
+    if(!player.status) player.status = { injured: 0, suspended: 0 };
+    player.status.injured = 0; player.status.suspended = 0;
     player.energy = 100;
 
     return { retired: false, growth };

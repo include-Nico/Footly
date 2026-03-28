@@ -1,5 +1,5 @@
 // js/state.js
-import { getEffectiveOverall } from './players.js'; // Importiamo il calcolo dell'energia
+import { getEffectiveOverall } from './players.js'; 
 
 export const gameState = {
     userTeam: {
@@ -34,9 +34,14 @@ export function loadGame() {
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
         if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1;
         
-        // FIX Vecchi Salvataggi: Assegna 100 energia a chi non l'aveva
+        // FIX Salvataggi: Inizializza i nuovi dati
         if (gameState.userTeam.players) {
-            gameState.userTeam.players.forEach(p => { if (p.energy === undefined) p.energy = 100; });
+            gameState.userTeam.players.forEach(p => { 
+                if (p.energy === undefined) p.energy = 100; 
+                if (p.stats.yellowCards === undefined) p.stats.yellowCards = 0;
+                if (p.stats.redCards === undefined) p.stats.redCards = 0;
+                if (p.status.yellowCards !== undefined) delete p.status.yellowCards; // Rimuove vecchia logica
+            });
         }
         
         saveGame();
@@ -50,7 +55,6 @@ export function resetGame() {
     location.reload(); 
 }
 
-// ORA LA FORZA DELLA SQUADRA TIENE CONTO DELLA STANCHEZZA!
 export function getUserTeamStrength() {
     if(!gameState.userTeam.players || gameState.userTeam.players.length === 0) return 0;
     let starters = gameState.userTeam.players.filter(p => p.isStarter);
