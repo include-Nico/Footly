@@ -43,11 +43,15 @@ export function calculateValue(overall) {
     return randomInt(100000, 500000);
 }
 
-// ─── NUOVO: CALCOLA LA FORZA REALE IN BASE ALLA FATICA ───
+// ─── FIX ENERGIA: Malus più leggeri, Portieri blindati ───
 export function getEffectiveOverall(player) {
     if (player.energy === undefined) player.energy = 100;
-    // A 100 energia: overall intatto. A 0 energia: l'overall si dimezza!
-    return Math.floor(player.overall * (0.5 + (player.energy / 200)));
+    
+    // Il portiere al massimo perde il 5% di forza. Gli altri giocatori al massimo il 25%.
+    let maxDrop = player.position === 'POR' ? 0.05 : 0.25;
+    let penalty = (1 - (player.energy / 100)) * maxDrop;
+    
+    return Math.floor(player.overall * (1 - penalty));
 }
 
 export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = false) {
@@ -90,7 +94,7 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 },
         status: { injured: 0, suspended: 0, yellowCards: 0 },
         trainingBoost: 0,
-        energy: 100 // NUOVO: Energia di partenza al 100%
+        energy: 100
     };
 }
 
@@ -138,7 +142,7 @@ export function processEndOfSeason(player) {
     player.stats = { appearances: 0, goals: 0, assists: 0, cleanSheets: 0 };
     if(!player.status) player.status = { injured: 0, suspended: 0, yellowCards: 0 };
     player.status.injured = 0; player.status.suspended = 0; player.status.yellowCards = 0;
-    player.energy = 100; // Reset energia a fine stagione
+    player.energy = 100;
 
     return { retired: false, growth };
 }
