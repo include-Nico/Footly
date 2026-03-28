@@ -156,11 +156,9 @@ export function startMatchEngine() {
     }
     function pauseMatch(reason) {
         pauseReasons.add(reason);
-        if(timerInterval) clearInterval(timerInterval);
     }
     function resumeMatch(reason) {
         pauseReasons.delete(reason);
-        if(pauseReasons.size === 0) startTimerLoop();
     }
     function startTimer() {
         pauseReasons.clear();
@@ -708,13 +706,13 @@ export function startMatchEngine() {
             
             // Logica Piena Squalifiche/Diffide
             if (p.status.suspended === 1) {
-                p.status.suspended = 0; // Sconta Squalifica
+                p.status.suspended = 0; 
             } 
             else if (p.status.suspended === 2) {
-                p.status.suspended = 1; // Rosso in-game: salta la prossima
+                p.status.suspended = 1; 
             } 
             else if (p.status.yellowCards >= 2 && p.status.suspended === 0) {
-                p.status.suspended = 1; // Era diffidato e ha preso giallo: salta la prossima
+                p.status.suspended = 1; 
                 p.status.yellowCards = 0;
             }
 
@@ -739,7 +737,7 @@ export function startMatchEngine() {
         else { gameState.userTeam.stats.lost++; coinsEarned += 50; title="Sconfitta!"; }
 
         gameState.userTeam.coins += coinsEarned;
-        updateDashboardHeader(); // FIX: Aggiorna subito ui in alto
+        updateDashboardHeader();
 
         processCpuTeam(nextOpponent);
         nextOpponent.played++; nextOpponent.goalsFor += awayScore; nextOpponent.goalsAgainst += homeScore;
