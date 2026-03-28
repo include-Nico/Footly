@@ -9,7 +9,6 @@ let selectedPlayerId = null; let draggedId = null;
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-// --- FIX: COORDINATE DELLE FORMAZIONI SPAZIATE PER EVITARE SOVRAPPOSIZIONI ---
 export const FORMATIONS = {
     "2-3-1": { att: 0, def: 0, pos: [
         {role:'POR', t:'86%', l:'50%'}, 
@@ -86,7 +85,7 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// STORE (NEGOZIO) E PACK OPENING ANIMATION
+// STORE (NEGOZIO) E PACK OPENING
 // ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
@@ -242,7 +241,7 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// HOME E FINE STAGIONE
+// HOME, CALENDARIO E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -253,6 +252,7 @@ function renderHome() {
     const playBtnText = document.getElementById('play-btn-text');
     const playBtnIcon = document.getElementById('play-btn-icon');
     const matchdayCounter = document.getElementById('matchday-counter');
+    const scheduleContainer = document.getElementById('schedule-container');
 
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
     if (divNumEl) divNumEl.textContent = gameState.userTeam.division;
@@ -264,6 +264,49 @@ function renderHome() {
 
     const isEndOfSeason = gameState.userTeam.matchday > 26;
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+
+    // POPOLA IL CALENDARIO SCORREVOLE
+    if (scheduleContainer && opponents.length > 0) {
+        scheduleContainer.innerHTML = '';
+        for (let i = 1; i <= 26; i++) {
+            let oppIndex = (i - 1) % opponents.length;
+            let opp = opponents[oppIndex];
+            let isHome = (i % 2 !== 0);
+            let venueText = isHome ? "Casa" : "Trasferta";
+            let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent);"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning);"></i>';
+            
+            let statusClass = '';
+            let statusText = '';
+            
+            if (i < gameState.userTeam.matchday) {
+                statusClass = 'opacity: 0.5; border-color: var(--border-dim);';
+                statusText = 'Giocata ✅';
+            } else if (i === gameState.userTeam.matchday) {
+                statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);';
+                statusText = 'Oggi ⚽';
+            } else {
+                statusClass = 'border-color: var(--border-dim);';
+                statusText = 'Da giocare ⏳';
+            }
+
+            let item = document.createElement('div');
+            item.className = 'glass-panel';
+            item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; ${statusClass}`;
+            item.innerHTML = `
+                <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Giornata ${i}</div>
+                <div style="font-weight: bold; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${opp.name}">${opp.name}</div>
+                <div style="font-size: 11px; color: var(--text-hint); margin-top: 4px;">${venueIcon} ${venueText}</div>
+                <div style="font-size: 10px; font-weight: bold; color: ${i === gameState.userTeam.matchday ? 'var(--accent)' : 'var(--text-muted)'}; margin-top: 8px;">${statusText}</div>
+            `;
+            scheduleContainer.appendChild(item);
+        }
+
+        // Scrolla automaticamente per centrare la partita di oggi
+        setTimeout(() => {
+            const currentCard = scheduleContainer.children[Math.min(gameState.userTeam.matchday - 1, 25)];
+            if (currentCard) currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }, 150);
+    }
 
     if (!isEndOfSeason && opponents.length > 0) {
         let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
@@ -347,7 +390,7 @@ function handleEndSeason() {
     });
     while(gameState.userTeam.players.length < 12) {
         let regen = generatePlayer('CEN', false, 'BRONZE', true); 
-        regen.name = "Vivaio " + regen.name;
+        regen.name = "Vivaio " + generateRandomNameByNation(regen.nationKey);
         gameState.userTeam.players.push(regen); evolutions.push(`${regen.name} (Nuovo)`);
     }
 
