@@ -37,6 +37,14 @@ export function startMatchEngine() {
     let stoppageTime = randomInt(2, 6);
     let addedTimeAnnounced = false;
 
+    // --- SNAPSHOT PRE-PARTITA (Evita che i cambi siano permanenti) ---
+    const originalFormation = gameState.userTeam.formation;
+    const originalLineup = gameState.userTeam.players.map(p => ({
+        id: p.id,
+        isStarter: p.isStarter,
+        slotIndex: p.slotIndex
+    }));
+
     const userStr = getUserTeamStrength();
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     if (opponents.length === 0) {
@@ -94,16 +102,15 @@ export function startMatchEngine() {
         else if (type === 'goal-cpu') { titleEl.style.color = "var(--notif-error)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 82, 82, 0.6)"; } 
         else if (type === 'yellow') { titleEl.style.color = "var(--gold)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 180, 41, 0.6)"; } 
         else if (type === 'red' || type === 'injury') { titleEl.style.color = "var(--notif-error)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 82, 82, 0.6)"; }
+        else if (type === 'info') { titleEl.style.color = "var(--text-primary)"; }
 
         banner.classList.add('show');
         setTimeout(() => { banner.classList.remove('show'); if(callback) callback(); }, 3000);
     }
 
-    // --- NUOVA MATEMATICA OCCASIONI PROPORZIONALE ALLA FORZA ---
     let strDiffAbs = Math.abs(userStr - nextOpponent.strength);
-    // Base di 3-4 occasioni. Aggiunge +1 occasione per ogni 8 punti di differenza
     let totalChances = randomInt(3, 4) + Math.floor(strDiffAbs / 8); 
-    if(totalChances > 8) totalChances = 8; // Massimo 8 occasioni
+    if(totalChances > 8) totalChances = 8;
 
     let chanceMinutes = [];
     while(chanceMinutes.length < totalChances) {
@@ -137,8 +144,6 @@ export function startMatchEngine() {
                 });
 
                 const currentF = FORMATIONS[gameState.userTeam.formation];
-                
-                // Pesa in modo ESPONENZIALE per limitare gli upset
                 let wUser = Math.pow(getUserTeamStrength() + currentF.att, 2);
                 let wCpu = Math.pow(nextOpponent.strength - (currentF.def * 0.5), 2);
                 
@@ -242,7 +247,6 @@ export function startMatchEngine() {
             pauseMatch('chance');
             const currentF = FORMATIONS[gameState.userTeam.formation];
             
-            // ELEVIAMO AL QUADRATO PER DARE PESO MASSIMO AL PIÙ FORTE!
             let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + currentF.att, 2);
             let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + currentF.def * 0.5), 2);
 
@@ -330,7 +334,6 @@ export function startMatchEngine() {
         let pOff = getActivePlayer(['ATT', 'CEN']) || getActivePlayer();
         let pDef = getActivePlayer(['DIF', 'CEN']) || getActivePlayer();
         
-        // MATEMATICA ESPONENZIALE ANCHE PER GLI EVENTI INTERATTIVI
         const currentF = FORMATIONS[gameState.userTeam.formation];
         let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + currentF.att, 2);
         let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + currentF.def * 0.5), 2);
@@ -574,7 +577,7 @@ export function startMatchEngine() {
             matchFormSelect.value = gameState.userTeam.formation;
             matchFormSelect.onchange = (e) => {
                 gameState.userTeam.formation = e.target.value;
-                selectedPlayerId = null; saveGame(); renderMatchSubsList(); updateMatchHeaderStr(); 
+                selectedPlayerId = null; renderMatchSubsList(); updateMatchHeaderStr(); 
                 addLog(`🔄 Cambio Modulo: L'allenatore passa al ${gameState.userTeam.formation}.`);
             };
         }
@@ -668,7 +671,8 @@ export function startMatchEngine() {
             }
             let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
             let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
-            saveGame(); renderMatchSubsList(); updateMatchHeaderStr();
+            
+            renderMatchSubsList(); updateMatchHeaderStr();
         }
 
         document.querySelectorAll('.match-card-interactive').forEach(card => {
@@ -701,8 +705,12 @@ export function startMatchEngine() {
                 p.status.injured--;
             }
             
-            if (p.status.suspended === 1) { p.status.suspended = 0; } 
-            else if (p.status.suspended === 2) { p.status.suspended = 1; } 
+            if (p.status.suspended === 1) {
+                p.status.suspended = 0; 
+            } 
+            else if (p.status.suspended === 2) {
+                p.status.suspended = 1; 
+            } 
             else if (p.status.yellowCards >= 2 && p.status.suspended === 0) {
                 p.status.suspended = 1; 
                 p.status.yellowCards = 0;
@@ -716,6 +724,16 @@ export function startMatchEngine() {
                 p.energy += randomInt(80, 100); 
             }
             if(p.energy > 100) p.energy = 100;
+        });
+
+        // RIPRISTINO FORMAZIONE INIZIALE PRE-PARTITA
+        gameState.userTeam.formation = originalFormation;
+        gameState.userTeam.players.forEach(p => {
+            let orig = originalLineup.find(o => o.id === p.id);
+            if (orig) {
+                p.isStarter = orig.isStarter;
+                p.slotIndex = orig.slotIndex;
+            }
         });
 
         if(gameState.userTeam.activeBoostMatches > 0) {
