@@ -61,16 +61,17 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// 1. IL MOTORE DELLA PARTITA (MATCH ENGINE 7.0 - FIX BUG FINE PARTITA)
+// 1. MOTORE DELLA PARTITA (MATCH ENGINE)
 // ==========================================
 function renderMatch() {
     let minute = 0; let homeScore = 0; let awayScore = 0; let timerInterval;
     let isPaused = false; let subsLeft = 5; let tacBonusAtt = 0; let tacBonusDef = 0; let redCards = 0;
 
+    const userStr = getUserTeamStrength();
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
     let nextOpponent = opponents[oppIndex];
-    let cpuDynamicStrength = nextOpponent.strength; // NUOVO: Fatica CPU
+    let cpuDynamicStrength = nextOpponent.strength;
 
     function updateMatchHeaderStr() {
         const userStr = getUserTeamStrength(); 
@@ -113,50 +114,35 @@ function renderMatch() {
     function startTimer() {
         isPaused = false;
         timerInterval = setInterval(() => {
-            if(isPaused) return; // Se in pausa, si blocca tutto qui.
-            
+            if(isPaused) return;
             minute++;
             document.getElementById('match-time').textContent = minute + "'";
             document.getElementById('match-progress').style.width = (minute / 90 * 100) + "%";
 
-            // LOGICA STRUTTURATA PER EVITARE SOVRAPPOSIZIONI (BUG FIX FINE PARTITA)
-            if(minute === 15 || minute === 30 || minute === 60 || minute === 75) {
-                triggerMatchEvent();
-            } 
-            else if(minute === 45) { 
+            if(minute === 15 || minute === 30 || minute === 60 || minute === 75) triggerMatchEvent();
+            if(minute === 45) { 
                 isPaused = true; 
                 addLog("L'arbitro fischia la fine del primo tempo.");
                 showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni per il secondo tempo.", () => { 
                     document.getElementById('btn-pause-sub').click(); 
                 }, "Gestione Squadra", false, true); 
-            } 
-            else if(minute >= 90) { 
-                clearInterval(timerInterval); // Uccide definitivamente il timer
-                isPaused = true; // Blocca qualsiasi altra azione asincrona
-                endGame(); 
-                return; // Esce dalla funzione per non lanciare simulateMinute
-            } 
-            else {
-                // Minuti normali
-                simulateMinute();
             }
+            if(minute >= 90) { clearInterval(timerInterval); endGame(); }
 
+            if(!isPaused) simulateMinute();
         }, 150); 
     }
 
     function simulateMinute() {
-        // STANCHEZZA UTENTE
+        // STANCHEZZA UTENTE E CPU
         gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
-            let fatigueChance = p.position === 'POR' ? 0.05 : 0.4; // Il portiere si stanca raramente
+            let fatigueChance = p.position === 'POR' ? 0.05 : 0.4;
             if(Math.random() < fatigueChance && p.energy > 0) p.energy--;
         });
-        
-        // STANCHEZZA CPU DINAMICA (Perde max il 20% della forza in 90 min)
         cpuDynamicStrength = Math.max(cpuDynamicStrength * 0.998, nextOpponent.strength * 0.8);
 
         if (chanceMinutes.includes(minute)) {
             isPaused = true;
-            
             const currentF = FORMATIONS[gameState.userTeam.formation];
             let totalTacAtt = tacBonusAtt + currentF.att;
             let totalTacDef = tacBonusDef + currentF.def;
@@ -323,6 +309,7 @@ function renderMatch() {
                     if(idx === cpuZone) { this.classList.add('goal-success'); addLog(`🧤 MIRACOLO! Hai parato il rigore intuendo l'angolo giusto!`, 'log-goal'); } 
                     else { this.classList.add('goal-fail'); awayScore++; document.getElementById('score-away').textContent = awayScore; addLog(`⚽ Gol della CPU. Portiere spiazzato.`, 'log-cpu-goal'); }
                 }
+                
                 setTimeout(() => { this.classList.remove('goal-success', 'goal-fail'); modal.classList.remove('active'); isPaused = false; }, 1500);
             };
         });
@@ -484,9 +471,11 @@ function renderMatch() {
         function executeMatchSwap(id1, id2) {
             if(id1 === id2) return;
             let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+            
             if(p1.isStarter !== p2.isStarter) {
                 if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
-                subsLeft--; addLog(`🔄 Sostituzione: Esce ${p1.isStarter ? p1.name : p2.name}, entra ${p1.isStarter ? p2.name : p1.name}.`);
+                subsLeft--;
+                addLog(`🔄 Sostituzione: Esce ${p1.isStarter ? p1.name : p2.name}, entra ${p1.isStarter ? p2.name : p1.name}.`);
             }
             let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
             let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
@@ -504,10 +493,34 @@ function renderMatch() {
         });
     }
 
+    // GESTIONE CPU STAMINA (DEVE ESSERE QUI PER ESSERE LETTA DA SIMULATEGLOBALMATCH)
+    function processCpuTeam(team) {
+        team.roster.forEach(p => {
+            if(p.energy === undefined) p.energy = 100;
+            if(Math.random() < 0.7) p.energy = Math.max(10, p.energy - randomInt(30, 50)) + randomInt(20, 40); 
+            else p.energy = Math.min(100, p.energy + randomInt(50, 80)); 
+        });
+        let best = [...team.roster].sort((a,b) => getEffectiveOverall(b) - getEffectiveOverall(a)).slice(0,7);
+        team.strength = Math.floor(best.reduce((acc, p) => acc + getEffectiveOverall(p), 0) / 7);
+    }
+
+    function simulateGlobalMatch(t1, t2) {
+        processCpuTeam(t1); processCpuTeam(t2);
+        let t1Roll = Math.random() * (t1.strength + t2.strength);
+        let g1 = 0, g2 = 0;
+        if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
+        else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
+        
+        t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
+        if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
+        
+        t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
+        if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
+    }
+
     function endGame() {
-        // Chiude forzatamente eventuali Modali rimasti aperti 
         document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
-        document.getElementById('match-engine').style.display = 'none'; // Nasconde il campo
+        document.getElementById('match-engine').style.display = 'none'; 
 
         gameState.userTeam.players.forEach(p => {
             if(p.isStarter) {
@@ -533,17 +546,6 @@ function renderMatch() {
         else { gameState.userTeam.stats.lost++; coinsEarned += 50; title="Sconfitta!"; }
 
         gameState.userTeam.coins += coinsEarned;
-
-        // STANCHEZZA E PARTITE DELLA CPU
-        function processCpuTeam(team) {
-            team.roster.forEach(p => {
-                if(p.energy === undefined) p.energy = 100;
-                if(Math.random() < 0.7) p.energy = Math.max(10, p.energy - randomInt(30, 50)) + randomInt(20, 40); 
-                else p.energy = Math.min(100, p.energy + randomInt(50, 80)); 
-            });
-            let best = [...team.roster].sort((a,b) => getEffectiveOverall(b) - getEffectiveOverall(a)).slice(0,7);
-            team.strength = Math.floor(best.reduce((acc, p) => acc + getEffectiveOverall(p), 0) / 7);
-        }
 
         processCpuTeam(nextOpponent);
         nextOpponent.played++; nextOpponent.goalsFor += awayScore; nextOpponent.goalsAgainst += homeScore;
@@ -573,25 +575,9 @@ function renderMatch() {
 
         gameState.userTeam.matchday++;
         saveGame();
-
-        // GARA CONCLUSA CON RITORNO ALLA HOME OBBLIGATORIO (hideCancel = true)
         showConfirm(title, `Partita conclusa: <b>${homeScore} - ${awayScore}</b><br><br>Hai guadagnato 💰${coinsEarned}. I tuoi titolari sono affaticati, falli riposare nella prossima partita!`, () => {
             loadView('home');
         }, "Torna alla Dashboard", false, true); 
-    }
-
-    function simulateGlobalMatch(t1, t2) {
-        processCpuTeam(t1); processCpuTeam(t2);
-        let t1Roll = Math.random() * (t1.strength + t2.strength);
-        let g1 = 0, g2 = 0;
-        if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
-        else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
-        
-        t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
-        if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
-        
-        t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
-        if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
     }
 }
 
@@ -626,6 +612,7 @@ function renderHome() {
         if (cpuTeamNameEl) cpuTeamNameEl.textContent = nextOpponent.name;
         const cpuRatingEl = document.getElementById('cpu-team-rating');
         if (cpuRatingEl) cpuRatingEl.innerHTML = `<span style="font-weight:bold; font-size:12px;">${nextOpponent.strength}</span>${getStarsHTML(nextOpponent.strength)}`;
+        document.getElementById('match-vs-badge').textContent = "VS";
         
         playBtnText.textContent = "Gioca Partita";
         playBtnIcon.innerHTML = '<i class="fas fa-play"></i>';
@@ -640,6 +627,7 @@ function renderHome() {
     } else {
         if (cpuTeamNameEl) cpuTeamNameEl.textContent = "Stagione Conclusa";
         document.getElementById('cpu-team-rating').innerHTML = "";
+        document.getElementById('match-vs-badge').textContent = "🏆";
         
         playBtnText.textContent = "Termina Stagione";
         playBtnIcon.innerHTML = '<i class="fas fa-forward-step"></i>';
@@ -712,7 +700,7 @@ function handleEndSeason() {
 }
 
 // ==========================================
-// 3. GESTIONE SQUADRA E HUB SQUADRA
+// 3. GESTIONE SQUADRA (FUORI PARTITA) E HUB
 // ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
@@ -882,7 +870,7 @@ function renderSquad() {
                     <div class="player-card player-card-interactive ${isSelected}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                         ${warningHTML}
                         <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                        <div class="card-pos">${p.position}</div>
+                        <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                         ${getEnergyBarHTML(p)}
                         <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                     </div>
@@ -893,6 +881,7 @@ function renderSquad() {
 
     reserves.forEach(p => {
         let isSelected = selectedPlayerId === p.id ? 'selected' : '';
+        const flag = p.nationality ? p.nationality.split(' ')[0] : '';
         let warningHTML = '';
         if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
         if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
@@ -901,7 +890,7 @@ function renderSquad() {
             <div class="player-card player-card-interactive ${isSelected}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                 ${warningHTML}
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
-                <div class="card-pos">${p.position}</div>
+                <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                 ${getEnergyBarHTML(p)}
                 <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
             </div>
@@ -1046,6 +1035,7 @@ function renderProfile() {
     const coinsEl = document.getElementById('profile-coins');
     const playersCountEl = document.getElementById('profile-players-count');
     const deleteBtn = document.getElementById('delete-account-btn');
+    
     const strEl = document.getElementById('profile-strength');
     const starsEl = document.getElementById('profile-stars');
 
