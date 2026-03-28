@@ -7,7 +7,7 @@ export const gameState = {
         league: "",
         division: 3,
         coins: 10000,
-        gems: 50, // Gemme iniziali
+        gems: 50,
         inventory: { healAll: 0, healPlayer: 0, superBoosts: 0 },
         activeBoostMatches: 0,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
@@ -37,6 +37,7 @@ export function loadGame() {
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
         if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1;
         
+        // FIX VECCHI SALVATAGGI
         if (gameState.userTeam.gems === undefined) gameState.userTeam.gems = 50;
         if (!gameState.userTeam.inventory) gameState.userTeam.inventory = { healAll: 0, healPlayer: 0, superBoosts: 0 };
         if (gameState.userTeam.activeBoostMatches === undefined) gameState.userTeam.activeBoostMatches = 0;
@@ -71,12 +72,12 @@ export function getUserTeamStrength() {
         return acc + getEffectiveOverall(p);
     }, 0);
     
-    let baseStr = Math.floor(sum / starters.length); 
+    let baseStrength = Math.floor(sum / starters.length); 
     
-    // APPLICA SUPER BOOST! (+15%)
+    // POTERE DEL SUPER BOOST (+15%)
     if (gameState.userTeam.activeBoostMatches > 0) {
-        baseStr = Math.floor(baseStr * 1.15);
+        baseStrength = Math.floor(baseStrength * 1.15);
     }
     
-    return baseStr;
+    return baseStrength;
 }

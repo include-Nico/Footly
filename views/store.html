@@ -1,4 +1,4 @@
-<div class="glass-panel" style="padding: 20px;">
+<div class="glass-panel" style="padding: 20px; overflow-y: auto; max-height: 80vh;">
     <div style="text-align: center; margin-bottom: 20px;">
         <i class="fas fa-store" style="font-size: 32px; color: #00d4ff; margin-bottom: 10px;"></i>
         <h3>Negozio Club</h3>
@@ -6,6 +6,7 @@
     </div>
 
     <div style="display: flex; flex-direction: column; gap: 16px;">
+        
         <div style="background: var(--bg-surface); border: 1px solid var(--rarity-silver); border-radius: var(--radius-md); padding: 15px; position: relative; overflow: hidden;">
             <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.05;"><i class="fas fa-box"></i></div>
             <h3 style="color: var(--rarity-silver); margin-bottom: 5px;">Pack Comune</h3>
@@ -27,10 +28,11 @@
         <div style="background: linear-gradient(135deg, #1a0b2e, #0b1120); border: 1px solid var(--rarity-epic); border-radius: var(--radius-md); padding: 15px; position: relative; overflow: hidden;">
             <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.1; color: var(--rarity-epic);"><i class="fas fa-gem"></i></div>
             <h3 style="color: var(--rarity-epic); margin-bottom: 5px;">Pack MEGA</h3>
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; max-width: 80%;">4 Giocatori (GARANTITO Oro Raro+, Fino a Leggenda!) + 4 Bonus (Super Boost garantito) + Monete</p>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; max-width: 80%;">4 Giocatori (GARANTITO Oro Raro o superiore) + 4 Bonus (Super Boost garantito) + Max 5.000 Monete</p>
             <button class="glass-btn btn-buy-pack" data-type="MEGA" data-cost="120" style="width: 100%; border-color: #00d4ff; color: #00d4ff; background: rgba(0,212,255,0.2);">
                 <i class="fas fa-gem"></i> 120 Gemme
             </button>
         </div>
+        
     </div>
 </div>

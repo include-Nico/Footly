@@ -8,7 +8,7 @@ export const elements = {
     displayTeamName:   document.getElementById('display-team-name'),
     displayLeague:     document.getElementById('display-league'),
     coinsDisplay:      document.getElementById('coins-display'),
-    gemsDisplay:       document.getElementById('gems-display'), // NUOVO
+    gemsDisplay:       document.getElementById('gems-display'),
     navItems:          document.querySelectorAll('.nav-item'),
     notifContainer:    document.getElementById('notification-container'),
 };

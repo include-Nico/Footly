@@ -1,8 +1,7 @@
 // js/router.js
 import { gameState, resetGame, saveGame, getUserTeamStrength } from './state.js';
-import { updateDashboardHeader, showNotification, showConfirm, showPlayerInfo } from './ui.js';
-import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
-import { startMatchEngine } from './engine.js'; // IMPORTIAMO IL MOTORE DELLA PARTITA
+import { updateDashboardHeader, showNotification, showConfirm } from './ui.js';
+import { processEndOfSeason, generatePlayer, getEffectiveOverall } from './players.js'; 
 
 const mainContent = document.getElementById('main-content');
 let selectedPlayerId = null; let draggedId = null; 
@@ -30,7 +29,7 @@ export async function loadView(viewName) {
         else if (viewName === 'squad') renderSquad();
         else if (viewName === 'profile') renderProfile();
         else if (viewName === 'market') renderMarket();
-        else if (viewName === 'match') startMatchEngine(); // ORA CHIAMA ENGINE.JS CORRETTAMENTE
+        else if (viewName === 'store') renderStore(); // NUOVO
 
     } catch (error) { console.error("Errore router:", error); }
 }
@@ -62,7 +61,168 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// HOME E FINE STAGIONE
+// STORE (NEGOZIO) E PACK OPENING ANIMATION
+// ==========================================
+function renderStore() {
+    document.querySelectorAll('.btn-buy-pack').forEach(btn => {
+        btn.onclick = (e) => {
+            let type = e.currentTarget.getAttribute('data-type');
+            let cost = parseInt(e.currentTarget.getAttribute('data-cost'));
+            if(gameState.userTeam.gems >= cost) {
+                showConfirm("Acquisto", `Vuoi comprare il Pack ${type} per 💎 ${cost}?`, () => {
+                    gameState.userTeam.gems -= cost;
+                    updateDashboardHeader();
+                    openPack(type);
+                });
+            } else {
+                showNotification('Gemme Insufficienti', 'Gioca stagioni per guadagnare Gemme.', 'error');
+            }
+        };
+    });
+}
+
+function openPack(type) {
+    let items = [];
+    
+    // Generazione Monete
+    let coins = 0;
+    if(type === 'COMUNE') coins = randomInt(200, 1000);
+    else if(type === 'SUPER') coins = randomInt(1000, 3000);
+    else if(type === 'MEGA') coins = randomInt(2500, 5000);
+    
+    items.push({ type: 'coin', data: coins });
+    gameState.userTeam.coins += coins;
+
+    // Generazione Bonus
+    if(type === 'SUPER') {
+        for(let i=0; i<2; i++) {
+            let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer';
+            items.push({ type: 'bonus', data: b });
+            gameState.userTeam.inventory[b]++;
+        }
+    } else if (type === 'MEGA') {
+        items.push({ type: 'bonus', data: 'superBoosts' }); // Garantito!
+        gameState.userTeam.inventory['superBoosts']++;
+        for(let i=0; i<3; i++) {
+            let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer';
+            items.push({ type: 'bonus', data: b });
+            gameState.userTeam.inventory[b]++;
+        }
+    }
+
+    // Generazione Giocatori
+    let numPlayers = type === 'MEGA' ? 4 : randomInt(3, 4);
+    for(let i=0; i<numPlayers; i++) {
+        let rarity = 'BRONZE';
+        if(type === 'COMUNE') rarity = Math.random() > 0.8 ? 'SILVER' : 'BRONZE';
+        else if(type === 'SUPER') {
+            let r = Math.random();
+            if(r > 0.95) rarity = 'RAREGOLD';
+            else if (r > 0.6) rarity = 'GOLD';
+            else if (r > 0.2) rarity = 'SILVER';
+            else rarity = 'BRONZE';
+        }
+        else if(type === 'MEGA') {
+            let r = Math.random();
+            if(r > 0.95) rarity = 'LEGEND';
+            else if (r > 0.70) rarity = 'EPIC';
+            else if (r > 0.40) rarity = 'SUPERRARE';
+            else rarity = 'RAREGOLD'; // Mai Argento o Bronzo
+        }
+        let pos = ['POR', 'DIF', 'CEN', 'ATT'][Math.floor(Math.random()*4)];
+        let player = generatePlayer(pos, false, rarity);
+        items.push({ type: 'player', data: player });
+        gameState.userTeam.players.push(player);
+    }
+
+    saveGame();
+    updateDashboardHeader();
+    triggerPackAnimation(items);
+}
+
+function triggerPackAnimation(items) {
+    let overlay = document.getElementById('dynamic-pack-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'dynamic-pack-overlay';
+        overlay.className = 'modal-overlay';
+        overlay.style.background = 'rgba(0,0,0,0.95)';
+        overlay.style.zIndex = '9999';
+        document.body.appendChild(overlay);
+    }
+    
+    overlay.innerHTML = `
+        <div class="modal-box" style="background:transparent; border:none; box-shadow:none; text-align:center; width:100%; max-width:400px; padding:0;">
+            <div id="pack-reveal-area" style="min-height: 250px; display:flex; align-items:center; justify-content:center;"></div>
+            <div id="pack-controls" style="margin-top:30px; display:flex; gap:10px; justify-content:center;"></div>
+        </div>
+    `;
+    
+    overlay.classList.add('active');
+    
+    const revealArea = document.getElementById('pack-reveal-area');
+    const controls = document.getElementById('pack-controls');
+    let currentIndex = 0;
+    
+    function showNext() {
+        if (currentIndex >= items.length) {
+            revealArea.innerHTML = `<h2 style="color:var(--gold); font-size:30px; text-shadow: 0 0 20px var(--gold);">Pacchetto Aperto!</h2>`;
+            controls.innerHTML = `<button class="primary-btn" id="pack-close-btn" style="width:200px;">Chiudi</button>`;
+            document.getElementById('pack-close-btn').onclick = () => {
+                overlay.classList.remove('active');
+                if (gameState.currentView === 'store') loadView('store');
+            };
+            return;
+        }
+        
+        let item = items[currentIndex];
+        let html = '';
+        
+        if (item.type === 'coin') {
+            html = `<div class="player-card pop-in" style="width:140px; height:180px; padding:20px; border: 2px solid var(--gold); box-shadow: 0 0 30px var(--gold);">
+                        <i class="fas fa-coins" style="font-size:50px; color:var(--gold); margin-bottom:15px;"></i>
+                        <div style="font-size:24px; font-weight:bold; color:var(--gold);">+${item.data}</div>
+                    </div>`;
+        } else if (item.type === 'bonus') {
+            let icon = item.data === 'superBoosts' ? 'fa-fire' : (item.data === 'healAll' ? 'fa-heart-pulse' : 'fa-medkit');
+            let name = item.data === 'superBoosts' ? 'Super Boost' : (item.data === 'healAll' ? 'Cura Squadra' : 'Kit Medico');
+            let color = item.data === 'superBoosts' ? 'var(--rarity-epic)' : (item.data === 'healAll' ? 'var(--accent)' : 'var(--notif-info)');
+            html = `<div class="player-card pop-in" style="width:140px; height:180px; padding:20px; border: 2px solid ${color}; box-shadow: 0 0 30px ${color};">
+                        <i class="fas ${icon}" style="font-size:50px; color:${color}; margin-bottom:15px;"></i>
+                        <div style="font-size:14px; font-weight:bold; text-align:center; color:${color};">${name}</div>
+                    </div>`;
+        } else {
+            let p = item.data;
+            let glowClass = '';
+            // Bagliore per Epico e Leggenda
+            if(p.rarity === 'Leggenda') glowClass = 'box-shadow: 0 0 40px white; border-color: white; animation: pulse-pack 2s infinite;';
+            else if(p.rarity === 'Epico') glowClass = `box-shadow: 0 0 30px ${p.color}; border-color: ${p.color}; animation: pulse-pack 2s infinite;`;
+            else glowClass = `box-shadow: 0 0 20px ${p.color}; border-color: ${p.color};`;
+            
+            html = `<div class="player-card pop-in" style="width:140px; height:180px; justify-content:center; gap:8px; ${glowClass}">
+                        <div style="color: ${p.color}; font-size:40px; font-weight:bold; font-family:'Barlow Condensed',sans-serif; text-shadow: 0 0 10px ${p.color}80;">${p.overall}</div>
+                        <div style="font-size:14px; font-weight:bold; color:var(--text-muted);">${p.position}</div>
+                        <div style="font-size:16px; font-weight:bold; text-transform:uppercase; color:var(--text-primary); text-align:center;">${p.name.split(' ')[1] || p.name}</div>
+                    </div>`;
+        }
+        
+        revealArea.innerHTML = html;
+        controls.innerHTML = `
+            <button class="glass-btn" id="pack-next-btn" style="flex:1;">Prossimo ➡️</button>
+            <button class="glass-btn" id="pack-skip-btn" style="flex:1; border-color:var(--text-hint); color:var(--text-hint);">Salta Tutti ⏭️</button>
+        `;
+        document.getElementById('pack-next-btn').onclick = () => { currentIndex++; showNext(); };
+        document.getElementById('pack-skip-btn').onclick = () => { currentIndex = items.length; showNext(); };
+    }
+    
+    // Prima schermata introduttiva al pack
+    revealArea.innerHTML = `<i class="fas fa-box-open pop-in" style="font-size:100px; color:var(--gold); filter:drop-shadow(0 0 30px var(--gold));"></i>`;
+    controls.innerHTML = `<button class="primary-btn" id="pack-open-btn">APRI PACCHETTO</button>`;
+    document.getElementById('pack-open-btn').onclick = showNext;
+}
+
+// ==========================================
+// HOME E FINE STAGIONE CON GEMME
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -115,7 +275,7 @@ function renderHome() {
         playBtn.style.color = "#000";
         playBtn.style.borderColor = "var(--gold)";
         
-        playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo invecchiamento e premi...", () => { handleEndSeason(); }, "Procedi", false, true); };
+        playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo premi e invecchiamento...", () => { handleEndSeason(); }, "Procedi", false, true); };
     }
 
     if (opponents.length > 0) {
@@ -142,6 +302,24 @@ function renderHome() {
 
 function handleEndSeason() {
     let retirements = []; let evolutions = [];
+    
+    // Calcola Posizione e Premi in Gemme
+    let userStr = getUserTeamStrength();
+    let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+    let standings = [...opponents];
+    standings.push({ name: gameState.userTeam.name, isUser: true, points: gameState.userTeam.stats.points });
+    standings.sort((a, b) => b.points - a.points);
+    
+    let userRank = standings.findIndex(t => t.isUser) + 1;
+    let gemsEarned = 0;
+    if(userRank === 1) gemsEarned = 100;
+    else if(userRank <= 5) gemsEarned = 50;
+    else if(userRank <= 10) gemsEarned = 20;
+    else if(userRank <= 13) gemsEarned = 10;
+    else gemsEarned = 0;
+
+    gameState.userTeam.gems += gemsEarned;
+
     gameState.userTeam.players = gameState.userTeam.players.filter(p => {
         const result = processEndOfSeason(p);
         if (result.retired) { retirements.push(p.name); return false; }
@@ -150,7 +328,7 @@ function handleEndSeason() {
     });
     while(gameState.userTeam.players.length < 12) {
         let regen = generatePlayer('CEN', false, 'BRONZE', true); 
-        regen.name = "Vivaio " + generateRandomNameByNation(regen.nationKey);
+        regen.name = "Vivaio " + regen.name;
         gameState.userTeam.players.push(regen); evolutions.push(`${regen.name} (Nuovo)`);
     }
 
@@ -175,12 +353,24 @@ function handleEndSeason() {
     gameState.userTeam.coins += reward;
     gameState.userTeam.stats = { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 };
     gameState.userTeam.matchday = 1;
+    
+    // Promozione e Retrocessione
+    let seasonMsg = `<b>Posizione:</b> ${userRank}°<br><b>Premio:</b> 💰 ${reward.toLocaleString()} | 💎 ${gemsEarned}<br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`;
+    
+    if(userRank === 1 && gameState.userTeam.division > 1) {
+        gameState.userTeam.division--;
+        seasonMsg = `🎉 <b>PROMOZIONE! Se in Div ${gameState.userTeam.division}</b><br><br>` + seasonMsg;
+    } else if (userRank === 14 && gameState.userTeam.division < 3) {
+        gameState.userTeam.division++;
+        seasonMsg = `⚠️ <b>RETROCESSIONE! Torni in Div ${gameState.userTeam.division}</b><br><br>` + seasonMsg;
+    }
+
     saveGame(); updateDashboardHeader();
-    showConfirm("🏆 Stagione Conclusa!", `<b>Premio:</b> 💰 <span style="color:var(--gold);">${reward.toLocaleString()}</span><br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`, () => { renderHome(); }, "Nuova Stagione", false, true);
+    showConfirm("🏆 Stagione Conclusa!", seasonMsg, () => { renderHome(); }, "Nuova Stagione", false, true);
 }
 
 // ==========================================
-// GESTIONE SQUADRA E HUB
+// 3. GESTIONE SQUADRA E INVENTARIO
 // ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
@@ -189,6 +379,7 @@ function renderSquad() {
     const attLabel = document.getElementById('tactics-att');
     const defLabel = document.getElementById('tactics-def');
     const btnOpenHub = document.getElementById('btn-open-hub');
+    const btnOpenInv = document.getElementById('btn-open-inventory'); // NUOVO
     const hubModal = document.getElementById('hub-modal');
     const closeHubBtn = document.getElementById('close-hub-btn');
     const hubContent = document.getElementById('hub-content');
@@ -199,10 +390,76 @@ function renderSquad() {
     formSelect.value = gameState.userTeam.formation;
     formSelect.onchange = (e) => { gameState.userTeam.formation = e.target.value; selectedPlayerId = null; saveGame(); renderSquad(); };
 
+    // Toggle Super Boost Indicator
+    const boostInd = document.getElementById('super-boost-indicator');
+    if (gameState.userTeam.activeBoostMatches > 0) {
+        boostInd.style.display = 'block';
+        document.getElementById('boost-matches-left').textContent = gameState.userTeam.activeBoostMatches;
+    } else {
+        boostInd.style.display = 'none';
+    }
+
     btnOpenHub.onclick = () => { renderHubList(); hubModal.classList.add('active'); };
+    
+    if(btnOpenInv) {
+        btnOpenInv.onclick = () => { renderInventory(); hubModal.classList.add('active'); };
+    }
+
     closeHubBtn.onclick = () => { hubModal.classList.remove('active'); renderSquad(); };
 
+    function renderInventory() {
+        const titleEl = document.getElementById('hub-title');
+        if(titleEl) titleEl.innerHTML = `<i class="fas fa-briefcase"></i> I Tuoi Bonus`;
+        
+        let inv = gameState.userTeam.inventory || { healAll: 0, healPlayer: 0, superBoosts: 0 };
+        
+        hubContent.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div class="glass-panel" style="padding: 15px; border-color: var(--accent);">
+                    <h3 style="color: var(--accent); margin-bottom: 5px;"><i class="fas fa-heart-pulse"></i> Cura Squadra (x${inv.healAll})</h3>
+                    <p style="font-size: 11px; color: var(--text-hint); margin-bottom: 10px;">Ripristina l'energia di TUTTI i giocatori al 100%.</p>
+                    <button class="glass-btn" id="use-heal-all" ${inv.healAll > 0 ? '' : 'disabled'}>Usa Bonus</button>
+                </div>
+                <div class="glass-panel" style="padding: 15px; border-color: var(--notif-info);">
+                    <h3 style="color: var(--notif-info); margin-bottom: 5px;"><i class="fas fa-medkit"></i> Kit Medico (x${inv.healPlayer})</h3>
+                    <p style="font-size: 11px; color: var(--text-hint); margin-bottom: 10px;">Cura istantaneamente tutti i giocatori infortunati.</p>
+                    <button class="glass-btn" id="use-heal-player" ${inv.healPlayer > 0 ? '' : 'disabled'}>Usa Bonus</button>
+                </div>
+                <div class="glass-panel" style="padding: 15px; border-color: var(--rarity-epic);">
+                    <h3 style="color: var(--rarity-epic); margin-bottom: 5px;"><i class="fas fa-fire"></i> Super Boost (x${inv.superBoosts})</h3>
+                    <p style="font-size: 11px; color: var(--text-hint); margin-bottom: 10px;">Aumenta l'Overall globale della squadra del 15% per le prossime 5 partite.</p>
+                    <button class="glass-btn" id="use-super-boost" ${inv.superBoosts > 0 ? '' : 'disabled'}>Attiva Boost</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('use-heal-all').onclick = () => {
+            if(inv.healAll > 0) {
+                inv.healAll--; gameState.userTeam.players.forEach(p => p.energy = 100);
+                saveGame(); showNotification('Squadra Curata!', 'Energia squadra al 100%.', 'success'); closeHubBtn.click();
+            }
+        };
+        document.getElementById('use-heal-player').onclick = () => {
+            if(inv.healPlayer > 0) {
+                let injured = gameState.userTeam.players.filter(p => p.status && p.status.injured > 0);
+                if(injured.length === 0) { showNotification('Attenzione', 'Nessun giocatore infortunato.', 'info'); return; }
+                inv.healPlayer--; injured.forEach(p => p.status.injured = 0);
+                saveGame(); showNotification('Infortunati Curati!', 'Tornati disponibili in panchina.', 'success'); closeHubBtn.click();
+            }
+        };
+        document.getElementById('use-super-boost').onclick = () => {
+            if(inv.superBoosts > 0) {
+                inv.superBoosts--; gameState.userTeam.activeBoostMatches = 5;
+                saveGame(); updateDashboardHeader(); showNotification('Super Boost Attivo!', '+15% Overall per 5 partite.', 'success'); 
+                closeHubBtn.click();
+            }
+        };
+    }
+
     function renderHubList() {
+        const titleEl = document.getElementById('hub-title');
+        if(titleEl) titleEl.innerHTML = `<i class="fas fa-clipboard-user"></i> Hub Squadra`;
+
         hubContent.innerHTML = '';
         let allPlayers = [...gameState.userTeam.players].sort((a,b) => b.overall - a.overall);
         
@@ -519,7 +776,6 @@ function renderProfile() {
     const coinsEl = document.getElementById('profile-coins');
     const playersCountEl = document.getElementById('profile-players-count');
     const deleteBtn = document.getElementById('delete-account-btn');
-    
     const strEl = document.getElementById('profile-strength');
     const starsEl = document.getElementById('profile-stars');
 
