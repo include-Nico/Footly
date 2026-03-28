@@ -34,13 +34,12 @@ export function loadGame() {
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
         if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1;
         
-        // FIX Salvataggi: Inizializza i nuovi dati
         if (gameState.userTeam.players) {
             gameState.userTeam.players.forEach(p => { 
                 if (p.energy === undefined) p.energy = 100; 
                 if (p.stats.yellowCards === undefined) p.stats.yellowCards = 0;
                 if (p.stats.redCards === undefined) p.stats.redCards = 0;
-                if (p.status.yellowCards !== undefined) delete p.status.yellowCards; // Rimuove vecchia logica
+                if (p.status.yellowCards === undefined) p.status.yellowCards = 0; 
             });
         }
         
@@ -60,6 +59,12 @@ export function getUserTeamStrength() {
     let starters = gameState.userTeam.players.filter(p => p.isStarter);
     if(starters.length === 0) return 0;
     
-    let sum = starters.reduce((acc, p) => acc + getEffectiveOverall(p), 0);
-    return Math.floor(sum / starters.length);
+    let sum = starters.reduce((acc, p) => {
+        // Se il giocatore è stato appena espulso in partita (suspended === 2), non aiuta la squadra!
+        if (p.status && p.status.suspended === 2) return acc; 
+        return acc + getEffectiveOverall(p);
+    }, 0);
+    
+    // La media viene comunque divisa per l'intera formazione, facendo crollare l'Overall!
+    return Math.floor(sum / starters.length); 
 }
