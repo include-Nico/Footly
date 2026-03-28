@@ -4,7 +4,7 @@
         <h2 style="color: var(--accent); margin-bottom: 5px;">Giornata <span id="intro-matchday"></span></h2>
         <p style="color: var(--text-hint); font-size: 12px; margin-bottom: 30px;">Stadio di Casa</p>
         
-        <div style="display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; margin-bottom: 40px;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; margin-bottom: 30px;">
             <div style="flex: 1; text-align: right;">
                 <div style="font-size: 40px;">⚽</div>
                 <h3 id="intro-home-name" style="margin-top: 10px;">Tu</h3>
@@ -18,7 +18,12 @@
             </div>
         </div>
         
-        <button id="start-kickoff-btn" class="primary-btn" style="max-width: 250px;">Fischio d'Inizio <i class="fas fa-whistle"></i></button>
+        <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 260px;">
+            <button id="start-kickoff-btn" class="primary-btn" style="margin-top: 0;">Fischio d'Inizio <i class="fas fa-whistle"></i></button>
+            <button id="btn-intro-sim" class="glass-btn" style="border-color: var(--gold); color: var(--gold); padding: 14px;">Simula Rapida (💰100) <i class="fas fa-bolt"></i></button>
+            <button id="btn-intro-squad" class="glass-btn" style="padding: 14px;">Gestione Squadra <i class="fas fa-users"></i></button>
+            <button id="btn-intro-home" class="glass-btn" style="padding: 14px;">Torna alla Home <i class="fas fa-arrow-left"></i></button>
+        </div>
     </div>
 
     <div id="match-engine" style="display: none; flex-direction: column; height: 100%; position: relative;">
@@ -45,7 +50,8 @@
         </div>
 
         <div style="padding: 15px; background: var(--bg-card); border-top: 1px solid var(--border-dim); display: flex; gap: 10px;">
-            <button id="btn-pause-sub" class="glass-btn" style="flex: 1; border-color: var(--accent); color: var(--accent);"><i class="fas fa-pause"></i> Gestione Squadra (<span id="subs-left">5</span>)</button>
+            <button id="btn-pause-sub" class="glass-btn" style="flex: 2; border-color: var(--accent); color: var(--accent);"><i class="fas fa-pause"></i> Gestione Squadra (<span id="subs-left">5</span>)</button>
+            <button id="btn-match-speed" class="glass-btn" style="flex: 1; border-color: var(--notif-info); color: var(--notif-info);"><i class="fas fa-forward"></i> 1x</button>
         </div>
 
         <div id="match-banner" class="match-banner-overlay">
