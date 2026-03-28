@@ -85,7 +85,7 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// STORE (NEGOZIO) E PACK OPENING
+// STORE (NEGOZIO) E PACK OPENING ANIMATION
 // ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
@@ -265,7 +265,7 @@ function renderHome() {
     const isEndOfSeason = gameState.userTeam.matchday > 26;
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
 
-    // POPOLA IL CALENDARIO SCORREVOLE
+    // --- FIX: POPOLA IL CALENDARIO SCORREVOLE CON FORMATAZIONE MIGLIORATA ---
     if (scheduleContainer && opponents.length > 0) {
         scheduleContainer.innerHTML = '';
         for (let i = 1; i <= 26; i++) {
@@ -273,7 +273,7 @@ function renderHome() {
             let opp = opponents[oppIndex];
             let isHome = (i % 2 !== 0);
             let venueText = isHome ? "Casa" : "Trasferta";
-            let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent);"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning);"></i>';
+            let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
             
             let statusClass = '';
             let statusText = '';
@@ -291,11 +291,17 @@ function renderHome() {
 
             let item = document.createElement('div');
             item.className = 'glass-panel';
-            item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; ${statusClass}`;
+            // border: 1px solid transparent impedisce il cambio di dimensione al hover/oggi
+            item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
+            
             item.innerHTML = `
                 <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Giornata ${i}</div>
-                <div style="font-weight: bold; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${opp.name}">${opp.name}</div>
-                <div style="font-size: 11px; color: var(--text-hint); margin-top: 4px;">${venueIcon} ${venueText}</div>
+                <div style="font-weight: bold; font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${opp.name}">${opp.name}</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${venueIcon} ${venueText}</div>
+                <div style="display: flex; flex-direction: column; align-items: center; margin-top: 6px;">
+                    <div style="font-size: 11px; font-weight: bold; color: var(--gold);">${opp.strength}</div>
+                    ${getStarsHTML(opp.strength)}
+                </div>
                 <div style="font-size: 10px; font-weight: bold; color: ${i === gameState.userTeam.matchday ? 'var(--accent)' : 'var(--text-muted)'}; margin-top: 8px;">${statusText}</div>
             `;
             scheduleContainer.appendChild(item);
