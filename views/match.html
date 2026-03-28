@@ -21,7 +21,7 @@
         <button id="start-kickoff-btn" class="primary-btn" style="max-width: 250px;">Fischio d'Inizio <i class="fas fa-whistle"></i></button>
     </div>
 
-    <div id="match-engine" style="display: none; flex-direction: column; height: 100%;">
+    <div id="match-engine" style="display: none; flex-direction: column; height: 100%; position: relative;">
         
         <div style="background: var(--bg-card); padding: 15px 20px; border-bottom: 1px solid var(--border-dim); display: flex; justify-content: space-between; align-items: center;">
             <div style="text-align: center; flex: 1;">
@@ -46,6 +46,11 @@
 
         <div style="padding: 15px; background: var(--bg-card); border-top: 1px solid var(--border-dim); display: flex; gap: 10px;">
             <button id="btn-pause-sub" class="glass-btn" style="flex: 1; border-color: var(--accent); color: var(--accent);"><i class="fas fa-pause"></i> Gestione Squadra (<span id="subs-left">5</span>)</button>
+        </div>
+
+        <div id="goal-banner" class="goal-banner-overlay">
+            <div class="goal-banner-text">GOAL!</div>
+            <div id="goal-banner-details" class="goal-banner-details"></div>
         </div>
     </div>
 
@@ -79,9 +84,7 @@
                     <option value="2-2-2">2-2-2</option>
                     <option value="1-4-1">1-4-1</option>
                 </select>
-                
                 <h3 style="color: white; margin: 0; font-size: 12px;">Cambi: <span id="subs-modal-left" style="color: var(--accent);">5</span></h3>
-                
                 <button id="close-subs-btn" class="glass-btn" style="color: var(--accent); border-color: var(--accent); padding: 6px 10px; font-size: 11px;"><i class="fas fa-play"></i> Riprendi</button>
             </div>
 
