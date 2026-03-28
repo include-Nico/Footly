@@ -85,7 +85,7 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// STORE (NEGOZIO) E PACK OPENING ANIMATION
+// STORE (NEGOZIO) E PACK OPENING
 // ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
@@ -260,12 +260,12 @@ function renderHome() {
 
     const userStr = getUserTeamStrength();
     const homeRatingEl = document.getElementById('home-team-rating');
-    if (homeRatingEl) homeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:12px;">${userStr}</span>${getStarsHTML(userStr)}`;
+    // Mantiene la media globale nell'intestazione in alto a destra
+    if (homeRatingEl) homeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:14px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
 
     const isEndOfSeason = gameState.userTeam.matchday > 26;
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
 
-    // --- FIX: POPOLA IL CALENDARIO SCORREVOLE CON FORMATAZIONE MIGLIORATA ---
     if (scheduleContainer && opponents.length > 0) {
         scheduleContainer.innerHTML = '';
         for (let i = 1; i <= 26; i++) {
@@ -291,7 +291,6 @@ function renderHome() {
 
             let item = document.createElement('div');
             item.className = 'glass-panel';
-            // border: 1px solid transparent impedisce il cambio di dimensione al hover/oggi
             item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
             
             item.innerHTML = `
@@ -307,7 +306,6 @@ function renderHome() {
             scheduleContainer.appendChild(item);
         }
 
-        // Scrolla automaticamente per centrare la partita di oggi
         setTimeout(() => {
             const currentCard = scheduleContainer.children[Math.min(gameState.userTeam.matchday - 1, 25)];
             if (currentCard) currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -318,10 +316,17 @@ function renderHome() {
         let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
         let nextOpponent = opponents[oppIndex];
         
+        // --- FIX ALLINEAMENTO: Compila i nuovi id per la squadra di casa (Tu) e la CPU ---
+        const nextHomeNameEl = document.getElementById('next-home-name');
+        if (nextHomeNameEl) nextHomeNameEl.textContent = gameState.userTeam.name;
+        
+        const nextHomeRatingEl = document.getElementById('next-home-rating');
+        if (nextHomeRatingEl) nextHomeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
+        
         if (cpuTeamNameEl) cpuTeamNameEl.textContent = nextOpponent.name;
+        
         const cpuRatingEl = document.getElementById('cpu-team-rating');
-        if (cpuRatingEl) cpuRatingEl.innerHTML = `<span style="font-weight:bold; font-size:12px;">${nextOpponent.strength}</span>${getStarsHTML(nextOpponent.strength)}`;
-        document.getElementById('match-vs-badge').textContent = "VS";
+        if (cpuRatingEl) cpuRatingEl.innerHTML = `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${nextOpponent.strength}</span>${getStarsHTML(nextOpponent.strength)}`;
         
         playBtnText.textContent = "Gioca Partita";
         playBtnIcon.innerHTML = '<i class="fas fa-play"></i>';
@@ -336,7 +341,12 @@ function renderHome() {
     } else {
         if (cpuTeamNameEl) cpuTeamNameEl.textContent = "Stagione Conclusa";
         document.getElementById('cpu-team-rating').innerHTML = "";
-        document.getElementById('match-vs-badge').textContent = "🏆";
+        
+        // Svuotiamo anche la controparte "Tu" se è finita la stagione
+        const nextHomeNameEl = document.getElementById('next-home-name');
+        if (nextHomeNameEl) nextHomeNameEl.textContent = "";
+        const nextHomeRatingEl = document.getElementById('next-home-rating');
+        if (nextHomeRatingEl) nextHomeRatingEl.innerHTML = "";
         
         playBtnText.textContent = "Termina Stagione";
         playBtnIcon.innerHTML = '<i class="fas fa-forward-step"></i>';
@@ -694,7 +704,7 @@ function renderSquad() {
         else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
 
         bench.innerHTML += `
-            <div class="player-card player-card-interactive ${isSelected}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+            <div class="player-card player-card-interactive ${isSelected} ${disabledClass}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
                 ${warningHTML}
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
                 <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
