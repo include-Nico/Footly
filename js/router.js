@@ -1,7 +1,8 @@
 // js/router.js
 import { gameState, resetGame, saveGame, getUserTeamStrength } from './state.js';
 import { updateDashboardHeader, showNotification, showConfirm } from './ui.js';
-import { processEndOfSeason, generatePlayer, getEffectiveOverall } from './players.js'; 
+import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
+import { startMatchEngine } from './engine.js'; 
 
 const mainContent = document.getElementById('main-content');
 let selectedPlayerId = null; let draggedId = null; 
@@ -29,7 +30,8 @@ export async function loadView(viewName) {
         else if (viewName === 'squad') renderSquad();
         else if (viewName === 'profile') renderProfile();
         else if (viewName === 'market') renderMarket();
-        else if (viewName === 'store') renderStore(); // NUOVO
+        else if (viewName === 'store') renderStore(); // FIX MIO ERRORE, AGGIUNTO IL NEGOZIO
+        else if (viewName === 'match') startMatchEngine();
 
     } catch (error) { console.error("Errore router:", error); }
 }
@@ -84,7 +86,6 @@ function renderStore() {
 function openPack(type) {
     let items = [];
     
-    // Generazione Monete
     let coins = 0;
     if(type === 'COMUNE') coins = randomInt(200, 1000);
     else if(type === 'SUPER') coins = randomInt(1000, 3000);
@@ -93,7 +94,6 @@ function openPack(type) {
     items.push({ type: 'coin', data: coins });
     gameState.userTeam.coins += coins;
 
-    // Generazione Bonus
     if(type === 'SUPER') {
         for(let i=0; i<2; i++) {
             let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer';
@@ -101,7 +101,7 @@ function openPack(type) {
             gameState.userTeam.inventory[b]++;
         }
     } else if (type === 'MEGA') {
-        items.push({ type: 'bonus', data: 'superBoosts' }); // Garantito!
+        items.push({ type: 'bonus', data: 'superBoosts' }); 
         gameState.userTeam.inventory['superBoosts']++;
         for(let i=0; i<3; i++) {
             let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer';
@@ -110,7 +110,6 @@ function openPack(type) {
         }
     }
 
-    // Generazione Giocatori
     let numPlayers = type === 'MEGA' ? 4 : randomInt(3, 4);
     for(let i=0; i<numPlayers; i++) {
         let rarity = 'BRONZE';
@@ -127,7 +126,7 @@ function openPack(type) {
             if(r > 0.95) rarity = 'LEGEND';
             else if (r > 0.70) rarity = 'EPIC';
             else if (r > 0.40) rarity = 'SUPERRARE';
-            else rarity = 'RAREGOLD'; // Mai Argento o Bronzo
+            else rarity = 'RAREGOLD'; 
         }
         let pos = ['POR', 'DIF', 'CEN', 'ATT'][Math.floor(Math.random()*4)];
         let player = generatePlayer(pos, false, rarity);
@@ -194,7 +193,6 @@ function triggerPackAnimation(items) {
         } else {
             let p = item.data;
             let glowClass = '';
-            // Bagliore per Epico e Leggenda
             if(p.rarity === 'Leggenda') glowClass = 'box-shadow: 0 0 40px white; border-color: white; animation: pulse-pack 2s infinite;';
             else if(p.rarity === 'Epico') glowClass = `box-shadow: 0 0 30px ${p.color}; border-color: ${p.color}; animation: pulse-pack 2s infinite;`;
             else glowClass = `box-shadow: 0 0 20px ${p.color}; border-color: ${p.color};`;
@@ -215,14 +213,13 @@ function triggerPackAnimation(items) {
         document.getElementById('pack-skip-btn').onclick = () => { currentIndex = items.length; showNext(); };
     }
     
-    // Prima schermata introduttiva al pack
     revealArea.innerHTML = `<i class="fas fa-box-open pop-in" style="font-size:100px; color:var(--gold); filter:drop-shadow(0 0 30px var(--gold));"></i>`;
     controls.innerHTML = `<button class="primary-btn" id="pack-open-btn">APRI PACCHETTO</button>`;
     document.getElementById('pack-open-btn').onclick = showNext;
 }
 
 // ==========================================
-// HOME E FINE STAGIONE CON GEMME
+// HOME E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -359,7 +356,7 @@ function handleEndSeason() {
     
     if(userRank === 1 && gameState.userTeam.division > 1) {
         gameState.userTeam.division--;
-        seasonMsg = `🎉 <b>PROMOZIONE! Se in Div ${gameState.userTeam.division}</b><br><br>` + seasonMsg;
+        seasonMsg = `🎉 <b>PROMOZIONE! Sei in Div ${gameState.userTeam.division}</b><br><br>` + seasonMsg;
     } else if (userRank === 14 && gameState.userTeam.division < 3) {
         gameState.userTeam.division++;
         seasonMsg = `⚠️ <b>RETROCESSIONE! Torni in Div ${gameState.userTeam.division}</b><br><br>` + seasonMsg;
@@ -370,7 +367,7 @@ function handleEndSeason() {
 }
 
 // ==========================================
-// 3. GESTIONE SQUADRA E INVENTARIO
+// GESTIONE SQUADRA E INVENTARIO
 // ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
@@ -379,7 +376,7 @@ function renderSquad() {
     const attLabel = document.getElementById('tactics-att');
     const defLabel = document.getElementById('tactics-def');
     const btnOpenHub = document.getElementById('btn-open-hub');
-    const btnOpenInv = document.getElementById('btn-open-inventory'); // NUOVO
+    const btnOpenInv = document.getElementById('btn-open-inventory');
     const hubModal = document.getElementById('hub-modal');
     const closeHubBtn = document.getElementById('close-hub-btn');
     const hubContent = document.getElementById('hub-content');
@@ -390,7 +387,6 @@ function renderSquad() {
     formSelect.value = gameState.userTeam.formation;
     formSelect.onchange = (e) => { gameState.userTeam.formation = e.target.value; selectedPlayerId = null; saveGame(); renderSquad(); };
 
-    // Toggle Super Boost Indicator
     const boostInd = document.getElementById('super-boost-indicator');
     if (gameState.userTeam.activeBoostMatches > 0) {
         boostInd.style.display = 'block';
@@ -673,7 +669,7 @@ function renderSquad() {
 }
 
 // ==========================================
-// 4. MERCATO E PROFILO
+// MERCATO E PROFILO
 // ==========================================
 function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
@@ -776,6 +772,7 @@ function renderProfile() {
     const coinsEl = document.getElementById('profile-coins');
     const playersCountEl = document.getElementById('profile-players-count');
     const deleteBtn = document.getElementById('delete-account-btn');
+    
     const strEl = document.getElementById('profile-strength');
     const starsEl = document.getElementById('profile-stars');
 

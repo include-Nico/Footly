@@ -7,7 +7,7 @@ export const gameState = {
         league: "",
         division: 3,
         coins: 10000,
-        gems: 50,
+        gems: 50, // Gemme iniziali
         inventory: { healAll: 0, healPlayer: 0, superBoosts: 0 },
         activeBoostMatches: 0,
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
@@ -29,6 +29,14 @@ export function loadGame() {
     const savedData = localStorage.getItem('footly_save_data');
     if (savedData) {
         const parsedData = JSON.parse(savedData);
+        
+        // CONTROLLO ANTI-CRASH: Se il salvataggio è vecchio (prima dell'update mondiale), resetta tutto!
+        if (!parsedData.world || !parsedData.world["Italia"]) {
+            console.log("Vecchio salvataggio rilevato. Reset forzato per evitare crash.");
+            resetGame();
+            return false;
+        }
+
         Object.assign(gameState.userTeam, parsedData.userTeam);
         if (parsedData.world) gameState.world = parsedData.world;
         gameState.currentView = parsedData.currentView || "home";
@@ -37,7 +45,6 @@ export function loadGame() {
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
         if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1;
         
-        // FIX VECCHI SALVATAGGI
         if (gameState.userTeam.gems === undefined) gameState.userTeam.gems = 50;
         if (!gameState.userTeam.inventory) gameState.userTeam.inventory = { healAll: 0, healPlayer: 0, superBoosts: 0 };
         if (gameState.userTeam.activeBoostMatches === undefined) gameState.userTeam.activeBoostMatches = 0;
@@ -72,12 +79,12 @@ export function getUserTeamStrength() {
         return acc + getEffectiveOverall(p);
     }, 0);
     
-    let baseStrength = Math.floor(sum / starters.length); 
+    let baseStr = Math.floor(sum / starters.length); 
     
-    // POTERE DEL SUPER BOOST (+15%)
+    // APPLICA SUPER BOOST! (+15%)
     if (gameState.userTeam.activeBoostMatches > 0) {
-        baseStrength = Math.floor(baseStrength * 1.15);
+        baseStr = Math.floor(baseStr * 1.15);
     }
     
-    return baseStrength;
+    return baseStr;
 }

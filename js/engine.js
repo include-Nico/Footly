@@ -37,17 +37,27 @@ export function startMatchEngine() {
     let stoppageTime = randomInt(2, 6);
     let addedTimeAnnounced = false;
 
+    // GUARDIA ANTI-CRASH
     const userStr = getUserTeamStrength();
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+    if (opponents.length === 0) {
+        showNotification("Errore di Caricamento", "Il mondo non è caricato correttamente. Torna alla home o resetta l'account.", "error");
+        return;
+    }
+
     let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
     let nextOpponent = opponents[oppIndex];
     let cpuDynamicStrength = nextOpponent.strength;
 
-    gameState.userTeam.players.forEach(p => { p.matchYellows = 0; });
+    // Assicura che i giocatori abbiano lo status prima di avviare
+    gameState.userTeam.players.forEach(p => { 
+        if(!p.status) p.status = { injured: 0, suspended: 0, yellowCards: 0 };
+        p.matchYellows = 0; 
+    });
 
     function updateMatchHeaderStr() {
-        const userStr = getUserTeamStrength(); 
-        document.getElementById('intro-home-str').innerHTML = `${userStr} ${getStarsHTML(userStr)}`;
+        const str = getUserTeamStrength(); 
+        document.getElementById('intro-home-str').innerHTML = `${str} ${getStarsHTML(str)}`;
     }
     
     document.getElementById('intro-matchday').textContent = gameState.userTeam.matchday;
@@ -99,7 +109,6 @@ export function startMatchEngine() {
     }
     if(Math.random() > 0.4) chanceMinutes.push(90 + randomInt(1, stoppageTime)); 
 
-    // --- NUOVA SIMULAZIONE (GEMME INVECE DI MONETE) ---
     document.getElementById('btn-intro-sim').innerHTML = `Simula Rapida (💎 5) <i class="fas fa-bolt"></i>`;
     document.getElementById('btn-intro-sim').style.borderColor = "#00d4ff";
     document.getElementById('btn-intro-sim').style.color = "#00d4ff";
@@ -125,11 +134,11 @@ export function startMatchEngine() {
                 });
 
                 const currentF = FORMATIONS[gameState.userTeam.formation];
-                let userWeight = getUserTeamStrength() + currentF.att;
-                let cpuWeight = nextOpponent.strength - (currentF.def * 0.5);
+                let wUser = getUserTeamStrength() + currentF.att;
+                let wCpu = nextOpponent.strength - (currentF.def * 0.5);
 
-                let t1Roll = Math.random() * (userWeight + cpuWeight);
-                if (t1Roll <= userWeight) { 
+                let t1Roll = Math.random() * (wUser + wCpu);
+                if (t1Roll <= wUser) { 
                     homeScore = Math.floor(Math.random()*4)+1; 
                     awayScore = Math.floor(Math.random()*2); 
                     if(Math.random()>0.8) awayScore=homeScore; 
@@ -229,10 +238,10 @@ export function startMatchEngine() {
             let totalTacAtt = tacBonusAtt + currentF.att;
             let totalTacDef = tacBonusDef + currentF.def;
             
-            let userWeight = getUserTeamStrength() + totalTacAtt;
-            let cpuWeight = cpuDynamicStrength - (totalTacDef * 0.5);
+            let wUser = getUserTeamStrength() + totalTacAtt;
+            let wCpu = cpuDynamicStrength - (totalTacDef * 0.5);
 
-            if(Math.random() * (userWeight + cpuWeight) < userWeight) {
+            if(Math.random() * (wUser + wCpu) < wUser) {
                 let shooter = getRandomShooter();
                 let assister = null;
                 if (Math.random() > 0.4) {
@@ -591,7 +600,7 @@ export function startMatchEngine() {
                 let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
                 if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
                 if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
-                else if (p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
+                else if (p.status.yellowCards === 1 || p.matchYellows === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
 
                 let isSelected = selectedPlayerId === p.id ? 'selected' : '';
                 let disabledClass = (p.status.suspended > 0) ? "disabled" : "";
