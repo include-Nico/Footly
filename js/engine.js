@@ -37,7 +37,6 @@ export function startMatchEngine() {
     let stoppageTime = randomInt(2, 6);
     let addedTimeAnnounced = false;
 
-    // GUARDIA ANTI-CRASH
     const userStr = getUserTeamStrength();
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     if (opponents.length === 0) {
@@ -49,7 +48,6 @@ export function startMatchEngine() {
     let nextOpponent = opponents[oppIndex];
     let cpuDynamicStrength = nextOpponent.strength;
 
-    // Assicura che i giocatori abbiano lo status prima di avviare
     gameState.userTeam.players.forEach(p => { 
         if(!p.status) p.status = { injured: 0, suspended: 0, yellowCards: 0 };
         p.matchYellows = 0; 
@@ -101,7 +99,12 @@ export function startMatchEngine() {
         setTimeout(() => { banner.classList.remove('show'); if(callback) callback(); }, 3000);
     }
 
-    let totalChances = randomInt(2, 4); 
+    // --- NUOVA MATEMATICA OCCASIONI PROPORZIONALE ALLA FORZA ---
+    let strDiffAbs = Math.abs(userStr - nextOpponent.strength);
+    // Base di 3-4 occasioni. Aggiunge +1 occasione per ogni 8 punti di differenza
+    let totalChances = randomInt(3, 4) + Math.floor(strDiffAbs / 8); 
+    if(totalChances > 8) totalChances = 8; // Massimo 8 occasioni
+
     let chanceMinutes = [];
     while(chanceMinutes.length < totalChances) {
         let m = randomInt(5, 88);
@@ -134,18 +137,21 @@ export function startMatchEngine() {
                 });
 
                 const currentF = FORMATIONS[gameState.userTeam.formation];
-                let wUser = getUserTeamStrength() + currentF.att;
-                let wCpu = nextOpponent.strength - (currentF.def * 0.5);
+                
+                // Pesa in modo ESPONENZIALE per limitare gli upset
+                let wUser = Math.pow(getUserTeamStrength() + currentF.att, 2);
+                let wCpu = Math.pow(nextOpponent.strength - (currentF.def * 0.5), 2);
+                
+                let diff = Math.abs(getUserTeamStrength() - nextOpponent.strength);
+                let totalSimChances = randomInt(3, 5) + Math.floor(diff / 8);
 
-                let t1Roll = Math.random() * (wUser + wCpu);
-                if (t1Roll <= wUser) { 
-                    homeScore = Math.floor(Math.random()*4)+1; 
-                    awayScore = Math.floor(Math.random()*2); 
-                    if(Math.random()>0.8) awayScore=homeScore; 
-                } else { 
-                    awayScore = Math.floor(Math.random()*4)+1; 
-                    homeScore = Math.floor(Math.random()*2); 
-                    if(Math.random()>0.8) homeScore=awayScore; 
+                homeScore = 0; awayScore = 0;
+                for(let i=0; i<totalSimChances; i++) {
+                    if (Math.random() * (wUser + wCpu) <= wUser) { 
+                        if(Math.random() > 0.4) homeScore++; 
+                    } else { 
+                        if(Math.random() > 0.4) awayScore++; 
+                    }
                 }
 
                 for(let i=0; i<homeScore; i++) {
@@ -235,11 +241,10 @@ export function startMatchEngine() {
         if (chanceMinutes.includes(minute)) {
             pauseMatch('chance');
             const currentF = FORMATIONS[gameState.userTeam.formation];
-            let totalTacAtt = tacBonusAtt + currentF.att;
-            let totalTacDef = tacBonusDef + currentF.def;
             
-            let wUser = getUserTeamStrength() + totalTacAtt;
-            let wCpu = cpuDynamicStrength - (totalTacDef * 0.5);
+            // ELEVIAMO AL QUADRATO PER DARE PESO MASSIMO AL PIÙ FORTE!
+            let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + currentF.att, 2);
+            let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + currentF.def * 0.5), 2);
 
             if(Math.random() * (wUser + wCpu) < wUser) {
                 let shooter = getRandomShooter();
@@ -325,60 +330,69 @@ export function startMatchEngine() {
         let pOff = getActivePlayer(['ATT', 'CEN']) || getActivePlayer();
         let pDef = getActivePlayer(['DIF', 'CEN']) || getActivePlayer();
         
-        let randEvent = Math.random();
+        // MATEMATICA ESPONENZIALE ANCHE PER GLI EVENTI INTERATTIVI
+        const currentF = FORMATIONS[gameState.userTeam.formation];
+        let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + currentF.att, 2);
+        let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + currentF.def * 0.5), 2);
+        let userProb = wUser / (wUser + wCpu);
         
-        if (randEvent < 0.4) {
-            titleEl.textContent = "Azione Pericolosa!"; titleEl.style.color = "var(--accent)";
-            let offVerbs = ["sale prepotentemente sulla fascia", "trova un varco centrale", "avanza palla al piede", "supera un avversario con una finta"];
-            let offVerb = offVerbs[Math.floor(Math.random() * offVerbs.length)];
-            descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. La difesa è scoperta. Cosa gli diciamo di fare?`;
-            
-            let companions = getMultipleActivePlayers(2);
-            companions.forEach(comp => {
-                if(comp.id === pOff.id) return;
-                let successChance = (getEffectiveOverall(comp) / 100) * 0.8;
-                addEventButton(`Passa la palla a ${comp.name} (${comp.position})`, () => {
-                    modal.classList.remove('active');
-                    if(Math.random() < successChance) { addLog(`Passaggio illuminante per ${comp.name}!`); triggerGoalMiniGame(comp, false, pOff, 'event'); }
-                    else { addLog(`Passaggio intercettato per ${comp.name}. Palla persa.`); resumeMatch('event'); }
-                });
-            });
-            
-            addEventButton(`Cerca la conclusione personale`, () => {
-                modal.classList.remove('active');
-                let successChance = (getEffectiveOverall(pOff) / 100) * 0.7; 
-                if(Math.random() < successChance) { addLog(`${pOff.name} si libera lo specchio della porta!`); triggerGoalMiniGame(pOff, false, null, 'event'); }
-                else { addLog(`${pOff.name} viene murato al momento del tiro.`); resumeMatch('event'); }
-            });
-
-        } else if (randEvent < 0.8) {
-            titleEl.textContent = "Contropiede Avversario!"; titleEl.style.color = "var(--notif-warning)";
-            descEl.innerHTML = `Lancio lungo improvviso! Gli avversari ripartono veloci. <b>${pDef.name}</b> è l'ultimo uomo rimasto in difesa.`;
-            
-            addEventButton(`Fallo Tattico (Rischio Cartellino)`, () => {
-                modal.classList.remove('active');
-                if(Math.random() < 0.3) { applyRedCard(pDef, 'event'); } 
-                else { applyYellowCard(pDef, 'event'); }
-            });
-            
-            addEventButton(`Difendi temporeggiando (Rischio Gol)`, () => {
-                modal.classList.remove('active');
-                let successChance = (getEffectiveOverall(pDef) / 100) * 0.85;
-                if(Math.random() < successChance) { addLog(`Chiusura difensiva magistrale di <b>${pDef.name}</b>! Pericolo scampato.`); resumeMatch('event'); } 
-                else { 
-                    addLog(`<b>${pDef.name}</b> viene saltato di netto! L'attaccante si invola.`); 
-                    let oppShooter = getRandomOpponentPlayer(['ATT', 'CEN']) || getRandomOpponentPlayer();
-                    triggerGoalMiniGame(oppShooter, true, null, 'event'); 
-                }
-            });
-        } else {
+        let isUserEvent = Math.random() < userProb;
+        let isPenalty = Math.random() < 0.2; 
+        
+        if (isPenalty) {
             titleEl.textContent = "Fallo in Area!"; titleEl.style.color = "var(--gold)";
-            if(Math.random() > 0.5) {
+            if(isUserEvent) {
                 descEl.innerHTML = `L'arbitro indica il dischetto a tuo favore!`;
                 addEventButton(`Calcia il Rigore`, () => { modal.classList.remove('active'); triggerPenalty(true, 'event'); });
             } else {
                 descEl.innerHTML = `Intervento scomposto in area. Rigore per il ${nextOpponent.name}!`;
                 addEventButton(`Vai in Porta`, () => { modal.classList.remove('active'); triggerPenalty(false, 'event'); });
+            }
+        } else {
+            if (isUserEvent) {
+                titleEl.textContent = "Azione Pericolosa!"; titleEl.style.color = "var(--accent)";
+                let offVerbs = ["sale prepotentemente sulla fascia", "trova un varco centrale", "avanza palla al piede", "supera un avversario con una finta"];
+                let offVerb = offVerbs[Math.floor(Math.random() * offVerbs.length)];
+                descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. La difesa è scoperta. Cosa gli diciamo di fare?`;
+                
+                let companions = getMultipleActivePlayers(2);
+                companions.forEach(comp => {
+                    if(comp.id === pOff.id) return;
+                    let successChance = (getEffectiveOverall(comp) / 100) * 0.8;
+                    addEventButton(`Passa la palla a ${comp.name} (${comp.position})`, () => {
+                        modal.classList.remove('active');
+                        if(Math.random() < successChance) { addLog(`Passaggio illuminante per ${comp.name}!`); triggerGoalMiniGame(comp, false, pOff, 'event'); }
+                        else { addLog(`Passaggio intercettato per ${comp.name}. Palla persa.`); resumeMatch('event'); }
+                    });
+                });
+                
+                addEventButton(`Cerca la conclusione personale`, () => {
+                    modal.classList.remove('active');
+                    let successChance = (getEffectiveOverall(pOff) / 100) * 0.7; 
+                    if(Math.random() < successChance) { addLog(`${pOff.name} si libera lo specchio della porta!`); triggerGoalMiniGame(pOff, false, null, 'event'); }
+                    else { addLog(`${pOff.name} viene murato al momento del tiro.`); resumeMatch('event'); }
+                });
+
+            } else {
+                titleEl.textContent = "Contropiede Avversario!"; titleEl.style.color = "var(--notif-warning)";
+                descEl.innerHTML = `Lancio lungo improvviso! Gli avversari ripartono veloci. <b>${pDef.name}</b> è l'ultimo uomo rimasto in difesa.`;
+                
+                addEventButton(`Fallo Tattico (Rischio Cartellino)`, () => {
+                    modal.classList.remove('active');
+                    if(Math.random() < 0.3) { applyRedCard(pDef, 'event'); } 
+                    else { applyYellowCard(pDef, 'event'); }
+                });
+                
+                addEventButton(`Difendi temporeggiando (Rischio Gol)`, () => {
+                    modal.classList.remove('active');
+                    let successChance = (getEffectiveOverall(pDef) / 100) * 0.85;
+                    if(Math.random() < successChance) { addLog(`Chiusura difensiva magistrale di <b>${pDef.name}</b>! Pericolo scampato.`); resumeMatch('event'); } 
+                    else { 
+                        addLog(`<b>${pDef.name}</b> viene saltato di netto! L'attaccante si invola.`); 
+                        let oppShooter = getRandomOpponentPlayer(['ATT', 'CEN']) || getRandomOpponentPlayer();
+                        triggerGoalMiniGame(oppShooter, true, null, 'event'); 
+                    }
+                });
             }
         }
 
@@ -687,13 +701,8 @@ export function startMatchEngine() {
                 p.status.injured--;
             }
             
-            // Logica Piena Squalifiche/Diffide
-            if (p.status.suspended === 1) {
-                p.status.suspended = 0; 
-            } 
-            else if (p.status.suspended === 2) {
-                p.status.suspended = 1; 
-            } 
+            if (p.status.suspended === 1) { p.status.suspended = 0; } 
+            else if (p.status.suspended === 2) { p.status.suspended = 1; } 
             else if (p.status.yellowCards >= 2 && p.status.suspended === 0) {
                 p.status.suspended = 1; 
                 p.status.yellowCards = 0;
@@ -709,7 +718,6 @@ export function startMatchEngine() {
             if(p.energy > 100) p.energy = 100;
         });
 
-        // Decrementa Boost a fine gara
         if(gameState.userTeam.activeBoostMatches > 0) {
             gameState.userTeam.activeBoostMatches--;
         }
@@ -763,10 +771,21 @@ export function startMatchEngine() {
 
     function simulateGlobalMatch(t1, t2) {
         processCpuTeam(t1); processCpuTeam(t2);
-        let t1Roll = Math.random() * (t1.strength + t2.strength);
+        
+        let diff = Math.abs(t1.strength - t2.strength);
+        let totalSimChances = randomInt(3, 5) + Math.floor(diff / 8);
+        
+        let w1 = Math.pow(t1.strength, 2);
+        let w2 = Math.pow(t2.strength, 2);
         let g1 = 0, g2 = 0;
-        if (t1Roll <= t1.strength) { g1 = Math.floor(Math.random()*3)+1; g2 = Math.floor(Math.random()*2); if(Math.random()>0.8) g2=g1; }
-        else { g2 = Math.floor(Math.random()*3)+1; g1 = Math.floor(Math.random()*2); if(Math.random()>0.8) g1=g2; }
+
+        for(let i=0; i<totalSimChances; i++) {
+            if (Math.random() * (w1 + w2) <= w1) {
+                if(Math.random() > 0.4) g1++;
+            } else {
+                if(Math.random() > 0.4) g2++;
+            }
+        }
         
         t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
         if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
