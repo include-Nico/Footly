@@ -1,7 +1,7 @@
 // js/router.js
 import { gameState, resetGame, saveGame, getUserTeamStrength } from './state.js';
 import { updateDashboardHeader, showNotification, showConfirm, showPlayerInfo } from './ui.js';
-import { processEndOfSeason, generatePlayer, getEffectiveOverall } from './players.js'; 
+import { processEndOfSeason, generatePlayer, getEffectiveOverall, generateRandomNameByNation } from './players.js';
 
 // Importa il Motore della Partita
 import { startMatchEngine } from './engine.js';
