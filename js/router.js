@@ -241,7 +241,7 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// HOME, CALENDARIO E FINE STAGIONE
+// HOME E CALENDARIO
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -260,7 +260,6 @@ function renderHome() {
 
     const userStr = getUserTeamStrength();
     const homeRatingEl = document.getElementById('home-team-rating');
-    // Mantiene la media globale nell'intestazione in alto a destra
     if (homeRatingEl) homeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:14px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
 
     const isEndOfSeason = gameState.userTeam.matchday > 26;
@@ -316,7 +315,6 @@ function renderHome() {
         let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
         let nextOpponent = opponents[oppIndex];
         
-        // --- FIX ALLINEAMENTO: Compila i nuovi id per la squadra di casa (Tu) e la CPU ---
         const nextHomeNameEl = document.getElementById('next-home-name');
         if (nextHomeNameEl) nextHomeNameEl.textContent = gameState.userTeam.name;
         
@@ -342,7 +340,6 @@ function renderHome() {
         if (cpuTeamNameEl) cpuTeamNameEl.textContent = "Stagione Conclusa";
         document.getElementById('cpu-team-rating').innerHTML = "";
         
-        // Svuotiamo anche la controparte "Tu" se è finita la stagione
         const nextHomeNameEl = document.getElementById('next-home-name');
         if (nextHomeNameEl) nextHomeNameEl.textContent = "";
         const nextHomeRatingEl = document.getElementById('next-home-rating');
@@ -671,13 +668,16 @@ function renderSquad() {
         if (p) {
             const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
             let displayOverall = isOOP ? Math.floor(getEffectiveOverall(p) * 0.7) : getEffectiveOverall(p);
+            
+            // FIX ERRORI DI RENDER: Uso corretto del disabledClass
+            let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
+
             let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
             if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
             if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato!"><i class="fas fa-square"></i></div>`;
             else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
 
             let isSelected = selectedPlayerId === p.id ? 'selected' : '';
-            let disabledClass = (p.status.suspended > 0) ? "disabled" : "";
             const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
 
             pitch.innerHTML += `
@@ -698,6 +698,9 @@ function renderSquad() {
     reserves.forEach(p => {
         let isSelected = selectedPlayerId === p.id ? 'selected' : '';
         const flag = p.nationality ? p.nationality.split(' ')[0] : '';
+        
+        let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
+
         let warningHTML = '';
         if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
         if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
