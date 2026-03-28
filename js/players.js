@@ -88,7 +88,8 @@ export function generatePlayer(pos, isStarter, forcedRarity = null, isRegen = fa
         isStarter: isStarter,
         value: calculateValue(overall),
         stats: { appearances: 0, goals: 0, assists: 0, cleanSheets: 0, yellowCards: 0, redCards: 0 },
-        status: { injured: 0, suspended: 0 },
+        status: { injured: 0, suspended: 0, yellowCards: 0 }, // yellowCards tiene conto dei gialli accumulati
+        matchYellows: 0, // Temporaneo per la singola partita
         trainingBoost: 0,
         energy: 100 
     };
@@ -136,8 +137,13 @@ export function processEndOfSeason(player) {
     player.value = calculateValue(player.overall);
     
     player.stats = { appearances: 0, goals: 0, assists: 0, cleanSheets: 0, yellowCards: 0, redCards: 0 };
-    if(!player.status) player.status = { injured: 0, suspended: 0 };
-    player.status.injured = 0; player.status.suspended = 0;
+    if(!player.status) player.status = { injured: 0, suspended: 0, yellowCards: 0 };
+    
+    // Ripulisci status fisici e disciplinari
+    player.status.injured = 0; 
+    player.status.suspended = 0;
+    player.status.yellowCards = 0;
+    player.matchYellows = 0;
     player.energy = 100;
 
     return { retired: false, growth };
