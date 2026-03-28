@@ -1,6 +1,6 @@
 // js/router.js
 import { gameState, resetGame, saveGame, getUserTeamStrength } from './state.js';
-import { updateDashboardHeader, showNotification, showConfirm } from './ui.js';
+import { updateDashboardHeader, showNotification, showConfirm, updateNavUI } from './ui.js';
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 import { startMatchEngine } from './engine.js'; 
 
@@ -26,11 +26,14 @@ export async function loadView(viewName) {
 
         selectedPlayerId = null;
 
+        // FIX: Forza la barra di navigazione in basso a illuminarsi correttamente!
+        updateNavUI(viewName);
+
         if (viewName === 'home') renderHome();
         else if (viewName === 'squad') renderSquad();
         else if (viewName === 'profile') renderProfile();
         else if (viewName === 'market') renderMarket();
-        else if (viewName === 'store') renderStore(); // FIX MIO ERRORE, AGGIUNTO IL NEGOZIO
+        else if (viewName === 'store') renderStore();
         else if (viewName === 'match') startMatchEngine();
 
     } catch (error) { console.error("Errore router:", error); }
@@ -300,7 +303,6 @@ function renderHome() {
 function handleEndSeason() {
     let retirements = []; let evolutions = [];
     
-    // Calcola Posizione e Premi in Gemme
     let userStr = getUserTeamStrength();
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     let standings = [...opponents];
@@ -351,7 +353,6 @@ function handleEndSeason() {
     gameState.userTeam.stats = { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 };
     gameState.userTeam.matchday = 1;
     
-    // Promozione e Retrocessione
     let seasonMsg = `<b>Posizione:</b> ${userRank}°<br><b>Premio:</b> 💰 ${reward.toLocaleString()} | 💎 ${gemsEarned}<br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`;
     
     if(userRank === 1 && gameState.userTeam.division > 1) {
@@ -447,7 +448,7 @@ function renderSquad() {
             if(inv.superBoosts > 0) {
                 inv.superBoosts--; gameState.userTeam.activeBoostMatches = 5;
                 saveGame(); updateDashboardHeader(); showNotification('Super Boost Attivo!', '+15% Overall per 5 partite.', 'success'); 
-                closeHubBtn.click();
+                closeHubBtn.click(); renderSquad();
             }
         };
     }

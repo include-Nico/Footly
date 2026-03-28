@@ -13,6 +13,17 @@ export const elements = {
     notifContainer:    document.getElementById('notification-container'),
 };
 
+// FIX: SINCRONIZZA LA BARRA DI NAVIGAZIONE AUTOMATICAMENTE
+export function updateNavUI(viewName) {
+    elements.navItems.forEach(btn => {
+        if (btn.getAttribute('data-target') === viewName) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
 export function switchToMainApp() {
     elements.onboardingScreen.classList.remove('active');
     elements.onboardingScreen.classList.add('hidden');
