@@ -2,12 +2,17 @@
     
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <div class="section-label" style="margin: 0;">Formazione</div>
-        <select id="formation-select" class="glass-select" style="width: auto; padding: 6px 12px; margin: 0; min-width: 150px;">
-            <option value="2-3-1">2-3-1 (Equilibrato)</option>
-            <option value="3-2-1">3-2-1 (Difensivo)</option>
-            <option value="2-2-2">2-2-2 (Offensivo)</option>
-            <option value="1-4-1">1-4-1 (Possesso)</option>
-        </select>
+        <div style="display: flex; gap: 5px;">
+            <button id="btn-auto-pick" class="glass-btn" style="padding: 6px 10px; font-size: 12px; border-color: var(--gold); color: var(--gold);" title="Schiera i Migliori">
+                <i class="fas fa-magic"></i>
+            </button>
+            <select id="formation-select" class="glass-select" style="width: auto; padding: 6px 12px; margin: 0; min-width: 140px;">
+                <option value="2-3-1">2-3-1 (Equilibrato)</option>
+                <option value="3-2-1">3-2-1 (Difensivo)</option>
+                <option value="2-2-2">2-2-2 (Offensivo)</option>
+                <option value="1-4-1">1-4-1 (Possesso)</option>
+            </select>
+        </div>
     </div>
     
     <div style="display: flex; justify-content: space-around; font-size: 12px; font-weight: bold; margin-bottom: 15px; background: var(--bg-surface); padding: 8px; border-radius: 8px; border: 1px solid var(--border-dim);">

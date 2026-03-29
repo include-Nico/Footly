@@ -85,7 +85,7 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// STORE (NEGOZIO) E PACK OPENING
+// STORE (NEGOZIO) E PACK OPENING ANIMATION
 // ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
@@ -241,7 +241,7 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// HOME E CALENDARIO
+// HOME, CALENDARIO E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -454,6 +454,7 @@ function renderSquad() {
     const defLabel = document.getElementById('tactics-def');
     const btnOpenHub = document.getElementById('btn-open-hub');
     const btnOpenInv = document.getElementById('btn-open-inventory');
+    const btnAutoPick = document.getElementById('btn-auto-pick'); // IL NUOVO BOTTONE MAGICO
     const hubModal = document.getElementById('hub-modal');
     const closeHubBtn = document.getElementById('close-hub-btn');
     const hubContent = document.getElementById('hub-content');
@@ -463,6 +464,39 @@ function renderSquad() {
     if(!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
     formSelect.value = gameState.userTeam.formation;
     formSelect.onchange = (e) => { gameState.userTeam.formation = e.target.value; selectedPlayerId = null; saveGame(); renderSquad(); };
+
+    // --- LOGICA AUTO-SCHIERAMENTO ---
+    if (btnAutoPick) {
+        btnAutoPick.onclick = () => {
+            let allPlayers = [...gameState.userTeam.players];
+            // Mette tutti in panchina
+            allPlayers.forEach(p => { p.isStarter = false; p.slotIndex = -1; });
+
+            const currentF = FORMATIONS[gameState.userTeam.formation];
+            // Ordina i giocatori dal più forte al più debole
+            allPlayers.sort((a, b) => b.overall - a.overall);
+
+            currentF.pos.forEach((slot, idx) => {
+                // 1. Cerca il più forte che non sia infortunato/squalificato e abbia il ruolo giusto
+                let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && (p.position === slot.role || (p.secondaryPositions && p.secondaryPositions.includes(slot.role))));
+                // 2. Se non lo trova sano, cerca uno col ruolo giusto anche se squalificato (per mostrare l'errore all'utente)
+                if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1 && (p.position === slot.role || (p.secondaryPositions && p.secondaryPositions.includes(slot.role))));
+                // 3. Se non c'è nessuno col ruolo, cerca il più forte in assoluto (che sia sano)
+                if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0);
+                // 4. In casi estremi, prende il primo disponibile
+                if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1);
+                
+                if (bestFit) {
+                    bestFit.isStarter = true;
+                    bestFit.slotIndex = idx;
+                }
+            });
+
+            saveGame();
+            renderSquad();
+            showNotification('Ottimizzazione Completata', 'I giocatori migliori sono stati schierati.', 'success');
+        };
+    }
 
     const boostInd = document.getElementById('super-boost-indicator');
     if (gameState.userTeam.activeBoostMatches > 0) {
@@ -669,7 +703,6 @@ function renderSquad() {
             const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
             let displayOverall = isOOP ? Math.floor(getEffectiveOverall(p) * 0.7) : getEffectiveOverall(p);
             
-            // FIX ERRORI DI RENDER: Uso corretto del disabledClass
             let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
 
             let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
