@@ -85,7 +85,7 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// STORE (NEGOZIO) E PACK OPENING
+// STORE (NEGOZIO) E PACK OPENING ANIMATION
 // ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
@@ -169,13 +169,36 @@ function triggerPackAnimation(items) {
         overlay.className = 'modal-overlay';
         overlay.style.background = 'rgba(0,0,0,0.95)';
         overlay.style.zIndex = '9999';
+        
+        // Inietta animazioni CSS per le carte
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes popInCard {
+                0% { transform: scale(0.5); opacity: 0; }
+                70% { transform: scale(1.1); opacity: 1; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            .pop-in-anim { animation: popInCard 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+            @keyframes pulseText {
+                0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; }
+            }
+            .pulse-text-anim { animation: pulseText 1.5s infinite; }
+            @keyframes epicGlow {
+                0% { box-shadow: 0 0 15px var(--rarity-epic); } 50% { box-shadow: 0 0 40px var(--rarity-epic); } 100% { box-shadow: 0 0 15px var(--rarity-epic); }
+            }
+            @keyframes legendGlow {
+                0% { box-shadow: 0 0 20px white; } 50% { box-shadow: 0 0 50px white; } 100% { box-shadow: 0 0 20px white; }
+            }
+        `;
+        document.head.appendChild(style);
         document.body.appendChild(overlay);
     }
     
     overlay.innerHTML = `
-        <div class="modal-box" style="background:transparent; border:none; box-shadow:none; text-align:center; width:100%; max-width:400px; padding:0;">
-            <div id="pack-reveal-area" style="min-height: 250px; display:flex; align-items:center; justify-content:center;"></div>
-            <div id="pack-controls" style="margin-top:30px; display:flex; gap:10px; justify-content:center;"></div>
+        <div id="pack-click-area" style="position: absolute; inset: 0; z-index: 10; cursor: pointer;"></div>
+        <div class="modal-box" style="background:transparent; border:none; box-shadow:none; text-align:center; width:100%; max-width:400px; padding:0; position: relative; z-index: 20; pointer-events: none;">
+            <div id="pack-reveal-area" style="min-height: 350px; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;"></div>
+            <div id="pack-controls" style="margin-top:20px; display:flex; justify-content:center; pointer-events: auto;"></div>
         </div>
     `;
     
@@ -183,12 +206,14 @@ function triggerPackAnimation(items) {
     
     const revealArea = document.getElementById('pack-reveal-area');
     const controls = document.getElementById('pack-controls');
+    const clickArea = document.getElementById('pack-click-area');
     let currentIndex = 0;
     
     function showNext() {
         if (currentIndex >= items.length) {
-            revealArea.innerHTML = `<h2 style="color:var(--gold); font-size:30px; text-shadow: 0 0 20px var(--gold);">Pacchetto Aperto!</h2>`;
-            controls.innerHTML = `<button class="primary-btn" id="pack-close-btn" style="width:200px;">Chiudi</button>`;
+            revealArea.innerHTML = `<h2 class="pop-in-anim" style="color:var(--gold); font-size:36px; text-shadow: 0 0 20px var(--gold);">Pacchetto Completato!</h2>`;
+            controls.innerHTML = `<button class="primary-btn" id="pack-close-btn" style="width:200px;">Torna al Negozio</button>`;
+            clickArea.onclick = null; // Rimuove il tap to continue
             document.getElementById('pack-close-btn').onclick = () => {
                 overlay.classList.remove('active');
                 if (gameState.currentView === 'store') loadView('store');
@@ -200,48 +225,74 @@ function triggerPackAnimation(items) {
         let html = '';
         
         if (item.type === 'coin') {
-            html = `<div class="player-card pop-in" style="width:140px; height:180px; padding:20px; border: 2px solid var(--gold); box-shadow: 0 0 30px var(--gold);">
-                        <i class="fas fa-coins" style="font-size:50px; color:var(--gold); margin-bottom:15px;"></i>
-                        <div style="font-size:24px; font-weight:bold; color:var(--gold);">+${item.data}</div>
+            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; padding:20px; border: 2px solid var(--gold); box-shadow: 0 0 30px var(--gold); display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-surface);">
+                        <i class="fas fa-coins" style="font-size:70px; color:var(--gold); margin-bottom:20px;"></i>
+                        <div style="font-size:32px; font-weight:bold; color:var(--gold);">+${item.data}</div>
                     </div>`;
         } else if (item.type === 'bonus') {
             let icon = item.data === 'superBoosts' ? 'fa-fire' : (item.data === 'healAll' ? 'fa-heart-pulse' : 'fa-medkit');
             let name = item.data === 'superBoosts' ? 'Super Boost' : (item.data === 'healAll' ? 'Cura Squadra' : 'Kit Medico');
             let color = item.data === 'superBoosts' ? 'var(--rarity-epic)' : (item.data === 'healAll' ? 'var(--accent)' : 'var(--notif-info)');
-            html = `<div class="player-card pop-in" style="width:140px; height:180px; padding:20px; border: 2px solid ${color}; box-shadow: 0 0 30px ${color};">
-                        <i class="fas ${icon}" style="font-size:50px; color:${color}; margin-bottom:15px;"></i>
-                        <div style="font-size:14px; font-weight:bold; text-align:center; color:${color};">${name}</div>
+            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; padding:20px; border: 2px solid ${color}; box-shadow: 0 0 30px ${color}; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-surface);">
+                        <i class="fas ${icon}" style="font-size:70px; color:${color}; margin-bottom:20px;"></i>
+                        <div style="font-size:18px; font-weight:bold; text-align:center; color:${color};">${name}</div>
                     </div>`;
         } else {
             let p = item.data;
             let glowClass = '';
-            if(p.rarity === 'Leggenda') glowClass = 'box-shadow: 0 0 40px white; border-color: white; animation: pulse-pack 2s infinite;';
-            else if(p.rarity === 'Epico') glowClass = `box-shadow: 0 0 30px ${p.color}; border-color: ${p.color}; animation: pulse-pack 2s infinite;`;
-            else glowClass = `box-shadow: 0 0 20px ${p.color}; border-color: ${p.color};`;
             
-            html = `<div class="player-card pop-in" style="width:140px; height:180px; justify-content:center; gap:8px; ${glowClass}">
-                        <div style="color: ${p.color}; font-size:40px; font-weight:bold; font-family:'Barlow Condensed',sans-serif; text-shadow: 0 0 10px ${p.color}80;">${p.overall}</div>
-                        <div style="font-size:14px; font-weight:bold; color:var(--text-muted);">${p.position}</div>
-                        <div style="font-size:16px; font-weight:bold; text-transform:uppercase; color:var(--text-primary); text-align:center;">${p.name.split(' ')[1] || p.name}</div>
+            if(p.rarity === 'Leggenda') glowClass = 'border: 2px solid white; animation: legendGlow 2s infinite;';
+            else if(p.rarity === 'Epico') glowClass = `border: 2px solid ${p.color}; animation: epicGlow 2s infinite;`;
+            else glowClass = `border: 2px solid ${p.color}; box-shadow: 0 0 20px ${p.color};`;
+            
+            // Design Nuova Carta
+            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; padding: 20px 10px; background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-deep) 100%); ${glowClass}">
+                        <div style="color: ${p.color}; font-size:56px; font-weight:bold; font-family:'Barlow Condensed',sans-serif; text-shadow: 0 0 15px ${p.color}; line-height:1;">${p.overall}</div>
+                        <div style="font-size:16px; font-weight:bold; color:var(--text-muted); margin-bottom: 10px;">${p.position}</div>
+                        
+                        <div style="font-size:20px; font-weight:bold; text-transform:uppercase; color:var(--text-primary); text-align:center; line-height: 1.1; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name.split(' ')[1] || p.name}</div>
+                        <div style="font-size:14px; color:var(--text-primary); text-align:center; margin-top: 4px;">${p.name.split(' ')[0]}</div>
+                        
+                        <div style="margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                            <div style="font-size: 24px;" title="${p.nationality}">${p.nationality.split(' ')[0]}</div>
+                            <div style="font-size: 14px; color: var(--text-hint);">${p.age} Anni</div>
+                        </div>
                     </div>`;
         }
         
-        revealArea.innerHTML = html;
-        controls.innerHTML = `
-            <button class="glass-btn" id="pack-next-btn" style="flex:1;">Prossimo ➡️</button>
-            <button class="glass-btn" id="pack-skip-btn" style="flex:1; border-color:var(--text-hint); color:var(--text-hint);">Salta Tutti ⏭️</button>
+        revealArea.innerHTML = `
+            ${html}
+            <div class="pulse-text-anim" style="color: var(--text-hint); font-size: 14px; margin-top: 25px;">Tocca per continuare</div>
         `;
-        document.getElementById('pack-next-btn').onclick = () => { currentIndex++; showNext(); };
-        document.getElementById('pack-skip-btn').onclick = () => { currentIndex = items.length; showNext(); };
+        
+        controls.innerHTML = `
+            <button class="glass-btn" id="pack-skip-btn" style="border-color:var(--text-hint); color:var(--text-hint);">Salta Tutti ⏭️</button>
+        `;
+        document.getElementById('pack-skip-btn').onclick = (e) => { 
+            e.stopPropagation(); // Evita che il tocco sul tasto venga letto dal background
+            currentIndex = items.length; 
+            showNext(); 
+        };
+        
+        // Configura il touch per andare avanti
+        clickArea.onclick = () => {
+            currentIndex++;
+            showNext();
+        };
     }
     
-    revealArea.innerHTML = `<i class="fas fa-box-open pop-in" style="font-size:100px; color:var(--gold); filter:drop-shadow(0 0 30px var(--gold));"></i>`;
-    controls.innerHTML = `<button class="primary-btn" id="pack-open-btn">APRI PACCHETTO</button>`;
-    document.getElementById('pack-open-btn').onclick = showNext;
+    // Prima schermata (Pacchetto chiuso)
+    revealArea.innerHTML = `<i class="fas fa-box-open pop-in-anim" style="font-size:120px; color:var(--gold); filter:drop-shadow(0 0 30px var(--gold));"></i>`;
+    controls.innerHTML = `<button class="primary-btn" id="pack-open-btn" style="pointer-events: auto; position: relative; z-index: 30;">APRI PACCHETTO</button>`;
+    
+    document.getElementById('pack-open-btn').onclick = (e) => { 
+        e.stopPropagation(); 
+        showNext(); 
+    };
 }
 
 // ==========================================
-// HOME, CALENDARIO E FINE STAGIONE
+// HOME E CALENDARIO
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -902,7 +953,6 @@ function renderProfile() {
         });
     }
 
-    // --- LOGICA CODICE SEGRETO TRUCCO ---
     const promoInput = document.getElementById('promo-code-input');
     const promoBtn = document.getElementById('promo-code-btn');
     
