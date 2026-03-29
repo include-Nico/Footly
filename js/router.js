@@ -170,7 +170,6 @@ function triggerPackAnimation(items) {
         overlay.style.background = 'rgba(0,0,0,0.95)';
         overlay.style.zIndex = '9999';
         
-        // Inietta animazioni CSS per le carte
         const style = document.createElement('style');
         style.innerHTML = `
             @keyframes popInCard {
@@ -213,7 +212,7 @@ function triggerPackAnimation(items) {
         if (currentIndex >= items.length) {
             revealArea.innerHTML = `<h2 class="pop-in-anim" style="color:var(--gold); font-size:36px; text-shadow: 0 0 20px var(--gold);">Pacchetto Completato!</h2>`;
             controls.innerHTML = `<button class="primary-btn" id="pack-close-btn" style="width:200px;">Torna al Negozio</button>`;
-            clickArea.onclick = null; // Rimuove il tap to continue
+            clickArea.onclick = null; 
             document.getElementById('pack-close-btn').onclick = () => {
                 overlay.classList.remove('active');
                 if (gameState.currentView === 'store') loadView('store');
@@ -245,7 +244,6 @@ function triggerPackAnimation(items) {
             else if(p.rarity === 'Epico') glowClass = `border: 2px solid ${p.color}; animation: epicGlow 2s infinite;`;
             else glowClass = `border: 2px solid ${p.color}; box-shadow: 0 0 20px ${p.color};`;
             
-            // Design Nuova Carta
             html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; padding: 20px 10px; background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-deep) 100%); ${glowClass}">
                         <div style="color: ${p.color}; font-size:56px; font-weight:bold; font-family:'Barlow Condensed',sans-serif; text-shadow: 0 0 15px ${p.color}; line-height:1;">${p.overall}</div>
                         <div style="font-size:16px; font-weight:bold; color:var(--text-muted); margin-bottom: 10px;">${p.position}</div>
@@ -269,19 +267,17 @@ function triggerPackAnimation(items) {
             <button class="glass-btn" id="pack-skip-btn" style="border-color:var(--text-hint); color:var(--text-hint);">Salta Tutti ⏭️</button>
         `;
         document.getElementById('pack-skip-btn').onclick = (e) => { 
-            e.stopPropagation(); // Evita che il tocco sul tasto venga letto dal background
+            e.stopPropagation(); 
             currentIndex = items.length; 
             showNext(); 
         };
         
-        // Configura il touch per andare avanti
         clickArea.onclick = () => {
             currentIndex++;
             showNext();
         };
     }
     
-    // Prima schermata (Pacchetto chiuso)
     revealArea.innerHTML = `<i class="fas fa-box-open pop-in-anim" style="font-size:120px; color:var(--gold); filter:drop-shadow(0 0 30px var(--gold));"></i>`;
     controls.innerHTML = `<button class="primary-btn" id="pack-open-btn" style="pointer-events: auto; position: relative; z-index: 30;">APRI PACCHETTO</button>`;
     
@@ -292,7 +288,7 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// HOME E CALENDARIO
+// HOME, CALENDARIO E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -522,7 +518,9 @@ function renderSquad() {
             allPlayers.forEach(p => { p.isStarter = false; p.slotIndex = -1; });
 
             const currentF = FORMATIONS[gameState.userTeam.formation];
-            allPlayers.sort((a, b) => b.overall - a.overall);
+            
+            // FIX: usa getEffectiveOverall per calcolare la forza reale considerando l'energia!
+            allPlayers.sort((a, b) => getEffectiveOverall(b) - getEffectiveOverall(a));
 
             currentF.pos.forEach((slot, idx) => {
                 let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && (p.position === slot.role || (p.secondaryPositions && p.secondaryPositions.includes(slot.role))));
@@ -538,7 +536,7 @@ function renderSquad() {
 
             saveGame();
             renderSquad();
-            showNotification('Ottimizzazione Completata', 'I giocatori migliori sono stati schierati.', 'success');
+            showNotification('Ottimizzazione Completata', 'I giocatori più forti e freschi sono stati schierati.', 'success');
         };
     }
 
