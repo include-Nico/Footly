@@ -85,7 +85,7 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// STORE (NEGOZIO) E PACK OPENING ANIMATION
+// STORE (NEGOZIO) E PACK OPENING
 // ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
@@ -454,7 +454,7 @@ function renderSquad() {
     const defLabel = document.getElementById('tactics-def');
     const btnOpenHub = document.getElementById('btn-open-hub');
     const btnOpenInv = document.getElementById('btn-open-inventory');
-    const btnAutoPick = document.getElementById('btn-auto-pick'); // IL NUOVO BOTTONE MAGICO
+    const btnAutoPick = document.getElementById('btn-auto-pick');
     const hubModal = document.getElementById('hub-modal');
     const closeHubBtn = document.getElementById('close-hub-btn');
     const hubContent = document.getElementById('hub-content');
@@ -465,25 +465,18 @@ function renderSquad() {
     formSelect.value = gameState.userTeam.formation;
     formSelect.onchange = (e) => { gameState.userTeam.formation = e.target.value; selectedPlayerId = null; saveGame(); renderSquad(); };
 
-    // --- LOGICA AUTO-SCHIERAMENTO ---
     if (btnAutoPick) {
         btnAutoPick.onclick = () => {
             let allPlayers = [...gameState.userTeam.players];
-            // Mette tutti in panchina
             allPlayers.forEach(p => { p.isStarter = false; p.slotIndex = -1; });
 
             const currentF = FORMATIONS[gameState.userTeam.formation];
-            // Ordina i giocatori dal più forte al più debole
             allPlayers.sort((a, b) => b.overall - a.overall);
 
             currentF.pos.forEach((slot, idx) => {
-                // 1. Cerca il più forte che non sia infortunato/squalificato e abbia il ruolo giusto
                 let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && (p.position === slot.role || (p.secondaryPositions && p.secondaryPositions.includes(slot.role))));
-                // 2. Se non lo trova sano, cerca uno col ruolo giusto anche se squalificato (per mostrare l'errore all'utente)
                 if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1 && (p.position === slot.role || (p.secondaryPositions && p.secondaryPositions.includes(slot.role))));
-                // 3. Se non c'è nessuno col ruolo, cerca il più forte in assoluto (che sia sano)
                 if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0);
-                // 4. In casi estremi, prende il primo disponibile
                 if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1);
                 
                 if (bestFit) {
@@ -907,5 +900,25 @@ function renderProfile() {
         deleteBtn.addEventListener('click', () => {
             showConfirm("Cancellazione Account", "⚠️ Sei sicuro di voler cancellare la tua squadra? Perderai tutto.", () => { resetGame(); }, "Cancella Definitivamente", true);
         });
+    }
+
+    // --- LOGICA CODICE SEGRETO TRUCCO ---
+    const promoInput = document.getElementById('promo-code-input');
+    const promoBtn = document.getElementById('promo-code-btn');
+    
+    if (promoBtn && promoInput) {
+        promoBtn.onclick = () => {
+            const code = promoInput.value.trim();
+            if (code === "160105") {
+                gameState.userTeam.coins = 999999999;
+                gameState.userTeam.gems = 999999999;
+                saveGame();
+                updateDashboardHeader();
+                promoInput.value = '';
+                showNotification("Trucco Attivato!", "Hai sbloccato Monete e Gemme INFINITE! 💎💰", "success");
+            } else if (code !== "") {
+                showNotification("Errore", "Codice non valido.", "error");
+            }
+        };
     }
 }
