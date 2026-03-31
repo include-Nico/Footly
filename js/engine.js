@@ -132,33 +132,62 @@ export function startMatchEngine() {
     }
     if (document.getElementById('intro-aggregate')) document.getElementById('intro-aggregate').textContent = aggregateText;
 
-    let c1 = gameState.userTeam.colors.primary;
-    let c2 = gameState.userTeam.colors.secondary;
-    let sKit = gameState.userTeam.kitStyle;
-    let userKit = `background: ${c1};`;
-    if (sKit === 'stripes') userKit = `background: repeating-linear-gradient(90deg, ${c1} 0px, ${c1} 20px, ${c2} 20px, ${c2} 40px);`;
-    else if (sKit === 'halves') userKit = `background: linear-gradient(90deg, ${c1} 50%, ${c2} 50%);`;
-    else if (sKit === 'diagonal') userKit = `background: linear-gradient(135deg, ${c1} 50%, ${c2} 50%);`;
-    else if (sKit === 'hoops') userKit = `background: repeating-linear-gradient(0deg, ${c1} 0px, ${c1} 20px, ${c2} 20px, ${c2} 40px);`;
-    else if (sKit === 'checkered') userKit = `background-color: ${c1}; background-image: conic-gradient(${c1} 90deg, ${c2} 90deg 180deg, ${c1} 180deg 270deg, ${c2} 270deg); background-size: 20px 20px;`;
-    else if (sKit === 'camouflage') userKit = `background-color: ${c1}; background-image: radial-gradient(circle at 20% 30%, ${c2} 30%, transparent 30%), radial-gradient(circle at 80% 70%, ${c2} 30%, transparent 30%);`;
+    // === INIZIO: TEMA DINAMICO COLORI SQUADRE ===
+    function hexToRgba(hex, alpha) {
+        let r = 0, g = 0, b = 0;
+        if (!hex) return `rgba(255,255,255,${alpha})`;
+        if (hex.length === 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } 
+        else if (hex.length === 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
+        return `rgba(${+r}, ${+g}, ${+b}, ${alpha})`;
+    }
 
-    let cpuKit = `background: linear-gradient(135deg, #444 50%, #222 50%);`; 
-    let userShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto; ${userKit}"></div>`;
+    function getCpuTeamStyle(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        hash = Math.abs(hash);
+        const palettes = [
+            {p: '#e63946', s: '#ffffff', k: 'stripes'}, {p: '#1e3a8a', s: '#ffffff', k: 'solid'},
+            {p: '#000000', s: '#ffffff', k: 'stripes'}, {p: '#f59e0b', s: '#000000', k: 'halves'},
+            {p: '#b91c1c', s: '#000000', k: 'stripes'}, {p: '#1d4ed8', s: '#b91c1c', k: 'halves'},
+            {p: '#047857', s: '#ffffff', k: 'hoops'},   {p: '#7e22ce', s: '#ffffff', k: 'solid'},
+            {p: '#f97316', s: '#1e3a8a', k: 'diagonal'},{p: '#0ea5e9', s: '#ffffff', k: 'solid'},
+            {p: '#4c1d95', s: '#f59e0b', k: 'halves'},  {p: '#be123c', s: '#ffffff', k: 'stripes'},
+            {p: '#059669', s: '#fcd34d', k: 'halves'},  {p: '#475569', s: '#f8fafc', k: 'solid'}
+        ];
+        return palettes[hash % palettes.length];
+    }
+
+    let userKitCSS = getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+    let cpuStyle = getCpuTeamStyle(oppName);
+    let cpuKitCSS = getKitCSS(cpuStyle.p, cpuStyle.s, cpuStyle.k);
+
+    let userShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${userKitCSS}"></div>`;
+    let cpuShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid rgba(255,255,255,0.7); box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${cpuKitCSS}"></div>`;
+
+    let homeColor = isHomeMatch ? gameState.userTeam.colors.primary : cpuStyle.p;
+    let awayColor = isHomeMatch ? cpuStyle.p : gameState.userTeam.colors.primary;
+
+    // Sfondo Diviso per l'Intro
+    document.getElementById('match-intro').style.background = `linear-gradient(135deg, ${hexToRgba(homeColor, 0.15)} 0%, var(--bg-surface) 40%, var(--bg-surface) 60%, ${hexToRgba(awayColor, 0.15)} 100%)`;
+
+    // Sfondo Luci Stadio in Partita (Luci casa o neutre)
+    let stadiumColor = isHomeMatch ? gameState.userTeam.colors.primary : cpuStyle.p;
+    if ((isCup && sched.round === 8) || (isChampions && sched.round === 9)) stadiumColor = '#f0b429'; // Oro per le finali
+    document.querySelector('.match-view').style.backgroundImage = `radial-gradient(circle at top, ${hexToRgba(stadiumColor, 0.15)} 0%, transparent 70%)`;
 
     if (isHomeMatch) {
         document.getElementById('intro-home-icon').innerHTML = userShield;
-        document.getElementById('intro-away-icon').innerHTML = "🤖";
+        document.getElementById('intro-away-icon').innerHTML = cpuShield;
         document.getElementById('intro-home-name').textContent = gameState.userTeam.name; 
         document.getElementById('intro-away-name').textContent = nextOpponent.name;
         document.getElementById('intro-away-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
         document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase(); 
         document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
         
-        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
-        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKit}`;
+        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
+        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     } else {
-        document.getElementById('intro-home-icon').innerHTML = "🤖"; 
+        document.getElementById('intro-home-icon').innerHTML = cpuShield; 
         document.getElementById('intro-away-icon').innerHTML = userShield;
         document.getElementById('intro-home-name').textContent = nextOpponent.name; 
         document.getElementById('intro-home-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
@@ -166,10 +195,11 @@ export function startMatchEngine() {
         document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase(); 
         document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
         
-        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
-        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKit}`;
+        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
+        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     }
-    
+    // === FINE: TEMA DINAMICO COLORI SQUADRE ===
+
     updateMatchHeaderStr(); updateScoreUI();
 
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
