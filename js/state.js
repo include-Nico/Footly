@@ -34,7 +34,7 @@ export const gameState = {
         roles: { captain: null, penalty: null },
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
-        ownedKits: ["solid", "stripes", "halves"], // NUOVO: Stili posseduti
+        ownedKits: ["solid", "stripes", "halves"], 
         seasonYear: 1, 
         matchday: 1, 
         seasonWeek: 1, 
@@ -49,21 +49,11 @@ export const gameState = {
     currentView: "home"
 };
 
-// === NUOVO: SISTEMA TEMA E DIVISE ===
 function hexToRgb(hex) {
     let r = 0, g = 0, b = 0;
     if (hex.length === 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } 
     else if (hex.length === 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
     return `${+r}, ${+g}, ${+b}`;
-}
-
-export function applyTheme() {
-    const root = document.documentElement;
-    const pColor = gameState.userTeam.colors.primary;
-    root.style.setProperty('--accent', pColor);
-    const rgb = hexToRgb(pColor);
-    root.style.setProperty('--accent-dim', `rgba(${rgb}, 0.15)`);
-    root.style.setProperty('--accent-glow', `rgba(${rgb}, 0.3)`);
 }
 
 export function getKitCSS(c1, c2, style) {
@@ -77,7 +67,6 @@ export function getKitCSS(c1, c2, style) {
         case 'solid': default: return `background: ${c1};`;
     }
 }
-// ====================================
 
 export function saveGame() {
     localStorage.setItem('footly_save_data', JSON.stringify(gameState));
@@ -106,7 +95,7 @@ export function loadGame() {
         if (!gameState.userTeam.seasonYear) gameState.userTeam.seasonYear = 1;
         if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
         
-        if (!gameState.userTeam.ownedKits) gameState.userTeam.ownedKits = ["solid", "stripes", "halves"]; // FIX Migrazione
+        if (!gameState.userTeam.ownedKits) gameState.userTeam.ownedKits = ["solid", "stripes", "halves"];
 
         if (!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[0] || gameState.userTeam.cup.rounds[0].length === 0) {
             generateCupBracket();
@@ -124,7 +113,6 @@ export function loadGame() {
             });
         }
         
-        applyTheme(); // Applica il colore al caricamento
         saveGame(); return true;
     }
     return false;

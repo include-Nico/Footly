@@ -1,5 +1,5 @@
 // js/router.js
-import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, generateCupBracket, getPlayoffMatchup, getStandings, simulateChampionsRound, generateChampionsBracket, getKitCSS, applyTheme } from './state.js';
+import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, generateCupBracket, getPlayoffMatchup, getStandings, simulateChampionsRound, generateChampionsBracket, getKitCSS } from './state.js';
 import { updateDashboardHeader, showNotification, showConfirm, updateNavUI } from './ui.js';
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 import { startMatchEngine } from './engine.js'; 
@@ -187,7 +187,7 @@ function renderHome() {
     const playBtnIcon = document.getElementById('play-btn-icon');
     const matchdayCounter = document.getElementById('matchday-counter');
     const scheduleContainer = document.getElementById('schedule-container');
-    const homeCrestEl = document.getElementById('home-crest');
+    const homeCrestEl = document.getElementById('home-crest'); 
 
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
     if (divNumEl) divNumEl.textContent = gameState.userTeam.division;
@@ -195,8 +195,6 @@ function renderHome() {
     
     let currentWk = gameState.userTeam.seasonWeek || 1;
     if (matchdayCounter) matchdayCounter.textContent = currentWk <= 46 ? currentWk : 46;
-    let divLabel = document.getElementById('home-div-num').nextSibling;
-    if(divLabel) divLabel.textContent = " · Settimana ";
 
     const userStr = getUserTeamStrength();
     const homeRatingEl = document.getElementById('home-team-rating');
@@ -240,7 +238,7 @@ function renderHome() {
                     if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
                     else { 
                         if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                            oppName = "Qualificato";
+                            oppName = "Qualificato d'ufficio (Riposo)";
                         } else { oppName = "Eliminato"; }
                         sStr = 0; 
                     } 
@@ -253,7 +251,7 @@ function renderHome() {
 
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
-            if (oppName === "Eliminato" || oppName === "Qualificato" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
+            if (oppName === "Eliminato" || oppName === "Qualificato d'ufficio (Riposo)" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
 
             let item = document.createElement('div'); item.className = 'glass-panel';
             item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
@@ -279,7 +277,7 @@ function renderHome() {
             if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
                 let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                 if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                else { userPlays = false; oppName = "Eliminato"; }
+                else { userPlays = false; oppName = "Eliminato/Non Qual."; }
             } else { userPlays = false; oppName = "Non qualificato"; }
         }
         else if (isCup) {
@@ -290,9 +288,7 @@ function renderHome() {
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
                         oppName = "Qualificato d'ufficio (Riposo)";
-                    } else {
-                        oppName = "Eliminato";
-                    }
+                    } else { oppName = "Eliminato"; }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
         } else {
@@ -767,8 +763,8 @@ function renderSquad() {
             let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
 
             let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
-            if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
-            if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
+            if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
+            if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
             else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
 
             let roleIcons = '';
@@ -859,6 +855,9 @@ function renderSquad() {
     });
 }
 
+// ==========================================
+// MERCATO E PROFILO
+// ==========================================
 function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
     const resultsContainer = document.getElementById('market-results');
@@ -1004,7 +1003,6 @@ function renderProfile() {
             gameState.userTeam.colors.primary = c1.value;
             gameState.userTeam.colors.secondary = c2.value;
             gameState.userTeam.kitStyle = styleSel.value;
-            applyTheme();
             saveGame();
             renderProfile();
             showNotification("Divisa Aggiornata!", "I nuovi colori sono stati applicati.", "success");

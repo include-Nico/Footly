@@ -1,5 +1,5 @@
 // js/onboarding.js
-import { gameState, saveGame, generateCupBracket, generateChampionsBracket, applyTheme } from './state.js';
+import { gameState, saveGame, generateCupBracket, generateChampionsBracket } from './state.js';
 import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
 import { generateInitialSquad } from './players.js';
 import { initializeWorld } from './teams.js'; 
@@ -38,7 +38,6 @@ export function initOnboarding() {
         generateCupBracket();
         generateChampionsBracket();
         
-        applyTheme(); // Applica il colore primario alla UI subito!
         saveGame();
         showPackOpening();
     });
