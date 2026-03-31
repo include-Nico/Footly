@@ -23,7 +23,7 @@ export const SEASON_SCHEDULE = [
     {type:'C', round:8, name:'Finale Coppa Nazionale'},
     {type:'CC', round:9, name:'FINALE CHAMPIONS'},
     {type:'P', name:'🔥 PLAYOFF / PLAYOUT'} 
-]; // 46 SETTIMANE TOTALI
+]; 
 
 export const gameState = {
     userTeam: {
@@ -35,12 +35,12 @@ export const gameState = {
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
         formation: "2-3-1",
-        seasonYear: 1, // NUOVO: Anni passati in carriera
+        seasonYear: 1, 
         matchday: 1, 
         seasonWeek: 1, 
         cup: { byes: [], rounds: {} }, 
-        champions: { groups: [], groupStandings: [], rounds: {} }, // NUOVO: Coppa Campioni
-        palmares: [], // NUOVO: Bacheca trofei
+        champions: { groups: [], groupStandings: [], rounds: {} }, 
+        palmares: [], 
         playoffWon: false,
         players: [],
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
@@ -74,10 +74,9 @@ export function loadGame() {
         if (!gameState.userTeam.cup) gameState.userTeam.cup = { byes: [], rounds: {} };
         if (gameState.userTeam.playoffWon === undefined) gameState.userTeam.playoffWon = false;
         
-        // Nuovi attributi
         if (!gameState.userTeam.seasonYear) gameState.userTeam.seasonYear = 1;
         if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
-        if (!gameState.userTeam.champions) generateChampionsBracket(); // Avvia al primo caricamento
+        if (!gameState.userTeam.champions) generateChampionsBracket(); 
 
         if (gameState.userTeam.players) {
             gameState.userTeam.players.forEach(p => { 
@@ -153,26 +152,50 @@ export function getPlayoffMatchup() {
     return null; 
 }
 
+// FIX: Calcolo perfetto che non salta la userTeam
 export function simulateCupRound(roundIndex) {
     if(!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[roundIndex]) return;
-    let roundMatches = gameState.userTeam.cup.rounds[roundIndex]; let nextRoundIndex = roundIndex + 1; let advancingTeams = [];
+    let roundMatches = gameState.userTeam.cup.rounds[roundIndex];
+    let nextRoundIndex = roundIndex + 1;
+    let advancingTeams = [];
+
     roundMatches.forEach(m => {
-        if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) return; 
-        let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
-        let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
-        let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
-        let g1=0, g2=0;
-        for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
-        m.scoreHome = g1; m.scoreAway = g2;
-        let isSingleLeg = [0, 1, 8].includes(roundIndex); let isSecondLeg = [3, 5, 7].includes(roundIndex);
+        let g1, g2;
+        if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) {
+            // Seleziona i risultati dell'utente, salvati poco prima da endMatchLogic
+            g1 = m.scoreHome !== null ? m.scoreHome : 0;
+            g2 = m.scoreAway !== null ? m.scoreAway : 0;
+        } else {
+            let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
+            let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
+            let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
+            g1=0; g2=0;
+            for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
+            m.scoreHome = g1; m.scoreAway = g2;
+        }
+
+        let isSingleLeg = [0, 1, 8].includes(roundIndex); 
+        let isSecondLeg = [3, 5, 7].includes(roundIndex);
+
         if (isSingleLeg) {
-            if (g1 === g2) { if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; } 
+            if (g1 === g2) { 
+                if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) {
+                    // Risolto dai rigori in partita. Se arriva qui pari (simulazione rapida), forziamo un vincitore
+                    if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++;
+                } else {
+                    if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; 
+                }
+            } 
             advancingTeams.push(m.scoreHome > m.scoreAway ? m.home : m.away);
         } else if (isSecondLeg) {
             let prevM = gameState.userTeam.cup.rounds[roundIndex-1].find(pm => (pm.home===m.home && pm.away===m.away) || (pm.home===m.away && pm.away===m.home));
-            let agg1 = g1 + (prevM.home === m.home ? prevM.scoreHome : prevM.scoreAway);
-            let agg2 = g2 + (prevM.away === m.away ? prevM.scoreHome : prevM.scoreAway);
-            if (agg1 === agg2) { if(Math.random()>0.5) agg1++; else agg2++; } 
+            let prevH = prevM.home === m.home ? prevM.scoreHome : prevM.scoreAway;
+            let prevA = prevM.away === m.away ? prevM.scoreHome : prevM.scoreAway;
+            let agg1 = m.scoreHome + prevH;
+            let agg2 = m.scoreAway + prevA;
+            if (agg1 === agg2) { 
+                if(Math.random()>0.5) agg1++; else agg2++; 
+            } 
             advancingTeams.push(agg1 > agg2 ? m.home : m.away);
         }
     });
@@ -181,7 +204,9 @@ export function simulateCupRound(roundIndex) {
         if (roundIndex === 0 && gameState.userTeam.cup.byes) advancingTeams.push(...gameState.userTeam.cup.byes);
         advancingTeams.sort(() => Math.random() - 0.5); 
         let nextMatches = [];
-        for(let i=0; i<advancingTeams.length; i+=2) { if (advancingTeams[i] && advancingTeams[i+1]) nextMatches.push({ home: advancingTeams[i], away: advancingTeams[i+1], scoreHome: null, scoreAway: null }); }
+        for(let i=0; i<advancingTeams.length; i+=2) {
+            if (advancingTeams[i] && advancingTeams[i+1]) nextMatches.push({ home: advancingTeams[i], away: advancingTeams[i+1], scoreHome: null, scoreAway: null });
+        }
         gameState.userTeam.cup.rounds[nextRoundIndex] = nextMatches;
     } else if ([2, 4, 6].includes(roundIndex)) {
         let nextMatches = roundMatches.map(m => ({ home: m.away, away: m.home, scoreHome: null, scoreAway: null }));
@@ -203,36 +228,43 @@ export function generateCupBracket() {
     gameState.userTeam.cup = { byes: byes, rounds: { 0: r0, 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[] } };
 }
 
-// LOGICA COPPA CAMPIONI GLOBALE
+// FIX: Calcolo perfetto per la Champions League (con classifica)
 export function simulateChampionsRound(roundIndex) {
     if(!gameState.userTeam.champions || !gameState.userTeam.champions.rounds[roundIndex]) return;
-    let roundMatches = gameState.userTeam.champions.rounds[roundIndex]; let nextRoundIndex = roundIndex + 1; let advancingTeams = [];
+    let roundMatches = gameState.userTeam.champions.rounds[roundIndex]; 
+    let nextRoundIndex = roundIndex + 1; 
+    let advancingTeams = [];
     
     roundMatches.forEach(m => {
-        if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) return; 
-        
-        let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
-        let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
-        let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
-        
-        let g1=0, g2=0;
-        for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
-        m.scoreHome = g1; m.scoreAway = g2;
+        let g1, g2;
+        if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) {
+            g1 = m.scoreHome !== null ? m.scoreHome : 0;
+            g2 = m.scoreAway !== null ? m.scoreAway : 0;
+        } else {
+            let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
+            let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
+            let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
+            g1=0; g2=0;
+            for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
+            m.scoreHome = g1; m.scoreAway = g2;
+        }
 
         if (roundIndex < 5) {
             let st1 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.home);
             let st2 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.away);
-            st1.gf += g1; st1.ga += g2; st2.gf += g2; st2.ga += g1;
-            if (g1 > g2) st1.pts += 3; else if (g1 < g2) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
+            st1.gf += m.scoreHome; st1.ga += m.scoreAway; st2.gf += m.scoreAway; st2.ga += m.scoreHome;
+            if (m.scoreHome > m.scoreAway) st1.pts += 3; else if (m.scoreHome < m.scoreAway) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
         } else {
             let isSingleLeg = [9].includes(roundIndex); let isSecondLeg = [6, 8].includes(roundIndex);
             if (isSingleLeg) {
-                if (g1 === g2) { if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; } 
+                if (m.scoreHome === m.scoreAway) { if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; } 
                 advancingTeams.push(m.scoreHome > m.scoreAway ? m.home : m.away);
             } else if (isSecondLeg) {
                 let prevM = gameState.userTeam.champions.rounds[roundIndex-1].find(pm => (pm.home===m.home && pm.away===m.away) || (pm.home===m.away && pm.away===m.home));
-                let agg1 = g1 + (prevM.home === m.home ? prevM.scoreHome : prevM.scoreAway);
-                let agg2 = g2 + (prevM.away === m.away ? prevM.scoreHome : prevM.scoreAway);
+                let prevH = prevM.home === m.home ? prevM.scoreHome : prevM.scoreAway;
+                let prevA = prevM.away === m.away ? prevM.scoreHome : prevM.scoreAway;
+                let agg1 = m.scoreHome + prevH;
+                let agg2 = m.scoreAway + prevA;
                 if (agg1 === agg2) { if(Math.random()>0.5) agg1++; else agg2++; } 
                 advancingTeams.push(agg1 > agg2 ? m.home : m.away);
             }

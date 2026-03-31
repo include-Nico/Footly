@@ -63,9 +63,6 @@ function getEnergyBarHTML(p) {
     </div>`;
 }
 
-// ==========================================
-// STORE E PACK OPENING
-// ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
         btn.onclick = (e) => {
@@ -154,7 +151,7 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// HOME, CALENDARIO E FINE STAGIONE
+// HOME E CALENDARIO
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -208,15 +205,15 @@ function renderHome() {
                 if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
                     let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                     if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                    else { oppName = "Non qualificato/Eliminato"; sStr = 0; }
+                    else { oppName = "Eliminato"; sStr = 0; } // TESTO PIU' PULITO E VISIBILE
                 } else { oppName = "Non qualificato"; sStr = 0; }
             }
             else if (isCup) {
                 if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
                     let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                     if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                    else { oppName = "Eliminato/Riposo"; sStr = 0; }
-                } else { oppName = "Eliminato/Riposo"; sStr = 0; }
+                    else { oppName = "Eliminato"; sStr = 0; } // TESTO PIU' PULITO E VISIBILE
+                } else { oppName = "Eliminato"; sStr = 0; }
             } 
             else {
                 let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
@@ -225,7 +222,7 @@ function renderHome() {
 
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
-            if (oppName === "Eliminato/Riposo" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Non qualificato/Eliminato" || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
+            if (oppName === "Eliminato" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
 
             let item = document.createElement('div'); item.className = 'glass-panel';
             item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
@@ -251,15 +248,15 @@ function renderHome() {
             if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
                 let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                 if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                else { userPlays = false; }
-            } else { userPlays = false; }
+                else { userPlays = false; oppName = "Eliminato"; }
+            } else { userPlays = false; oppName = "Non qualificato"; }
         }
         else if (isCup) {
             if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
                 let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                 if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                else { userPlays = false; }
-            } else { userPlays = false; }
+                else { userPlays = false; oppName = "Eliminato"; }
+            } else { userPlays = false; oppName = "Eliminato"; }
         } else {
             let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
             let opp = opponents[(sched.day - 1) % opponents.length];
@@ -271,7 +268,7 @@ function renderHome() {
         const nextHomeRatingEl = document.getElementById('next-home-rating');
         if (nextHomeRatingEl) nextHomeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
         
-        if (cpuTeamNameEl) cpuTeamNameEl.textContent = userPlays ? oppName : (isPlayoff ? "Attesa Fine Stagione" : "Nessun Avversario");
+        if (cpuTeamNameEl) cpuTeamNameEl.textContent = oppName;
         const cpuRatingEl = document.getElementById('cpu-team-rating');
         if (cpuRatingEl) cpuRatingEl.innerHTML = userPlays ? `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${sStr}</span>${getStarsHTML(sStr)}` : "";
         
@@ -285,7 +282,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : "Simula Turno";
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : "Simula Turno Coppa";
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -295,7 +292,7 @@ function renderHome() {
                     if (isCup) simulateCupRound(sched.round);
                     if (isChampions) simulateChampionsRound(sched.round);
                     gameState.userTeam.seasonWeek++;
-                    saveGame(); loadView('home'); showNotification("Turno Simulato", "Le altre squadre hanno giocato.", "info");
+                    saveGame(); loadView('home'); showNotification("Turno Simulato", "Le altre squadre hanno giocato il loro turno.", "info");
                 }
             };
         }
@@ -319,11 +316,11 @@ function renderHome() {
             const trStyle = team.isUser ? "background: rgba(0, 245, 160, 0.1); font-weight: bold; color: var(--accent);" : "";
             
             let posColor = "var(--text-hint)";
-            if (gameState.userTeam.division === 1 && index < 5) posColor = "#00d4ff"; // Champions spots
-            else if (index === 0) posColor = "var(--gold)"; // Promo Diretta
-            else if (index > 0 && index < 4 && gameState.userTeam.division > 1) posColor = "var(--accent)"; // Playoff Promo
-            else if (index > 9 && index < 13 && gameState.userTeam.division < 3) posColor = "var(--notif-warning)"; // Playout Retro
-            else if (index === 13 && gameState.userTeam.division < 3) posColor = "var(--notif-error)"; // Retro Diretta
+            if (gameState.userTeam.division === 1 && index < 5) posColor = "#00d4ff"; 
+            else if (index === 0) posColor = "var(--gold)"; 
+            else if (index > 0 && index < 4 && gameState.userTeam.division > 1) posColor = "var(--accent)"; 
+            else if (index > 9 && index < 13 && gameState.userTeam.division < 3) posColor = "var(--notif-warning)"; 
+            else if (index === 13 && gameState.userTeam.division < 3) posColor = "var(--notif-error)"; 
 
             tableBody.innerHTML += `
                 <tr style="border-bottom: 1px solid var(--border-dim); ${trStyle}">
@@ -362,7 +359,6 @@ function handleEndSeason() {
     if (mInfo && mInfo.type === 'playoff' && gameState.userTeam.playoffWon) gemsEarned += 30; 
     if (mInfo && mInfo.type === 'playout' && gameState.userTeam.playoffWon) gemsEarned += 10; 
 
-    // GESTIONE PALMARES
     if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
     if (uRank === 1) {
         gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🏆', name: `Campionato Div. ${gameState.userTeam.division} - 1° Posto` });
@@ -374,14 +370,12 @@ function handleEndSeason() {
     const reward = gameState.userTeam.stats.points * 150;
     gameState.userTeam.coins += reward;
 
-    // PREPARA SQUADRE CHAMPIONS ANNO SUCCESSIVO
     let qualTeams = [];
     for (let lg in gameState.world) {
         let S1 = getStandings(lg, 1);
         qualTeams.push(...S1.slice(0, 5).map(t => t.name));
     }
 
-    // GESTIONE MONDIALE PROMOZIONI / RETROCESSIONI
     for (const lg in gameState.world) {
         let S1 = getStandings(lg, 1); let S2 = getStandings(lg, 2); let S3 = getStandings(lg, 3);
         let N1 = []; let N2 = []; let N3 = [];
@@ -938,7 +932,7 @@ function renderProfile() {
     
     const strEl = document.getElementById('profile-strength');
     const starsEl = document.getElementById('profile-stars');
-    const palmaresEl = document.getElementById('profile-palmares'); // NUOVO
+    const palmaresEl = document.getElementById('profile-palmares'); 
 
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
     if (leagueDivEl) leagueDivEl.textContent = `${gameState.userTeam.league} · Div ${gameState.userTeam.division} · Anno ${gameState.userTeam.seasonYear}`;
@@ -951,7 +945,6 @@ function renderProfile() {
         starsEl.innerHTML = getStarsHTML(str);
     }
 
-    // CARICA IL PALMARES
     if (palmaresEl) {
         if (gameState.userTeam.palmares && gameState.userTeam.palmares.length > 0) {
             palmaresEl.innerHTML = [...gameState.userTeam.palmares].reverse().map(p => `

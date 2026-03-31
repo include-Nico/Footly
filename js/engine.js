@@ -196,7 +196,8 @@ export function startMatchEngine() {
     document.getElementById('btn-intro-sim').onclick = () => {
         if(gameState.userTeam.gems >= 5) {
             showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
-                gameState.userTeam.gems -= 5; updateDashboardHeader();
+                gameState.userTeam.gems -= 5;
+                updateDashboardHeader();
                 
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
@@ -773,6 +774,7 @@ export function startMatchEngine() {
         let totalTacAtt = tacBonusAtt + currentF.att;
         let totalTacDef = tacBonusDef + currentF.def;
         
+        // FIX SICUREZZA: Evita che l'assenza del testo causi il crash null
         let attEl = document.getElementById('match-tactics-att');
         let defEl = document.getElementById('match-tactics-def');
         if (attEl) attEl.textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
@@ -925,14 +927,16 @@ export function startMatchEngine() {
         }
         else if (isChampions) {
             let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
-            if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
-            else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
-            
-            if (sched.round < 5) {
-                let st1 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.home);
-                let st2 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.away);
-                st1.gf += m.scoreHome; st1.ga += m.scoreAway; st2.gf += m.scoreAway; st2.ga += m.scoreHome;
-                if (m.scoreHome > m.scoreAway) st1.pts += 3; else if (m.scoreHome < m.scoreAway) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
+            if (m) {
+                if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
+                else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
+                
+                if (sched.round < 5) {
+                    let st1 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.home);
+                    let st2 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.away);
+                    st1.gf += m.scoreHome; st1.ga += m.scoreAway; st2.gf += m.scoreAway; st2.ga += m.scoreHome;
+                    if (m.scoreHome > m.scoreAway) st1.pts += 3; else if (m.scoreHome < m.scoreAway) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
+                }
             }
 
             simulateChampionsRound(sched.round);
@@ -952,9 +956,10 @@ export function startMatchEngine() {
         }
         else if (isCup) {
             let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
-            if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
-            else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
-            
+            if (m) {
+                if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
+                else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
+            }
             simulateCupRound(sched.round);
             
             title = "Partita di Coppa Conclusa!";
