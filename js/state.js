@@ -10,11 +10,13 @@ export const gameState = {
         gems: 50,
         inventory: { healAll: 0, healPlayer: 0, superBoosts: 0 },
         activeBoostMatches: 0,
-        roles: { captain: null, penalty: null }, // NUOVO: Ruoli
+        roles: { captain: null, penalty: null },
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
         formation: "2-3-1",
-        matchday: 1,
+        matchday: 1, // Sarà usato solo internamente
+        seasonWeek: 1, // NUOVO: Gestisce il calendario a 35 settimane
+        cup: { byes: [], rounds: {} }, // NUOVO: Tabellone Coppa
         players: [],
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
     },
@@ -45,10 +47,14 @@ export function loadGame() {
         if (!gameState.userTeam.formation) gameState.userTeam.formation = "2-3-1";
         if (!gameState.userTeam.matchday) gameState.userTeam.matchday = 1;
         
+        // Inizializzazioni per i vecchi salvataggi aggiornati
         if (gameState.userTeam.gems === undefined) gameState.userTeam.gems = 50;
         if (!gameState.userTeam.inventory) gameState.userTeam.inventory = { healAll: 0, healPlayer: 0, superBoosts: 0 };
         if (gameState.userTeam.activeBoostMatches === undefined) gameState.userTeam.activeBoostMatches = 0;
         if (!gameState.userTeam.roles) gameState.userTeam.roles = { captain: null, penalty: null };
+        
+        if (gameState.userTeam.seasonWeek === undefined) gameState.userTeam.seasonWeek = gameState.userTeam.matchday; // Migrazione soft
+        if (!gameState.userTeam.cup) gameState.userTeam.cup = { byes: [], rounds: {} };
 
         if (gameState.userTeam.players) {
             gameState.userTeam.players.forEach(p => { 
@@ -82,7 +88,6 @@ export function getUserTeamStrength() {
     
     let baseStr = Math.floor(sum / starters.length); 
     
-    // BONUS CAPITANO IN CAMPO (+1 Overall)
     if (gameState.userTeam.roles && gameState.userTeam.roles.captain) {
         let capOnPitch = starters.find(p => p.id === gameState.userTeam.roles.captain && p.status.suspended === 0);
         if (capOnPitch) baseStr += 1;
@@ -93,4 +98,18 @@ export function getUserTeamStrength() {
     }
     
     return baseStr;
+}
+
+// NUOVO: Ritorna la forza di QUALSIASI squadra nel gioco
+export function getGlobalTeam(teamName) {
+    if (teamName === gameState.userTeam.name) return { name: teamName, strength: getUserTeamStrength() };
+    for (let lg in gameState.world) {
+        for (let d of [1, 2, 3]) {
+            if (gameState.world[lg][d]) {
+                let t = gameState.world[lg][d].find(x => x.name === teamName);
+                if (t) return t;
+            }
+        }
+    }
+    return { name: teamName, strength: 50 }; // Fallback
 }

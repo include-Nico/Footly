@@ -1,5 +1,5 @@
 // js/router.js
-import { gameState, resetGame, saveGame, getUserTeamStrength } from './state.js';
+import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam } from './state.js';
 import { updateDashboardHeader, showNotification, showConfirm, updateNavUI } from './ui.js';
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 import { startMatchEngine } from './engine.js'; 
@@ -10,31 +10,33 @@ let selectedPlayerId = null; let draggedId = null;
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 export const FORMATIONS = {
-    "2-3-1": { att: 0, def: 0, pos: [
-        {role:'POR', t:'86%', l:'50%'}, 
-        {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, 
-        {role:'CEN', t:'42%', l:'20%'}, {role:'CEN', t:'42%', l:'50%'}, {role:'CEN', t:'42%', l:'80%'}, 
-        {role:'ATT', t:'16%', l:'50%'}
-    ] },
-    "3-2-1": { att: -10, def: 15, pos: [
-        {role:'POR', t:'86%', l:'50%'}, 
-        {role:'DIF', t:'66%', l:'20%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'DIF', t:'66%', l:'80%'}, 
-        {role:'CEN', t:'42%', l:'35%'}, {role:'CEN', t:'42%', l:'65%'}, 
-        {role:'ATT', t:'16%', l:'50%'}
-    ] },
-    "2-2-2": { att: 15, def: -10, pos: [
-        {role:'POR', t:'86%', l:'50%'}, 
-        {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, 
-        {role:'CEN', t:'42%', l:'30%'}, {role:'CEN', t:'42%', l:'70%'}, 
-        {role:'ATT', t:'16%', l:'35%'}, {role:'ATT', t:'16%', l:'65%'}
-    ] },
-    "1-4-1": { att: 5, def: 5, pos: [
-        {role:'POR', t:'86%', l:'50%'}, 
-        {role:'DIF', t:'66%', l:'50%'}, 
-        {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, 
-        {role:'ATT', t:'16%', l:'50%'}
-    ] }
+    "2-3-1": { att: 0, def: 0, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, {role:'CEN', t:'42%', l:'20%'}, {role:'CEN', t:'42%', l:'50%'}, {role:'CEN', t:'42%', l:'80%'}, {role:'ATT', t:'16%', l:'50%'}] },
+    "3-2-1": { att: -10, def: 15, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'20%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'DIF', t:'66%', l:'80%'}, {role:'CEN', t:'42%', l:'35%'}, {role:'CEN', t:'42%', l:'65%'}, {role:'ATT', t:'16%', l:'50%'}] },
+    "2-2-2": { att: 15, def: -10, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, {role:'CEN', t:'42%', l:'30%'}, {role:'CEN', t:'42%', l:'70%'}, {role:'ATT', t:'16%', l:'35%'}, {role:'ATT', t:'16%', l:'65%'}] },
+    "1-4-1": { att: 5, def: 5, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, {role:'ATT', t:'16%', l:'50%'}] }
 };
+
+// IL CALENDARIO COMPLETO (35 SETTIMANE)
+export const SEASON_SCHEDULE = [
+    {type:'L', day:1}, {type:'L', day:2}, {type:'L', day:3}, 
+    {type:'C', round:0, name:'Preliminari Coppa'},
+    {type:'L', day:4}, {type:'L', day:5}, 
+    {type:'C', round:1, name:'Sedicesimi Coppa'},
+    {type:'L', day:6}, {type:'L', day:7}, 
+    {type:'C', round:2, name:'Ottavi (Andata)'},
+    {type:'L', day:8}, 
+    {type:'C', round:3, name:'Ottavi (Ritorno)'},
+    {type:'L', day:9}, {type:'L', day:10}, 
+    {type:'C', round:4, name:'Quarti (Andata)'},
+    {type:'L', day:11}, 
+    {type:'C', round:5, name:'Quarti (Ritorno)'},
+    {type:'L', day:12}, {type:'L', day:13}, 
+    {type:'C', round:6, name:'Semifinale (Andata)'},
+    {type:'L', day:14}, 
+    {type:'C', round:7, name:'Semifinale (Ritorno)'},
+    {type:'L', day:15}, {type:'L', day:16}, {type:'L', day:17}, {type:'L', day:18}, {type:'L', day:19}, {type:'L', day:20}, {type:'L', day:21}, {type:'L', day:22}, {type:'L', day:23}, {type:'L', day:24}, {type:'L', day:25}, {type:'L', day:26},
+    {type:'C', round:8, name:'Finale Coppa Nazionale'}
+];
 
 export async function loadView(viewName) {
     try {
@@ -45,7 +47,6 @@ export async function loadView(viewName) {
         mainContent.innerHTML = html;
 
         selectedPlayerId = null;
-
         updateNavUI(viewName);
 
         if (viewName === 'home') renderHome();
@@ -54,7 +55,6 @@ export async function loadView(viewName) {
         else if (viewName === 'market') renderMarket();
         else if (viewName === 'store') renderStore(); 
         else if (viewName === 'match') startMatchEngine();
-
     } catch (error) { console.error("Errore router:", error); }
 }
 
@@ -98,114 +98,49 @@ function renderStore() {
                     updateDashboardHeader();
                     openPack(type);
                 });
-            } else {
-                showNotification('Gemme Insufficienti', 'Gioca stagioni per guadagnare Gemme.', 'error');
-            }
+            } else { showNotification('Gemme Insufficienti', 'Gioca stagioni per guadagnare Gemme.', 'error'); }
         };
     });
 }
 
 function openPack(type) {
     let items = [];
-    
-    let coins = 0;
-    if(type === 'COMUNE') coins = randomInt(200, 1000);
-    else if(type === 'SUPER') coins = randomInt(1000, 3000);
-    else if(type === 'MEGA') coins = randomInt(2500, 5000);
-    
-    items.push({ type: 'coin', data: coins });
-    gameState.userTeam.coins += coins;
+    let coins = type === 'COMUNE' ? randomInt(200, 1000) : (type === 'SUPER' ? randomInt(1000, 3000) : randomInt(2500, 5000));
+    items.push({ type: 'coin', data: coins }); gameState.userTeam.coins += coins;
 
     if(type === 'SUPER') {
-        for(let i=0; i<2; i++) {
-            let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer';
-            items.push({ type: 'bonus', data: b });
-            gameState.userTeam.inventory[b]++;
-        }
+        for(let i=0; i<2; i++) { let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer'; items.push({ type: 'bonus', data: b }); gameState.userTeam.inventory[b]++; }
     } else if (type === 'MEGA') {
-        items.push({ type: 'bonus', data: 'superBoosts' }); 
-        gameState.userTeam.inventory['superBoosts']++;
-        for(let i=0; i<3; i++) {
-            let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer';
-            items.push({ type: 'bonus', data: b });
-            gameState.userTeam.inventory[b]++;
-        }
+        items.push({ type: 'bonus', data: 'superBoosts' }); gameState.userTeam.inventory['superBoosts']++;
+        for(let i=0; i<3; i++) { let b = Math.random() > 0.5 ? 'healAll' : 'healPlayer'; items.push({ type: 'bonus', data: b }); gameState.userTeam.inventory[b]++; }
     }
 
     let numPlayers = type === 'MEGA' ? 4 : randomInt(3, 4);
     for(let i=0; i<numPlayers; i++) {
         let rarity = 'BRONZE';
         if(type === 'COMUNE') rarity = Math.random() > 0.8 ? 'SILVER' : 'BRONZE';
-        else if(type === 'SUPER') {
-            let r = Math.random();
-            if(r > 0.95) rarity = 'RAREGOLD';
-            else if (r > 0.6) rarity = 'GOLD';
-            else if (r > 0.2) rarity = 'SILVER';
-            else rarity = 'BRONZE';
-        }
-        else if(type === 'MEGA') {
-            let r = Math.random();
-            if(r > 0.95) rarity = 'LEGEND';
-            else if (r > 0.70) rarity = 'EPIC';
-            else if (r > 0.40) rarity = 'SUPERRARE';
-            else rarity = 'RAREGOLD'; 
-        }
+        else if(type === 'SUPER') { let r = Math.random(); rarity = r > 0.95 ? 'RAREGOLD' : (r > 0.6 ? 'GOLD' : (r > 0.2 ? 'SILVER' : 'BRONZE')); }
+        else if(type === 'MEGA') { let r = Math.random(); rarity = r > 0.95 ? 'LEGEND' : (r > 0.70 ? 'EPIC' : (r > 0.40 ? 'SUPERRARE' : 'RAREGOLD')); }
         let pos = ['POR', 'DIF', 'CEN', 'ATT'][Math.floor(Math.random()*4)];
         let player = generatePlayer(pos, false, rarity);
-        items.push({ type: 'player', data: player });
-        gameState.userTeam.players.push(player);
+        items.push({ type: 'player', data: player }); gameState.userTeam.players.push(player);
     }
-
-    saveGame();
-    updateDashboardHeader();
-    triggerPackAnimation(items);
+    saveGame(); updateDashboardHeader(); triggerPackAnimation(items);
 }
 
 function triggerPackAnimation(items) {
     let overlay = document.getElementById('dynamic-pack-overlay');
     if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'dynamic-pack-overlay';
-        overlay.className = 'modal-overlay';
-        overlay.style.background = 'rgba(0,0,0,0.95)';
-        overlay.style.zIndex = '9999';
-        
+        overlay = document.createElement('div'); overlay.id = 'dynamic-pack-overlay'; overlay.className = 'modal-overlay'; overlay.style.background = 'rgba(0,0,0,0.95)'; overlay.style.zIndex = '9999';
         const style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes popInCard {
-                0% { transform: scale(0.5); opacity: 0; }
-                70% { transform: scale(1.1); opacity: 1; }
-                100% { transform: scale(1); opacity: 1; }
-            }
-            .pop-in-anim { animation: popInCard 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-            @keyframes pulseText {
-                0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; }
-            }
-            .pulse-text-anim { animation: pulseText 1.5s infinite; }
-            @keyframes epicGlow {
-                0% { box-shadow: 0 0 15px var(--rarity-epic); } 50% { box-shadow: 0 0 40px var(--rarity-epic); } 100% { box-shadow: 0 0 15px var(--rarity-epic); }
-            }
-            @keyframes legendGlow {
-                0% { box-shadow: 0 0 20px white; } 50% { box-shadow: 0 0 50px white; } 100% { box-shadow: 0 0 20px white; }
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(overlay);
+        style.innerHTML = `@keyframes popInCard { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } } .pop-in-anim { animation: popInCard 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; } @keyframes pulseText { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } } .pulse-text-anim { animation: pulseText 1.5s infinite; } @keyframes epicGlow { 0% { box-shadow: 0 0 15px var(--rarity-epic); } 50% { box-shadow: 0 0 40px var(--rarity-epic); } 100% { box-shadow: 0 0 15px var(--rarity-epic); } } @keyframes legendGlow { 0% { box-shadow: 0 0 20px white; } 50% { box-shadow: 0 0 50px white; } 100% { box-shadow: 0 0 20px white; } }`;
+        document.head.appendChild(style); document.body.appendChild(overlay);
     }
     
-    overlay.innerHTML = `
-        <div id="pack-click-area" style="position: absolute; inset: 0; z-index: 10; cursor: pointer;"></div>
-        <div class="modal-box" style="background:transparent; border:none; box-shadow:none; text-align:center; width:100%; max-width:400px; padding:0; position: relative; z-index: 20; pointer-events: none;">
-            <div id="pack-reveal-area" style="min-height: 350px; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;"></div>
-            <div id="pack-controls" style="margin-top:20px; display:flex; justify-content:center; pointer-events: auto;"></div>
-        </div>
-    `;
-    
+    overlay.innerHTML = `<div id="pack-click-area" style="position: absolute; inset: 0; z-index: 10; cursor: pointer;"></div><div class="modal-box" style="background:transparent; border:none; box-shadow:none; text-align:center; width:100%; max-width:400px; padding:0; position: relative; z-index: 20; pointer-events: none;"><div id="pack-reveal-area" style="min-height: 350px; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;"></div><div id="pack-controls" style="margin-top:20px; display:flex; justify-content:center; pointer-events: auto;"></div></div>`;
     overlay.classList.add('active');
     
-    const revealArea = document.getElementById('pack-reveal-area');
-    const controls = document.getElementById('pack-controls');
-    const clickArea = document.getElementById('pack-click-area');
+    const revealArea = document.getElementById('pack-reveal-area'); const controls = document.getElementById('pack-controls'); const clickArea = document.getElementById('pack-click-area');
     let currentIndex = 0;
     
     function showNext() {
@@ -213,82 +148,105 @@ function triggerPackAnimation(items) {
             revealArea.innerHTML = `<h2 class="pop-in-anim" style="color:var(--gold); font-size:36px; text-shadow: 0 0 20px var(--gold);">Pacchetto Completato!</h2>`;
             controls.innerHTML = `<button class="primary-btn" id="pack-close-btn" style="width:200px;">Torna al Negozio</button>`;
             clickArea.onclick = null; 
-            document.getElementById('pack-close-btn').onclick = () => {
-                overlay.classList.remove('active');
-                if (gameState.currentView === 'store') loadView('store');
-            };
+            document.getElementById('pack-close-btn').onclick = () => { overlay.classList.remove('active'); if (gameState.currentView === 'store') loadView('store'); };
             return;
         }
         
-        let item = items[currentIndex];
-        let html = '';
-        
+        let item = items[currentIndex]; let html = '';
         if (item.type === 'coin') {
-            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; padding:20px; border: 2px solid var(--gold); box-shadow: 0 0 30px var(--gold); display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-surface);">
-                        <i class="fas fa-coins" style="font-size:70px; color:var(--gold); margin-bottom:20px;"></i>
-                        <div style="font-size:32px; font-weight:bold; color:var(--gold);">+${item.data}</div>
-                    </div>`;
+            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; padding:20px; border: 2px solid var(--gold); box-shadow: 0 0 30px var(--gold); display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-surface);"><i class="fas fa-coins" style="font-size:70px; color:var(--gold); margin-bottom:20px;"></i><div style="font-size:32px; font-weight:bold; color:var(--gold);">+${item.data}</div></div>`;
         } else if (item.type === 'bonus') {
-            let icon = item.data === 'superBoosts' ? 'fa-fire' : (item.data === 'healAll' ? 'fa-heart-pulse' : 'fa-medkit');
-            let name = item.data === 'superBoosts' ? 'Super Boost' : (item.data === 'healAll' ? 'Cura Squadra' : 'Kit Medico');
-            let color = item.data === 'superBoosts' ? 'var(--rarity-epic)' : (item.data === 'healAll' ? 'var(--accent)' : 'var(--notif-info)');
-            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; padding:20px; border: 2px solid ${color}; box-shadow: 0 0 30px ${color}; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-surface);">
-                        <i class="fas ${icon}" style="font-size:70px; color:${color}; margin-bottom:20px;"></i>
-                        <div style="font-size:18px; font-weight:bold; text-align:center; color:${color};">${name}</div>
-                    </div>`;
+            let icon = item.data === 'superBoosts' ? 'fa-fire' : (item.data === 'healAll' ? 'fa-heart-pulse' : 'fa-medkit'); let name = item.data === 'superBoosts' ? 'Super Boost' : (item.data === 'healAll' ? 'Cura Squadra' : 'Kit Medico'); let color = item.data === 'superBoosts' ? 'var(--rarity-epic)' : (item.data === 'healAll' ? 'var(--accent)' : 'var(--notif-info)');
+            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; padding:20px; border: 2px solid ${color}; box-shadow: 0 0 30px ${color}; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-surface);"><i class="fas ${icon}" style="font-size:70px; color:${color}; margin-bottom:20px;"></i><div style="font-size:18px; font-weight:bold; text-align:center; color:${color};">${name}</div></div>`;
         } else {
-            let p = item.data;
-            let glowClass = '';
-            
-            if(p.rarity === 'Leggenda') glowClass = 'border: 2px solid white; animation: legendGlow 2s infinite;';
-            else if(p.rarity === 'Epico') glowClass = `border: 2px solid ${p.color}; animation: epicGlow 2s infinite;`;
-            else glowClass = `border: 2px solid ${p.color}; box-shadow: 0 0 20px ${p.color};`;
-            
-            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; padding: 20px 10px; background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-deep) 100%); ${glowClass}">
-                        <div style="color: ${p.color}; font-size:56px; font-weight:bold; font-family:'Barlow Condensed',sans-serif; text-shadow: 0 0 15px ${p.color}; line-height:1;">${p.overall}</div>
-                        <div style="font-size:16px; font-weight:bold; color:var(--text-muted); margin-bottom: 10px;">${p.position}</div>
-                        
-                        <div style="font-size:20px; font-weight:bold; text-transform:uppercase; color:var(--text-primary); text-align:center; line-height: 1.1; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name.split(' ')[1] || p.name}</div>
-                        <div style="font-size:14px; color:var(--text-primary); text-align:center; margin-top: 4px;">${p.name.split(' ')[0]}</div>
-                        
-                        <div style="margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px;">
-                            <div style="font-size: 24px;" title="${p.nationality}">${p.nationality.split(' ')[0]}</div>
-                            <div style="font-size: 14px; color: var(--text-hint);">${p.age} Anni</div>
-                        </div>
-                    </div>`;
+            let p = item.data; let glowClass = p.rarity === 'Leggenda' ? 'border: 2px solid white; animation: legendGlow 2s infinite;' : (p.rarity === 'Epico' ? `border: 2px solid ${p.color}; animation: epicGlow 2s infinite;` : `border: 2px solid ${p.color}; box-shadow: 0 0 20px ${p.color};`);
+            html = `<div class="player-card pop-in-anim" style="width:180px; height:260px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; padding: 20px 10px; background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-deep) 100%); ${glowClass}"><div style="color: ${p.color}; font-size:56px; font-weight:bold; font-family:'Barlow Condensed',sans-serif; text-shadow: 0 0 15px ${p.color}; line-height:1;">${p.overall}</div><div style="font-size:16px; font-weight:bold; color:var(--text-muted); margin-bottom: 10px;">${p.position}</div><div style="font-size:20px; font-weight:bold; text-transform:uppercase; color:var(--text-primary); text-align:center; line-height: 1.1; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name.split(' ')[1] || p.name}</div><div style="font-size:14px; color:var(--text-primary); text-align:center; margin-top: 4px;">${p.name.split(' ')[0]}</div><div style="margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="font-size: 24px;" title="${p.nationality}">${p.nationality.split(' ')[0]}</div><div style="font-size: 14px; color: var(--text-hint);">${p.age} Anni</div></div></div>`;
         }
         
-        revealArea.innerHTML = `
-            ${html}
-            <div class="pulse-text-anim" style="color: var(--text-hint); font-size: 14px; margin-top: 25px;">Tocca lo schermo per continuare</div>
-        `;
-        
-        controls.innerHTML = `
-            <button class="glass-btn" id="pack-skip-btn" style="border-color:var(--text-hint); color:var(--text-hint);">Salta Tutti ⏭️</button>
-        `;
-        document.getElementById('pack-skip-btn').onclick = (e) => { 
-            e.stopPropagation(); 
-            currentIndex = items.length; 
-            showNext(); 
-        };
-        
-        clickArea.onclick = () => {
-            currentIndex++;
-            showNext();
-        };
+        revealArea.innerHTML = `${html}<div class="pulse-text-anim" style="color: var(--text-hint); font-size: 14px; margin-top: 25px;">Tocca lo schermo per continuare</div>`;
+        controls.innerHTML = `<button class="glass-btn" id="pack-skip-btn" style="border-color:var(--text-hint); color:var(--text-hint);">Salta Tutti ⏭️</button>`;
+        document.getElementById('pack-skip-btn').onclick = (e) => { e.stopPropagation(); currentIndex = items.length; showNext(); };
+        clickArea.onclick = () => { currentIndex++; showNext(); };
     }
     
     revealArea.innerHTML = `<i class="fas fa-box-open pop-in-anim" style="font-size:120px; color:var(--gold); filter:drop-shadow(0 0 30px var(--gold));"></i>`;
     controls.innerHTML = `<button class="primary-btn" id="pack-open-btn" style="pointer-events: auto; position: relative; z-index: 30;">APRI PACCHETTO</button>`;
-    
-    document.getElementById('pack-open-btn').onclick = (e) => { 
-        e.stopPropagation(); 
-        showNext(); 
-    };
+    document.getElementById('pack-open-btn').onclick = (e) => { e.stopPropagation(); showNext(); };
 }
 
 // ==========================================
-// HOME E CALENDARIO
+// AUTO SIMULAZIONE COPPA CPU (Silenziosa)
+// ==========================================
+export function simulateCupRound(roundIndex) {
+    if(!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[roundIndex]) return;
+    
+    let roundMatches = gameState.userTeam.cup.rounds[roundIndex];
+    let nextRoundIndex = roundIndex + 1;
+    let advancingTeams = [];
+
+    roundMatches.forEach(m => {
+        if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) return; // Tu giochi a parte!
+
+        let t1 = getGlobalTeam(m.home);
+        let t2 = getGlobalTeam(m.away);
+        let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
+        
+        let diff = Math.abs(t1.strength - t2.strength);
+        let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
+
+        let g1=0, g2=0;
+        for(let i=0; i<totalChances; i++) {
+            if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; }
+            else { if(Math.random()>0.4) g2++; }
+        }
+
+        m.scoreHome = g1; m.scoreAway = g2;
+
+        let isSingleLeg = [0, 1, 8].includes(roundIndex);
+        let isSecondLeg = [3, 5, 7].includes(roundIndex);
+
+        if (isSingleLeg) {
+            if (g1 === g2) { if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; } // Rigori auto
+            advancingTeams.push(m.scoreHome > m.scoreAway ? m.home : m.away);
+        } else if (isSecondLeg) {
+            let prevM = gameState.userTeam.cup.rounds[roundIndex-1].find(pm => (pm.home===m.home && pm.away===m.away) || (pm.home===m.away && pm.away===m.home));
+            let agg1 = g1 + (prevM.home === m.home ? prevM.scoreHome : prevM.scoreAway);
+            let agg2 = g2 + (prevM.away === m.away ? prevM.scoreHome : prevM.scoreAway);
+            if (agg1 === agg2) { if(Math.random()>0.5) agg1++; else agg2++; } // Rigori auto
+            advancingTeams.push(agg1 > agg2 ? m.home : m.away);
+        }
+    });
+
+    if ([0, 1, 3, 5, 7].includes(roundIndex)) {
+        if (roundIndex === 0 && gameState.userTeam.cup.byes) advancingTeams.push(...gameState.userTeam.cup.byes);
+        advancingTeams.sort(() => Math.random() - 0.5); // Shuffle draw
+        let nextMatches = [];
+        for(let i=0; i<advancingTeams.length; i+=2) {
+            if (advancingTeams[i] && advancingTeams[i+1]) nextMatches.push({ home: advancingTeams[i], away: advancingTeams[i+1], scoreHome: null, scoreAway: null });
+        }
+        gameState.userTeam.cup.rounds[nextRoundIndex] = nextMatches;
+    } else if ([2, 4, 6].includes(roundIndex)) {
+        let nextMatches = roundMatches.map(m => ({ home: m.away, away: m.home, scoreHome: null, scoreAway: null }));
+        gameState.userTeam.cup.rounds[nextRoundIndex] = nextMatches;
+    }
+}
+
+function generateCupBracket() {
+    let teams = [];
+    for(let lg in gameState.world) { [1,2,3].forEach(d => gameState.world[lg][d].forEach(t => teams.push(t.name))); }
+    teams.push(gameState.userTeam.name);
+    teams.sort((a,b) => getGlobalTeam(b).strength - getGlobalTeam(a).strength); // I top 22 saltano il turno
+    
+    let byes = teams.slice(0, 22);
+    let prelims = teams.slice(22).sort(() => Math.random()-0.5);
+    let r0 = [];
+    for(let i=0; i<10; i++) r0.push({home: prelims[i*2], away: prelims[i*2+1], scoreHome:null, scoreAway:null});
+    
+    gameState.userTeam.cup = { byes: byes, rounds: { 0: r0, 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[] } };
+}
+
+// ==========================================
+// HOME, CALENDARIO E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -303,123 +261,149 @@ function renderHome() {
 
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
     if (divNumEl) divNumEl.textContent = gameState.userTeam.division;
-    if (matchdayCounter) matchdayCounter.textContent = gameState.userTeam.matchday <= 26 ? gameState.userTeam.matchday : 26;
+    
+    // Ora il counter fa riferimento alla settimana sulle 35 totali
+    let currentWk = gameState.userTeam.seasonWeek || 1;
+    if (matchdayCounter) matchdayCounter.textContent = currentWk <= 35 ? currentWk : 35;
+    document.getElementById('home-div-num').nextSibling.textContent = " · Settimana ";
 
     const userStr = getUserTeamStrength();
     const homeRatingEl = document.getElementById('home-team-rating');
     if (homeRatingEl) homeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:14px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
 
-    const isEndOfSeason = gameState.userTeam.matchday > 26;
-    let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+    const isEndOfSeason = currentWk > 35;
 
-    if (scheduleContainer && opponents.length > 0) {
+    if (scheduleContainer) {
         scheduleContainer.innerHTML = '';
-        for (let i = 1; i <= 26; i++) {
-            let oppIndex = (i - 1) % opponents.length;
-            let opp = opponents[oppIndex];
-            let isHome = (i % 2 !== 0);
-            let venueText = isHome ? "Casa" : "Trasferta";
-            let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
+        for (let i = 0; i < 35; i++) {
+            let sched = SEASON_SCHEDULE[i];
+            let isCup = sched.type === 'C';
+            let title = isCup ? `🏆 ${sched.name}` : `Giornata ${sched.day}`;
             
             let statusClass = '';
             let statusText = '';
-            
-            if (i < gameState.userTeam.matchday) {
-                statusClass = 'opacity: 0.5; border-color: var(--border-dim);';
-                statusText = 'Giocata ✅';
-            } else if (i === gameState.userTeam.matchday) {
-                statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);';
-                statusText = 'Oggi ⚽';
+            if (i+1 < currentWk) { statusClass = 'opacity: 0.5; border-color: var(--border-dim);'; statusText = 'Giocata ✅'; } 
+            else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
+            else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
+
+            // Trova l'avversario
+            let oppName = "???"; let isHome = true; let sStr = 0;
+            if (!isCup) {
+                let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+                if(opponents.length>0) {
+                    let opp = opponents[(sched.day - 1) % opponents.length];
+                    oppName = opp.name; sStr = opp.strength; isHome = (sched.day % 2 !== 0);
+                }
             } else {
-                statusClass = 'border-color: var(--border-dim);';
-                statusText = 'Da giocare ⏳';
+                if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
+                    let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
+                    if(m) {
+                        isHome = m.home === gameState.userTeam.name;
+                        oppName = isHome ? m.away : m.home;
+                        sStr = getGlobalTeam(oppName).strength;
+                    } else {
+                        oppName = "Eliminato/Riposo"; sStr = 0;
+                    }
+                }
             }
+
+            let venueText = isHome ? "Casa" : "Trasferta";
+            let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
+            if (oppName === "Eliminato/Riposo") { venueText = "-"; venueIcon = ""; }
 
             let item = document.createElement('div');
             item.className = 'glass-panel';
             item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
             
             item.innerHTML = `
-                <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Giornata ${i}</div>
-                <div style="font-weight: bold; font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${opp.name}">${opp.name}</div>
+                <div style="font-size: 10px; color: ${isCup ? 'var(--gold)' : 'var(--text-muted)'}; margin-bottom: 4px; font-weight:bold;">${title}</div>
+                <div style="font-weight: bold; font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${oppName}">${oppName}</div>
                 <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${venueIcon} ${venueText}</div>
                 <div style="display: flex; flex-direction: column; align-items: center; margin-top: 6px;">
-                    <div style="font-size: 11px; font-weight: bold; color: var(--gold);">${opp.strength}</div>
-                    ${getStarsHTML(opp.strength)}
+                    <div style="font-size: 11px; font-weight: bold; color: var(--gold);">${sStr>0?sStr:'-'}</div>
+                    ${sStr>0 ? getStarsHTML(sStr) : ''}
                 </div>
-                <div style="font-size: 10px; font-weight: bold; color: ${i === gameState.userTeam.matchday ? 'var(--accent)' : 'var(--text-muted)'}; margin-top: 8px;">${statusText}</div>
+                <div style="font-size: 10px; font-weight: bold; color: ${i+1 === currentWk ? 'var(--accent)' : 'var(--text-muted)'}; margin-top: 8px;">${statusText}</div>
             `;
             scheduleContainer.appendChild(item);
         }
-
-        setTimeout(() => {
-            const currentCard = scheduleContainer.children[Math.min(gameState.userTeam.matchday - 1, 25)];
-            if (currentCard) currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }, 150);
+        setTimeout(() => { const currentCard = scheduleContainer.children[Math.min(currentWk - 1, 34)]; if (currentCard) currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); }, 150);
     }
 
-    if (!isEndOfSeason && opponents.length > 0) {
-        let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
-        let nextOpponent = opponents[oppIndex];
+    if (!isEndOfSeason) {
+        let sched = SEASON_SCHEDULE[currentWk - 1];
+        let isCup = sched.type === 'C';
+        let oppName = ""; let sStr = 0; let userPlays = true;
+
+        if (isCup) {
+            if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
+                let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
+                if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
+                else { userPlays = false; }
+            } else { userPlays = false; }
+        } else {
+            let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+            let opp = opponents[(sched.day - 1) % opponents.length];
+            if(opp) { oppName = opp.name; sStr = opp.strength; }
+        }
         
         const nextHomeNameEl = document.getElementById('next-home-name');
         if (nextHomeNameEl) nextHomeNameEl.textContent = gameState.userTeam.name;
-        
         const nextHomeRatingEl = document.getElementById('next-home-rating');
         if (nextHomeRatingEl) nextHomeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
         
-        if (cpuTeamNameEl) cpuTeamNameEl.textContent = nextOpponent.name;
-        
+        if (cpuTeamNameEl) cpuTeamNameEl.textContent = userPlays ? oppName : "Nessun Avversario";
         const cpuRatingEl = document.getElementById('cpu-team-rating');
-        if (cpuRatingEl) cpuRatingEl.innerHTML = `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${nextOpponent.strength}</span>${getStarsHTML(nextOpponent.strength)}`;
+        if (cpuRatingEl) cpuRatingEl.innerHTML = userPlays ? `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${sStr}</span>${getStarsHTML(sStr)}` : "";
         
-        playBtnText.textContent = "Gioca Partita";
-        playBtnIcon.innerHTML = '<i class="fas fa-play"></i>';
-        playBtn.style.background = "transparent";
-        playBtn.style.color = "var(--accent)";
-        playBtn.style.borderColor = "rgba(0,245,160,0.3)";
+        document.getElementById('match-vs-badge').textContent = isCup ? "🏆" : "VS";
         
-        playBtn.onclick = () => {
-            if(userStr === 0) { showNotification("Rosa Incompleta", "Metti almeno 7 giocatori titolari in campo!", "error"); return; }
-            loadView('match'); 
-        };
+        if (userPlays) {
+            playBtnText.textContent = "Gioca Partita";
+            playBtnIcon.innerHTML = '<i class="fas fa-play"></i>';
+            playBtn.style.background = "transparent"; playBtn.style.color = "var(--accent)"; playBtn.style.borderColor = "rgba(0,245,160,0.3)";
+            playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
+        } else {
+            playBtnText.textContent = "Simula Turno Coppa";
+            playBtnIcon.innerHTML = '<i class="fas fa-forward"></i>';
+            playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
+            playBtn.onclick = () => {
+                simulateCupRound(sched.round);
+                gameState.userTeam.seasonWeek++;
+                saveGame(); loadView('home'); showNotification("Turno Simulato", "Le altre squadre hanno giocato.", "info");
+            };
+        }
     } else {
         if (cpuTeamNameEl) cpuTeamNameEl.textContent = "Stagione Conclusa";
         document.getElementById('cpu-team-rating').innerHTML = "";
-        
-        const nextHomeNameEl = document.getElementById('next-home-name');
-        if (nextHomeNameEl) nextHomeNameEl.textContent = "";
-        const nextHomeRatingEl = document.getElementById('next-home-rating');
-        if (nextHomeRatingEl) nextHomeRatingEl.innerHTML = "";
+        document.getElementById('next-home-name').textContent = "";
+        document.getElementById('next-home-rating').innerHTML = "";
         
         playBtnText.textContent = "Termina Stagione";
         playBtnIcon.innerHTML = '<i class="fas fa-forward-step"></i>';
-        playBtn.style.background = "var(--gold)";
-        playBtn.style.color = "#000";
-        playBtn.style.borderColor = "var(--gold)";
-        
-        playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo premi e invecchiamento...", () => { handleEndSeason(); }, "Procedi", false, true); };
+        playBtn.style.background = "var(--gold)"; playBtn.style.color = "#000"; playBtn.style.borderColor = "var(--gold)";
+        playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo premi e nuovo calendario...", () => { handleEndSeason(); }, "Procedi", false, true); };
     }
 
-    if (opponents.length > 0) {
+    // CLASSIFICA CAMPIONATO
+    let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+    if (opponents.length > 0 && tableBody) {
         let standings = [...opponents];
         standings.push({ name: gameState.userTeam.name, isUser: true, strength: userStr, points: gameState.userTeam.stats.points, played: gameState.userTeam.stats.played, goalsFor: gameState.userTeam.stats.goalsFor, goalsAgainst: gameState.userTeam.stats.goalsAgainst });
         let sortedStandings = standings.sort((a, b) => b.points - a.points);
-        if (tableBody) {
-            tableBody.innerHTML = '';
-            sortedStandings.forEach((team, index) => {
-                const trStyle = team.isUser ? "background: rgba(0, 245, 160, 0.1); font-weight: bold; color: var(--accent);" : "";
-                tableBody.innerHTML += `
-                    <tr style="border-bottom: 1px solid var(--border-dim); ${trStyle}">
-                        <td style="padding: 8px 4px;">${index + 1}</td>
-                        <td style="padding: 8px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">${team.name}</td>
-                        <td style="padding: 8px 4px; text-align: center;"><span style="font-weight:bold; font-size:11px; margin-right:4px;">${team.strength}</span>${getStarsHTML(team.strength)}</td>
-                        <td style="padding: 8px 4px; text-align: center; font-weight: bold;">${team.points}</td>
-                        <td style="padding: 8px 4px; text-align: center; color: var(--text-muted);">${team.played}</td>
-                    </tr>
-                `;
-            });
-        }
+        tableBody.innerHTML = '';
+        sortedStandings.forEach((team, index) => {
+            const trStyle = team.isUser ? "background: rgba(0, 245, 160, 0.1); font-weight: bold; color: var(--accent);" : "";
+            tableBody.innerHTML += `
+                <tr style="border-bottom: 1px solid var(--border-dim); ${trStyle}">
+                    <td style="padding: 8px 4px;">${index + 1}</td>
+                    <td style="padding: 8px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">${team.name}</td>
+                    <td style="padding: 8px 4px; text-align: center;"><span style="font-weight:bold; font-size:11px; margin-right:4px;">${team.strength}</span>${getStarsHTML(team.strength)}</td>
+                    <td style="padding: 8px 4px; text-align: center; font-weight: bold;">${team.points}</td>
+                    <td style="padding: 8px 4px; text-align: center; color: var(--text-muted);">${team.played}</td>
+                </tr>
+            `;
+        });
     }
 }
 
@@ -438,7 +422,6 @@ function handleEndSeason() {
     else if(userRank <= 5) gemsEarned = 50;
     else if(userRank <= 10) gemsEarned = 20;
     else if(userRank <= 13) gemsEarned = 10;
-    else gemsEarned = 0;
 
     gameState.userTeam.gems += gemsEarned;
 
@@ -475,7 +458,10 @@ function handleEndSeason() {
     gameState.userTeam.coins += reward;
     gameState.userTeam.stats = { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 };
     gameState.userTeam.matchday = 1;
+    gameState.userTeam.seasonWeek = 1; // RESET CALENDARIO
     
+    generateCupBracket(); // GENERA LA NUOVA COPPA
+
     let seasonMsg = `<b>Posizione:</b> ${userRank}°<br><b>Premio:</b> 💰 ${reward.toLocaleString()} | 💎 ${gemsEarned}<br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`;
     
     if(userRank === 1 && gameState.userTeam.division > 1) {
@@ -697,11 +683,10 @@ function renderSquad() {
         detailsContainer.innerHTML = detailsHtml;
         hubContent.appendChild(detailsContainer);
 
-        // Funzioni Ruoli
         document.getElementById('btn-set-cap').onclick = () => {
             if (!gameState.userTeam.roles) gameState.userTeam.roles = {};
             gameState.userTeam.roles.captain = p.id;
-            saveGame(); updateDashboardHeader(); showNotification("Capitano", `${p.name} è il nuovo Capitano!`, "success");
+            saveGame(); updateDashboardHeader(); showNotification("Capitano", `${p.name} è il nuovo Capitano! (+1 Forza Squadra)`, "success");
             renderHubPlayerDetail(p); renderSquad();
         };
         document.getElementById('btn-set-pen').onclick = () => {
@@ -777,7 +762,6 @@ function renderSquad() {
             if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato!"><i class="fas fa-square"></i></div>`;
             else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
 
-            // NUOVO: ICONE RUOLI VISUALIZZATE IN CAMPO
             let roleIcons = '';
             if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
             if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
