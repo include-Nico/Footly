@@ -132,7 +132,6 @@ export function startMatchEngine() {
     }
     if (document.getElementById('intro-aggregate')) document.getElementById('intro-aggregate').textContent = aggregateText;
 
-    // === TEMA DINAMICO TABELLONE ===
     let c1 = gameState.userTeam.colors.primary;
     let c2 = gameState.userTeam.colors.secondary;
     let sKit = gameState.userTeam.kitStyle;
@@ -801,7 +800,6 @@ export function startMatchEngine() {
         let totalTacAtt = tacBonusAtt + currentF.att;
         let totalTacDef = tacBonusDef + currentF.def;
         
-        // FIX SICUREZZA: Evita che l'assenza del testo causi il crash null
         let attEl = document.getElementById('match-tactics-att');
         let defEl = document.getElementById('match-tactics-def');
         if (attEl) attEl.textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
@@ -811,11 +809,6 @@ export function startMatchEngine() {
         
         let starters = gameState.userTeam.players.filter(p => p.isStarter);
         let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
-
-        let userKitCSS = "";
-        if (typeof getKitCSS === 'function' && gameState.userTeam.colors) {
-             userKitCSS = getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
-        }
 
         currentF.pos.forEach((slot, idx) => {
             let p = starters.find(pl => pl.slotIndex === idx);
@@ -833,7 +826,7 @@ export function startMatchEngine() {
                 let roleIcons = '';
                 if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
                 if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-                let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+                let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
                 let isSelected = selectedPlayerId === p.id;
                 let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
@@ -841,10 +834,7 @@ export function startMatchEngine() {
 
                 pitch.innerHTML += `
                     <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
-                        <div style="position: absolute; top: -30px; left: 50%; transform: translateX(-50%); display:flex; flex-direction:column; align-items:center;">
-                            <div style="width: 18px; height: 18px; border-radius: 4px 4px 2px 2px; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 2px 4px rgba(0,0,0,0.6); margin-bottom: 2px; ${userKitCSS}"></div>
-                            <div style="font-size: 9px; font-weight: bold; color: white; text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                        </div>
+                        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
                         <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
                             ${warningHTML}
                             ${rolesHtml}

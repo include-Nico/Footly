@@ -59,12 +59,12 @@ function getPlayerPotential(age, overall) {
 function getEnergyBarHTML(p) {
     if(p.energy === undefined) p.energy = 100;
     let color = p.energy > 70 ? '#00f5a0' : (p.energy > 40 ? '#f0b429' : '#f05252');
-    return `<div style="width: 100%; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px; margin-top: 4px; overflow: hidden;" title="Energia: ${p.energy}%"><div style="height: 100%; width: ${p.energy}%; background: ${color}; transition: width 0.3s;"></div></div>`;
+    return `
+    <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px; margin-top: 4px; overflow: hidden;" title="Energia: ${p.energy}%">
+        <div style="height: 100%; width: ${p.energy}%; background: ${color}; transition: width 0.3s;"></div>
+    </div>`;
 }
 
-// ==========================================
-// STORE (NEGOZIO) E PACK OPENING ANIMATION
-// ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
         btn.onclick = (e) => {
@@ -73,7 +73,8 @@ function renderStore() {
             if(gameState.userTeam.gems >= cost) {
                 showConfirm("Acquisto", `Vuoi comprare il Pack ${type} per 💎 ${cost}?`, () => {
                     gameState.userTeam.gems -= cost;
-                    updateDashboardHeader(); openPack(type);
+                    updateDashboardHeader();
+                    openPack(type);
                 });
             } else { showNotification('Gemme Insufficienti', 'Gioca stagioni per guadagnare Gemme.', 'error'); }
         };
@@ -176,9 +177,6 @@ function triggerPackAnimation(items) {
     document.getElementById('pack-open-btn').onclick = (e) => { e.stopPropagation(); showNext(); };
 }
 
-// ==========================================
-// HOME, CALENDARIO E FINE STAGIONE
-// ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
     const cpuTeamNameEl = document.getElementById('cpu-team-name');
@@ -189,7 +187,7 @@ function renderHome() {
     const playBtnIcon = document.getElementById('play-btn-icon');
     const matchdayCounter = document.getElementById('matchday-counter');
     const scheduleContainer = document.getElementById('schedule-container');
-    const homeCrestEl = document.getElementById('home-crest'); // SCUDETTO DINAMICO
+    const homeCrestEl = document.getElementById('home-crest');
 
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
     if (divNumEl) divNumEl.textContent = gameState.userTeam.division;
@@ -197,6 +195,8 @@ function renderHome() {
     
     let currentWk = gameState.userTeam.seasonWeek || 1;
     if (matchdayCounter) matchdayCounter.textContent = currentWk <= 46 ? currentWk : 46;
+    let divLabel = document.getElementById('home-div-num').nextSibling;
+    if(divLabel) divLabel.textContent = " · Settimana ";
 
     const userStr = getUserTeamStrength();
     const homeRatingEl = document.getElementById('home-team-rating');
@@ -279,7 +279,7 @@ function renderHome() {
             if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
                 let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                 if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                else { userPlays = false; oppName = "Eliminato/Non Qual."; }
+                else { userPlays = false; oppName = "Eliminato"; }
             } else { userPlays = false; oppName = "Non qualificato"; }
         }
         else if (isCup) {
@@ -289,8 +289,10 @@ function renderHome() {
                 else { 
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                        oppName = "Qualificato";
-                    } else { oppName = "Eliminato"; }
+                        oppName = "Qualificato d'ufficio (Riposo)";
+                    } else {
+                        oppName = "Eliminato";
+                    }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
         } else {
@@ -318,7 +320,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato" ? "Avanza Turno" : "Simula Turno");
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -486,9 +488,6 @@ function handleEndSeason() {
     showConfirm(`🏆 Anno ${gameState.userTeam.seasonYear - 1} Concluso!`, seasonMsg, () => { renderHome(); }, "Inizia Nuova Stagione", false, true);
 }
 
-// ==========================================
-// GESTIONE SQUADRA E INVENTARIO
-// ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
     const bench = document.getElementById('bench-players');
@@ -759,8 +758,6 @@ function renderSquad() {
     let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
     starters.forEach((p, idx) => { if(p.slotIndex === undefined) p.slotIndex = idx; });
 
-    let userKitCSS = getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
-
     currentF.pos.forEach((slot, idx) => {
         let p = starters.find(pl => pl.slotIndex === idx);
         if (p) {
@@ -783,26 +780,20 @@ function renderSquad() {
             let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
             const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
 
-            // MAGLIA SOPRA AL NOME RUOLO
             pitch.innerHTML += `
                 <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
-                    <div style="position: absolute; top: -30px; left: 50%; transform: translateX(-50%); display:flex; flex-direction:column; align-items:center;">
-                        <div style="width: 18px; height: 18px; border-radius: 4px 4px 2px 2px; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 2px 4px rgba(0,0,0,0.6); margin-bottom: 2px; ${userKitCSS}"></div>
-                        <div style="font-size: 9px; font-weight: bold; color: white; text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                    </div>
+                    <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
                     <div class="player-card player-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
                         ${warningHTML}
                         ${rolesHtml}
                         <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                        <div class="card-pos">${p.position}</div>
+                        <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                         ${getEnergyBarHTML(p)}
                         <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                     </div>
                 </div>
             `;
-        } else {
-            pitch.innerHTML += `<div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};"><div class="empty-slot" data-idx="${idx}"><i class="fas fa-plus"></i><br>${slot.role}</div></div>`;
-        }
+        } else pitch.innerHTML += `<div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};"><div class="empty-slot" data-idx="${idx}"><i class="fas fa-plus"></i><br>${slot.role}</div></div>`;
     });
 
     reserves.forEach(p => {
@@ -868,9 +859,6 @@ function renderSquad() {
     });
 }
 
-// ==========================================
-// MERCATO E PROFILO
-// ==========================================
 function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
     const resultsContainer = document.getElementById('market-results');
@@ -1001,7 +989,6 @@ function renderProfile() {
         }
     }
 
-    // LOGICA MODIFICA DIVISA E TEMA
     const c1 = document.getElementById('edit-color-1');
     const c2 = document.getElementById('edit-color-2');
     const styleSel = document.getElementById('edit-kit-style');
