@@ -260,7 +260,7 @@ function triggerPackAnimation(items) {
         
         revealArea.innerHTML = `
             ${html}
-            <div class="pulse-text-anim" style="color: var(--text-hint); font-size: 14px; margin-top: 25px;">Tocca per continuare</div>
+            <div class="pulse-text-anim" style="color: var(--text-hint); font-size: 14px; margin-top: 25px;">Tocca lo schermo per continuare</div>
         `;
         
         controls.innerHTML = `
@@ -288,7 +288,7 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// HOME, CALENDARIO E FINE STAGIONE
+// HOME E CALENDARIO
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -518,8 +518,6 @@ function renderSquad() {
             allPlayers.forEach(p => { p.isStarter = false; p.slotIndex = -1; });
 
             const currentF = FORMATIONS[gameState.userTeam.formation];
-            
-            // FIX: usa getEffectiveOverall per calcolare la forza reale considerando l'energia!
             allPlayers.sort((a, b) => getEffectiveOverall(b) - getEffectiveOverall(a));
 
             currentF.pos.forEach((slot, idx) => {
@@ -536,7 +534,7 @@ function renderSquad() {
 
             saveGame();
             renderSquad();
-            showNotification('Ottimizzazione Completata', 'I giocatori più forti e freschi sono stati schierati.', 'success');
+            showNotification('Ottimizzazione Completata', 'I giocatori migliori sono stati schierati.', 'success');
         };
     }
 
@@ -640,6 +638,9 @@ function renderSquad() {
         let trainCost = 500 * (tBoost + 1);
         let roleTrainCost = 1500;
 
+        let isCap = gameState.userTeam.roles?.captain === p.id;
+        let isPen = gameState.userTeam.roles?.penalty === p.id;
+
         let backBtn = document.createElement('button');
         backBtn.className = 'glass-btn'; backBtn.style.marginBottom = '15px';
         backBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Torna alla Lista';
@@ -667,6 +668,16 @@ function renderSquad() {
                 ${tBoost > 0 ? `<div style="margin-top:10px; font-size:11px; color:var(--accent); text-align:center;"><i class="fas fa-dumbbell"></i> Allenamento Stagionale: +${tBoost}</div>` : ''}
             </div>
 
+            <div class="section-label">Ruoli in Campo</div>
+            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                <button id="btn-set-cap" class="glass-btn" style="flex:1; border-color:${isCap ? 'var(--gold)' : 'var(--border-dim)'}; color:${isCap ? 'var(--gold)' : 'var(--text-primary)'}">
+                    <i class="fas fa-copyright"></i> ${isCap ? 'Capitano' : 'Fai Capitano'}
+                </button>
+                <button id="btn-set-pen" class="glass-btn" style="flex:1; border-color:${isPen ? 'var(--accent)' : 'var(--border-dim)'}; color:${isPen ? 'var(--accent)' : 'var(--text-primary)'}">
+                    <i class="fas fa-bullseye"></i> ${isPen ? 'Rigorista' : 'Fai Rigorista'}
+                </button>
+            </div>
+
             <div class="section-label">Sviluppo e Gestione</div>
             <button id="btn-train-stats" class="glass-btn hub-action-btn" style="border-color: var(--accent); color: var(--text-primary);">
                 <div><div><i class="fas fa-dumbbell text-accent"></i> Allenamento Fisico</div><div class="hub-action-desc">Migliora le chance di crescita a fine stagione.</div></div>
@@ -685,6 +696,20 @@ function renderSquad() {
         const detailsContainer = document.createElement('div');
         detailsContainer.innerHTML = detailsHtml;
         hubContent.appendChild(detailsContainer);
+
+        // Funzioni Ruoli
+        document.getElementById('btn-set-cap').onclick = () => {
+            if (!gameState.userTeam.roles) gameState.userTeam.roles = {};
+            gameState.userTeam.roles.captain = p.id;
+            saveGame(); updateDashboardHeader(); showNotification("Capitano", `${p.name} è il nuovo Capitano!`, "success");
+            renderHubPlayerDetail(p); renderSquad();
+        };
+        document.getElementById('btn-set-pen').onclick = () => {
+            if (!gameState.userTeam.roles) gameState.userTeam.roles = {};
+            gameState.userTeam.roles.penalty = p.id;
+            saveGame(); showNotification("Rigorista", `${p.name} è il nuovo rigorista!`, "success");
+            renderHubPlayerDetail(p); renderSquad();
+        };
 
         document.getElementById('btn-train-stats').onclick = () => {
             if(p.age >= 35) { showNotification("Impossibile", "I giocatori vecchi non si allenano più.", "warning"); return; }
@@ -752,14 +777,22 @@ function renderSquad() {
             if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato!"><i class="fas fa-square"></i></div>`;
             else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
 
-            let isSelected = selectedPlayerId === p.id ? 'selected' : '';
+            // NUOVO: ICONE RUOLI VISUALIZZATE IN CAMPO
+            let roleIcons = '';
+            if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
+            if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
+            let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+
+            let isSelected = selectedPlayerId === p.id;
+            let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
             const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
 
             pitch.innerHTML += `
                 <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
                     <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                    <div class="player-card player-card-interactive ${isSelected} ${disabledClass}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                    <div class="player-card player-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
                         ${warningHTML}
+                        ${rolesHtml}
                         <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
                         <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                         ${getEnergyBarHTML(p)}
@@ -771,7 +804,8 @@ function renderSquad() {
     });
 
     reserves.forEach(p => {
-        let isSelected = selectedPlayerId === p.id ? 'selected' : '';
+        let isSelected = selectedPlayerId === p.id;
+        let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
         const flag = p.nationality ? p.nationality.split(' ')[0] : '';
         
         let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
@@ -782,7 +816,7 @@ function renderSquad() {
         else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
 
         bench.innerHTML += `
-            <div class="player-card player-card-interactive ${isSelected} ${disabledClass}" draggable="true" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+            <div class="player-card player-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
                 ${warningHTML}
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
                 <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>

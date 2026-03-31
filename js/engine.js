@@ -38,25 +38,25 @@ export function startMatchEngine() {
     let stoppageTime = randomInt(2, 6);
     let addedTimeAnnounced = false;
 
+    // FIX IOS TAP BUG
+    if (!document.getElementById('mobile-hover-fix')) {
+        const style = document.createElement('style');
+        style.id = 'mobile-hover-fix';
+        style.innerHTML = `.goal-section { -webkit-tap-highlight-color: transparent !important; } @media (hover: none) { .goal-section:hover { background: transparent; } .goal-section:active { background: rgba(255,255,255,0.3); } }`;
+        document.head.appendChild(style);
+    }
+
     const originalFormation = gameState.userTeam.formation;
-    const originalLineup = gameState.userTeam.players.map(p => ({
-        id: p.id,
-        isStarter: p.isStarter,
-        slotIndex: p.slotIndex
-    }));
+    const originalLineup = gameState.userTeam.players.map(p => ({ id: p.id, isStarter: p.isStarter, slotIndex: p.slotIndex }));
 
     const userStr = getUserTeamStrength();
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
-    if (opponents.length === 0) {
-        showNotification("Errore di Caricamento", "Il mondo non è caricato correttamente. Torna alla home o resetta l'account.", "error");
-        return;
-    }
+    if (opponents.length === 0) { showNotification("Errore", "Mondo non caricato. Resetta l'account.", "error"); return; }
 
     let oppIndex = (gameState.userTeam.matchday - 1) % opponents.length;
     let nextOpponent = opponents[oppIndex];
     let cpuDynamicStrength = nextOpponent.strength;
 
-    // LOGICA CASA/TRASFERTA
     const isHomeMatch = (gameState.userTeam.matchday % 2 !== 0);
 
     gameState.userTeam.players.forEach(p => { 
@@ -64,7 +64,6 @@ export function startMatchEngine() {
         p.matchYellows = 0; 
     });
 
-    // Funzione per aggiornare i gol nella UI
     function updateScoreUI() {
         document.getElementById(isHomeMatch ? 'score-home' : 'score-away').textContent = userScore;
         document.getElementById(isHomeMatch ? 'score-away' : 'score-home').textContent = cpuScore;
@@ -72,39 +71,26 @@ export function startMatchEngine() {
 
     function updateMatchHeaderStr() {
         const str = getUserTeamStrength(); 
-        if (isHomeMatch) {
-            document.getElementById('intro-home-str').innerHTML = `${str} ${getStarsHTML(str)}`;
-        } else {
-            document.getElementById('intro-away-str').innerHTML = `${str} ${getStarsHTML(str)}`;
-        }
+        if (isHomeMatch) document.getElementById('intro-home-str').innerHTML = `${str} ${getStarsHTML(str)}`;
+        else document.getElementById('intro-away-str').innerHTML = `${str} ${getStarsHTML(str)}`;
     }
     
-    // Imposta la visualizzazione pre-partita
     document.getElementById('intro-matchday').textContent = gameState.userTeam.matchday;
     document.getElementById('intro-stadium').textContent = isHomeMatch ? "Stadio di Casa" : "Stadio in Trasferta (Ospiti)";
     
     if (isHomeMatch) {
-        document.getElementById('intro-home-icon').textContent = "⚽";
-        document.getElementById('intro-away-icon').textContent = "🤖";
-        document.getElementById('intro-home-name').textContent = gameState.userTeam.name;
-        document.getElementById('intro-away-name').textContent = nextOpponent.name;
+        document.getElementById('intro-home-icon').textContent = "⚽"; document.getElementById('intro-away-icon').textContent = "🤖";
+        document.getElementById('intro-home-name').textContent = gameState.userTeam.name; document.getElementById('intro-away-name').textContent = nextOpponent.name;
         document.getElementById('intro-away-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
-        
-        document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
-        document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
+        document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase(); document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
     } else {
-        document.getElementById('intro-home-icon').textContent = "🤖";
-        document.getElementById('intro-away-icon').textContent = "⚽";
-        document.getElementById('intro-home-name').textContent = nextOpponent.name;
-        document.getElementById('intro-home-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
+        document.getElementById('intro-home-icon').textContent = "🤖"; document.getElementById('intro-away-icon').textContent = "⚽";
+        document.getElementById('intro-home-name').textContent = nextOpponent.name; document.getElementById('intro-home-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
         document.getElementById('intro-away-name').textContent = gameState.userTeam.name;
-        
-        document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
-        document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
+        document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase(); document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
     }
     
-    updateMatchHeaderStr();
-    updateScoreUI();
+    updateMatchHeaderStr(); updateScoreUI();
 
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
     if(unavailable.length > 0) { showNotification("Indisponibili!", "Hai schierato titolari infortunati o squalificati!", "error"); setTimeout(() => loadView('squad'), 2000); return; }
@@ -114,21 +100,14 @@ export function startMatchEngine() {
         const div = document.createElement('div'); div.className = `log-event ${type}`;
         let displayMin = minute > 90 ? `90+${minute-90}'` : `${minute}'`;
         div.innerHTML = `<span style="font-weight:bold; color:var(--text-hint); width:35px;">${displayMin}</span> <span>${text}</span>`;
-        logContainer.prepend(div);
-        logContainer.scrollTop = logContainer.scrollHeight;
+        logContainer.prepend(div); logContainer.scrollTop = logContainer.scrollHeight;
     }
 
     function showMatchBanner(type, mainText, subText, callback) {
-        const banner = document.getElementById('match-banner');
-        const titleEl = document.getElementById('match-banner-text');
-        const detailsEl = document.getElementById('match-banner-details');
-
+        const banner = document.getElementById('match-banner'); const titleEl = document.getElementById('match-banner-text'); const detailsEl = document.getElementById('match-banner-details');
         if (!banner || !titleEl || !detailsEl) { if(callback) callback(); return; }
 
-        titleEl.textContent = mainText;
-        detailsEl.innerHTML = subText;
-        titleEl.style.color = "white"; 
-        titleEl.style.textShadow = "0 4px 20px rgba(255, 255, 255, 0.4)";
+        titleEl.textContent = mainText; detailsEl.innerHTML = subText; titleEl.style.color = "white"; titleEl.style.textShadow = "0 4px 20px rgba(255, 255, 255, 0.4)";
 
         if (type === 'goal-user') { titleEl.style.color = "var(--accent)"; titleEl.style.textShadow = "0 4px 20px rgba(0, 245, 160, 0.6)"; } 
         else if (type === 'goal-cpu') { titleEl.style.color = "var(--notif-error)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 82, 82, 0.6)"; } 
@@ -136,8 +115,7 @@ export function startMatchEngine() {
         else if (type === 'red' || type === 'injury') { titleEl.style.color = "var(--notif-error)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 82, 82, 0.6)"; }
         else if (type === 'info') { titleEl.style.color = "var(--text-primary)"; }
 
-        banner.classList.add('show');
-        setTimeout(() => { banner.classList.remove('show'); if(callback) callback(); }, 3000);
+        banner.classList.add('show'); setTimeout(() => { banner.classList.remove('show'); if(callback) callback(); }, 3000);
     }
 
     let strDiffAbs = Math.abs(userStr - nextOpponent.strength);
@@ -151,37 +129,22 @@ export function startMatchEngine() {
     }
     if(Math.random() > 0.4) chanceMinutes.push(90 + randomInt(1, stoppageTime)); 
 
-    document.getElementById('start-kickoff-btn').onclick = () => {
-        document.getElementById('match-intro').style.display = 'none';
-        document.getElementById('match-engine').style.display = 'flex';
-        startTimer();
-    };
-
+    document.getElementById('btn-intro-sim').innerHTML = `Simula Rapida (💎 5) <i class="fas fa-bolt"></i>`;
+    document.getElementById('start-kickoff-btn').onclick = () => { document.getElementById('match-intro').style.display = 'none'; document.getElementById('match-engine').style.display = 'flex'; startTimer(); };
     document.getElementById('btn-intro-squad').onclick = () => loadView('squad');
     document.getElementById('btn-intro-home').onclick = () => loadView('home');
     
     document.getElementById('btn-intro-sim').onclick = () => {
         if(gameState.userTeam.gems >= 5) {
             showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
-                gameState.userTeam.gems -= 5;
-                updateDashboardHeader();
-                
+                gameState.userTeam.gems -= 5; updateDashboardHeader();
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
-                    let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
-                    p.energy = Math.max(0, p.energy - matchLoss);
-                    
+                    p.energy = Math.max(0, p.energy - (p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45)));
                     if(Math.random() < 0.08) { 
-                        if(Math.random() > 0.6) {
-                            p.status.injured = Math.floor(Math.random()*2)+1;
-                        } else {
-                            p.matchYellows = 1; 
-                            p.stats.yellowCards++; 
-                            p.status.yellowCards++;
-                            if (Math.random() < 0.05) { 
-                                p.status.suspended = 2; 
-                                p.status.yellowCards = 0; 
-                                p.stats.redCards++;
-                            }
+                        if(Math.random() > 0.6) p.status.injured = Math.floor(Math.random()*2)+1;
+                        else {
+                            p.matchYellows = 1; p.stats.yellowCards++; p.status.yellowCards++;
+                            if (Math.random() < 0.05) { p.status.suspended = 2; p.status.yellowCards = 0; p.stats.redCards++; }
                         }
                     }
                 });
@@ -189,36 +152,24 @@ export function startMatchEngine() {
                 const currentF = FORMATIONS[gameState.userTeam.formation];
                 let wUser = Math.pow(getUserTeamStrength() + currentF.att, 2);
                 let wCpu = Math.pow(nextOpponent.strength - (currentF.def * 0.5), 2);
-                
                 let diff = Math.abs(getUserTeamStrength() - nextOpponent.strength);
                 let totalSimChances = randomInt(3, 5) + Math.floor(diff / 8);
 
                 userScore = 0; cpuScore = 0;
                 for(let i=0; i<totalSimChances; i++) {
-                    if (Math.random() * (wUser + wCpu) <= wUser) { 
-                        if(Math.random() > 0.4) userScore++; 
-                    } else { 
-                        if(Math.random() > 0.4) cpuScore++; 
-                    }
+                    if (Math.random() * (wUser + wCpu) <= wUser) { if(Math.random() > 0.4) userScore++; } 
+                    else { if(Math.random() > 0.4) cpuScore++; }
                 }
+                for(let i=0; i<userScore; i++) { let scorer = getRandomShooter(); if(scorer) scorer.stats.goals++; }
 
-                for(let i=0; i<userScore; i++) {
-                    let scorer = getRandomShooter();
-                    if(scorer) scorer.stats.goals++;
-                }
-
-                document.getElementById('match-intro').style.display = 'none';
-                endGame();
+                document.getElementById('match-intro').style.display = 'none'; endGame();
             });
         } else { showNotification('Gemme Insufficienti', 'Servono 💎 5 Gemme per simulare.', 'error'); }
     };
 
-    function startTimerLoop() {
-        if(timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(matchTick, speeds[currentSpeedIdx]);
-    }
+    function startTimerLoop() { if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(matchTick, speeds[currentSpeedIdx]); }
     function pauseMatch(reason) { pauseReasons.add(reason); }
-    function resumeMatch(reason) { pauseReasons.delete(reason); }
+    function resumeMatch(reason) { pauseReasons.delete(reason); if (pauseReasons.size === 0) startTimerLoop(); }
     function startTimer() { pauseReasons.clear(); startTimerLoop(); }
 
     document.getElementById('btn-match-speed').onclick = (e) => {
@@ -237,29 +188,21 @@ export function startMatchEngine() {
 
         if(minute === 15 || minute === 30 || minute === 60 || minute === 75) triggerMatchEvent();
         else if(minute === 45) { 
-            pauseMatch('halftime');
-            addLog("L'arbitro fischia la fine del primo tempo.");
-            showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni.", () => { 
-                resumeMatch('halftime'); document.getElementById('btn-pause-sub').click(); 
-            }, "Gestione Squadra", false, true); 
+            pauseMatch('halftime'); addLog("L'arbitro fischia la fine del primo tempo.");
+            showConfirm("Intervallo", "Le squadre rientrano negli spogliatoi. Organizza le sostituzioni.", () => { resumeMatch('halftime'); document.getElementById('btn-pause-sub').click(); }, "Gestione Squadra", false, true); 
         }
         else if(minute === 90 && !addedTimeAnnounced) {
-            pauseMatch('stoppage');
-            addedTimeAnnounced = true;
-            addLog(`L'arbitro segnala ${stoppageTime} minuti di recupero.`);
+            pauseMatch('stoppage'); addedTimeAnnounced = true; addLog(`L'arbitro segnala ${stoppageTime} minuti di recupero.`);
             showMatchBanner('info', 'RECUPERO', `+${stoppageTime} Minuti`, () => { resumeMatch('stoppage'); });
         }
         else if(minute >= 90 + stoppageTime) { 
-            pauseMatch('endgame');
-            addLog("Triplice fischio! La partita è finita.");
-            setTimeout(endGame, 1500); 
+            pauseMatch('endgame'); addLog("Triplice fischio! La partita è finita."); setTimeout(endGame, 1500); 
         }
         else { simulateMinute(); }
     }
 
     function applyYellowCard(p, reason) {
         p.matchYellows++; p.stats.yellowCards++; p.status.yellowCards++;
-
         if (p.matchYellows === 2) {
             p.status.suspended = 2; p.stats.redCards++; p.status.yellowCards = 0; 
             addLog(`🟥 DOPPIO GIALLO! <b>${p.name}</b> viene espulso!`, 'log-red');
@@ -289,7 +232,6 @@ export function startMatchEngine() {
         if (chanceMinutes.includes(minute)) {
             pauseMatch('chance');
             const currentF = FORMATIONS[gameState.userTeam.formation];
-            
             let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + currentF.att, 2);
             let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + currentF.def * 0.5), 2);
 
@@ -454,7 +396,11 @@ export function startMatchEngine() {
 
     function triggerPenalty(isUserShooter, reason = 'chance') {
         const modal = document.getElementById('goal-modal');
-        let userShooter = isUserShooter ? (getRandomShooter() || getActivePlayer()) : null;
+        
+        // Cerca Rigorista
+        let penId = gameState.userTeam.roles?.penalty;
+        let penPlayer = penId ? gameState.userTeam.players.find(p => p.id === penId && p.isStarter && p.status.suspended === 0 && p.status.injured === 0) : null;
+        let userShooter = isUserShooter ? (penPlayer || getRandomShooter() || getActivePlayer()) : null;
         let oppShooter = getRandomOpponentPlayer(['ATT', 'CEN']) || getRandomOpponentPlayer();
         let shooterName = isUserShooter ? (userShooter?.name || "Tuo Giocatore") : oppShooter.name;
         
@@ -488,25 +434,24 @@ export function startMatchEngine() {
         modal.classList.add('active');
         let isShotTaken = false;
         
-        let shotTimer = setTimeout(() => {
-            if(!isShotTaken) {
-                if(isUserShooter) {
-                    addLog(`❌ Tempo scaduto! ${shooterName} scivola sul dischetto.`);
-                    modal.classList.remove('active'); resumeMatch(reason);
-                } else { 
-                    cpuScore++; updateScoreUI();
-                    addLog(`⚽ Gol di ${shooterName} su rigore. Sei rimasto immobile.`, 'log-cpu-goal'); 
-                    modal.classList.remove('active');
-                    showMatchBanner('goal-cpu', 'GOL SUBITO', `⚽ ${shooterName}`, () => { resumeMatch(reason); });
-                }
-            }
-        }, 5000);
-
         const oldGrid = document.querySelector('.goal-grid');
         const newGrid = oldGrid.cloneNode(true);
         oldGrid.replaceWith(newGrid);
 
+        // AUTO-CLICK se scade il tempo
+        let shotTimer = setTimeout(() => {
+            if(!isShotTaken) {
+                let randomZone = Math.floor(Math.random() * 6);
+                let sec = newGrid.querySelector(`.goal-section[data-zone="${randomZone}"]`);
+                if(sec) {
+                    addLog("Tempo scaduto! Azione automatica!");
+                    sec.click();
+                }
+            }
+        }, 4000);
+
         newGrid.querySelectorAll('.goal-section').forEach((sec, idx) => {
+            sec.style.webkitTapHighlightColor = 'transparent'; // FIX IOS
             sec.onclick = function() {
                 if(isShotTaken) return;
                 isShotTaken = true; clearTimeout(shotTimer);
@@ -588,24 +533,24 @@ export function startMatchEngine() {
         modal.classList.add('active');
         let isResolved = false;
 
-        let shotTimer = setTimeout(() => {
-            if(!isResolved) {
-                if(isCPU) { 
-                    cpuScore++; updateScoreUI(); 
-                    addLog(`⚽ Gol di ${shooterName}! Il portiere è rimasto immobile.`, 'log-cpu-goal'); 
-                    modal.classList.remove('active');
-                    let astText = assisterPlayer ? `<br><span style="font-size:12px; color:white;"><i class="fas fa-shoe-prints"></i> Assist: ${assisterPlayer.name}</span>` : '';
-                    showMatchBanner('goal-cpu', 'GOL SUBITO', `⚽ ${shooterName}${astText}`, () => { resumeMatch(reason); });
-                } 
-                else { addLog(`❌ Tempo scaduto! ${shooterName} incespica sul pallone.`); modal.classList.remove('active'); resumeMatch(reason); }
-            }
-        }, 4000);
-
         const oldGrid = document.querySelector('.goal-grid');
         const newGrid = oldGrid.cloneNode(true);
         oldGrid.replaceWith(newGrid);
 
+        // AUTO-CLICK se scade il tempo
+        let shotTimer = setTimeout(() => {
+            if(!isResolved) {
+                let randomZone = Math.floor(Math.random() * 6);
+                let sec = newGrid.querySelector(`.goal-section[data-zone="${randomZone}"]`);
+                if(sec) {
+                    addLog("Tempo scaduto! Azione automatica!");
+                    sec.click();
+                }
+            }
+        }, 4000);
+
         newGrid.querySelectorAll('.goal-section').forEach((sec, idx) => {
+            sec.style.webkitTapHighlightColor = 'transparent'; // FIX IOS
             sec.onclick = function() {
                 if(isResolved) return;
                 isResolved = true; clearTimeout(shotTimer);
@@ -692,20 +637,29 @@ export function startMatchEngine() {
                 const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
                 let displayOverall = isOOP ? Math.floor(getEffectiveOverall(p) * 0.7) : getEffectiveOverall(p);
                 
+                let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
+
                 let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
                 if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
                 if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
                 else if (p.status.yellowCards === 1 || p.matchYellows === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
 
-                let isSelected = selectedPlayerId === p.id ? 'selected' : '';
-                let disabledClass = (p.status.suspended > 0) ? "disabled" : "";
+                // ICONE RUOLI
+                let roleIcons = '';
+                if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
+                if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
+                let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+
+                let isSelected = selectedPlayerId === p.id;
+                let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
                 const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
 
                 pitch.innerHTML += `
                     <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
                         <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                        <div class="player-card match-card-interactive ${isSelected} ${disabledClass}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                        <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
                             ${warningHTML}
+                            ${rolesHtml}
                             <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
                             <div class="card-pos">${p.position}</div>
                             ${getEnergyBarHTML(p)}
@@ -717,16 +671,19 @@ export function startMatchEngine() {
         });
 
         reserves.forEach(p => {
-            let isSelected = selectedPlayerId === p.id ? 'selected' : '';
-            let warningHTML = '';
-            if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
-            if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
-            else if (p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
+            let isSelected = selectedPlayerId === p.id;
+            let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
+            const flag = p.nationality ? p.nationality.split(' ')[0] : '';
+            
+            let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
 
-            let disabledClass = (p.status.suspended > 0 || p.status.injured > 0) ? "disabled" : "";
+            let warningHTML = '';
+            if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
+            if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
+            else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
 
             bench.innerHTML += `
-                <div class="player-card match-card-interactive ${isSelected} ${disabledClass}" data-id="${p.id}" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40;">
+                <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
                     ${warningHTML}
                     <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
                     <div class="card-pos">${p.position}</div>
