@@ -1,5 +1,5 @@
 // js/onboarding.js
-import { gameState, saveGame } from './state.js';
+import { gameState, saveGame, generateCupBracket, generateChampionsBracket } from './state.js';
 import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
 import { generateInitialSquad } from './players.js';
 import { initializeWorld } from './teams.js'; 
@@ -36,6 +36,10 @@ export function initOnboarding() {
         
         // Genera TUTTO il Mondo (Div 1, 2 e 3)
         gameState.world = initializeWorld(gameState.userTeam.league);
+        
+        // FIX BUG ANNO 1: Genera subito i tabelloni di Coppa e Champions
+        generateCupBracket();
+        generateChampionsBracket();
         
         saveGame();
         showPackOpening();

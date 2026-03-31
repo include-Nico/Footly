@@ -71,12 +71,17 @@ export function loadGame() {
         if (gameState.userTeam.activeBoostMatches === undefined) gameState.userTeam.activeBoostMatches = 0;
         if (!gameState.userTeam.roles) gameState.userTeam.roles = { captain: null, penalty: null };
         if (gameState.userTeam.seasonWeek === undefined) gameState.userTeam.seasonWeek = gameState.userTeam.matchday; 
-        if (!gameState.userTeam.cup) gameState.userTeam.cup = { byes: [], rounds: {} };
         if (gameState.userTeam.playoffWon === undefined) gameState.userTeam.playoffWon = false;
-        
         if (!gameState.userTeam.seasonYear) gameState.userTeam.seasonYear = 1;
         if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
-        if (!gameState.userTeam.champions) generateChampionsBracket(); 
+
+        // FIX EMERGENZA BUG COPPA: Se ricarichi la pagina e non c'è la coppa la genera al volo
+        if (!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[0] || gameState.userTeam.cup.rounds[0].length === 0) {
+            generateCupBracket();
+        }
+        if (!gameState.userTeam.champions || !gameState.userTeam.champions.rounds || !gameState.userTeam.champions.rounds[0] || gameState.userTeam.champions.rounds[0].length === 0) {
+            generateChampionsBracket();
+        }
 
         if (gameState.userTeam.players) {
             gameState.userTeam.players.forEach(p => { 
@@ -211,7 +216,6 @@ export function simulateCupRound(roundIndex) {
     }
 }
 
-// FIX: Pescava squadre da TUTTO il mondo. Ora prende solo quelle della nazione dell'utente!
 export function generateCupBracket() {
     let teams = [];
     let lg = gameState.userTeam.league;
@@ -223,7 +227,6 @@ export function generateCupBracket() {
     });
     teams.push(gameState.userTeam.name);
     
-    // Le 42 squadre vengono ordinate per forza.
     teams.sort((a,b) => getGlobalTeam(b).strength - getGlobalTeam(a).strength); 
     
     let byes = teams.slice(0, 22);
