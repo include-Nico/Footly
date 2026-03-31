@@ -2,44 +2,46 @@
 import { getEffectiveOverall } from './players.js'; 
 
 export const SEASON_SCHEDULE = [
-    {type:'L', day:1}, {type:'L', day:2}, {type:'L', day:3}, 
-    {type:'C', round:0, name:'Preliminari Coppa'},
-    {type:'L', day:4}, {type:'L', day:5}, 
-    {type:'C', round:1, name:'Sedicesimi Coppa'},
-    {type:'L', day:6}, {type:'L', day:7}, 
-    {type:'C', round:2, name:'Ottavi (Andata)'},
-    {type:'L', day:8}, 
-    {type:'C', round:3, name:'Ottavi (Ritorno)'},
-    {type:'L', day:9}, {type:'L', day:10}, 
-    {type:'C', round:4, name:'Quarti (Andata)'},
-    {type:'L', day:11}, 
-    {type:'C', round:5, name:'Quarti (Ritorno)'},
-    {type:'L', day:12}, {type:'L', day:13}, 
-    {type:'C', round:6, name:'Semifinale (Andata)'},
-    {type:'L', day:14}, 
-    {type:'C', round:7, name:'Semifinale (Ritorno)'},
-    {type:'L', day:15}, {type:'L', day:16}, {type:'L', day:17}, {type:'L', day:18}, {type:'L', day:19}, {type:'L', day:20}, {type:'L', day:21}, {type:'L', day:22}, {type:'L', day:23}, {type:'L', day:24}, {type:'L', day:25}, {type:'L', day:26},
+    {type:'L', day:1}, {type:'L', day:2}, {type:'C', round:0, name:'Preliminari Coppa Naz.'},
+    {type:'L', day:3}, {type:'L', day:4}, {type:'CC', round:0, name:'Gironi Champions (1)'},
+    {type:'L', day:5}, {type:'L', day:6}, {type:'C', round:1, name:'Sedicesimi Coppa Naz.'},
+    {type:'L', day:7}, {type:'CC', round:1, name:'Gironi Champions (2)'},
+    {type:'L', day:8}, {type:'C', round:2, name:'Ottavi Coppa Naz. (A)'},
+    {type:'L', day:9}, {type:'CC', round:2, name:'Gironi Champions (3)'},
+    {type:'L', day:10}, {type:'C', round:3, name:'Ottavi Coppa Naz. (R)'},
+    {type:'L', day:11}, {type:'CC', round:3, name:'Gironi Champions (4)'},
+    {type:'L', day:12}, {type:'C', round:4, name:'Quarti Coppa Naz. (A)'},
+    {type:'L', day:13}, {type:'CC', round:4, name:'Gironi Champions (5)'},
+    {type:'L', day:14}, {type:'C', round:5, name:'Quarti Coppa Naz. (R)'},
+    {type:'L', day:15}, {type:'CC', round:5, name:'Quarti Champions (A)'},
+    {type:'L', day:16}, {type:'C', round:6, name:'Semifinale Coppa Naz. (A)'},
+    {type:'L', day:17}, {type:'CC', round:6, name:'Quarti Champions (R)'},
+    {type:'L', day:18}, {type:'C', round:7, name:'Semifinale Coppa Naz. (R)'},
+    {type:'L', day:19}, {type:'CC', round:7, name:'Semifinale Champions (A)'},
+    {type:'L', day:20}, {type:'L', day:21}, {type:'CC', round:8, name:'Semifinale Champions (R)'},
+    {type:'L', day:22}, {type:'L', day:23}, {type:'L', day:24}, {type:'L', day:25}, {type:'L', day:26},
     {type:'C', round:8, name:'Finale Coppa Nazionale'},
-    {type:'P', name:'🔥 PLAYOFF / PLAYOUT'} // SETTIMANA 36
-];
+    {type:'CC', round:9, name:'FINALE CHAMPIONS'},
+    {type:'P', name:'🔥 PLAYOFF / PLAYOUT'} 
+]; // 46 SETTIMANE TOTALI
 
 export const gameState = {
     userTeam: {
-        name: "",
-        league: "",
-        division: 3,
-        coins: 10000,
-        gems: 50,
+        name: "", league: "", division: 3,
+        coins: 10000, gems: 50,
         inventory: { healAll: 0, healPlayer: 0, superBoosts: 0 },
         activeBoostMatches: 0,
         roles: { captain: null, penalty: null },
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
         formation: "2-3-1",
+        seasonYear: 1, // NUOVO: Anni passati in carriera
         matchday: 1, 
         seasonWeek: 1, 
         cup: { byes: [], rounds: {} }, 
-        playoffWon: false, // Memoria del risultato del playoff
+        champions: { groups: [], groupStandings: [], rounds: {} }, // NUOVO: Coppa Campioni
+        palmares: [], // NUOVO: Bacheca trofei
+        playoffWon: false,
         players: [],
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
     },
@@ -56,6 +58,7 @@ export function loadGame() {
     if (savedData) {
         const parsedData = JSON.parse(savedData);
         if (!parsedData.world || !parsedData.world["Italia"]) { resetGame(); return false; }
+        
         Object.assign(gameState.userTeam, parsedData.userTeam);
         if (parsedData.world) gameState.world = parsedData.world;
         gameState.currentView = parsedData.currentView || "home";
@@ -70,6 +73,11 @@ export function loadGame() {
         if (gameState.userTeam.seasonWeek === undefined) gameState.userTeam.seasonWeek = gameState.userTeam.matchday; 
         if (!gameState.userTeam.cup) gameState.userTeam.cup = { byes: [], rounds: {} };
         if (gameState.userTeam.playoffWon === undefined) gameState.userTeam.playoffWon = false;
+        
+        // Nuovi attributi
+        if (!gameState.userTeam.seasonYear) gameState.userTeam.seasonYear = 1;
+        if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
+        if (!gameState.userTeam.champions) generateChampionsBracket(); // Avvia al primo caricamento
 
         if (gameState.userTeam.players) {
             gameState.userTeam.players.forEach(p => { 
@@ -85,20 +93,14 @@ export function loadGame() {
     return false;
 }
 
-export function resetGame() {
-    localStorage.removeItem('footly_save_data'); location.reload(); 
-}
+export function resetGame() { localStorage.removeItem('footly_save_data'); location.reload(); }
 
 export function getUserTeamStrength() {
     if(!gameState.userTeam.players || gameState.userTeam.players.length === 0) return 0;
     let starters = gameState.userTeam.players.filter(p => p.isStarter);
     if(starters.length === 0) return 0;
     
-    let sum = starters.reduce((acc, p) => {
-        if (p.status && p.status.suspended === 2) return acc; 
-        return acc + getEffectiveOverall(p);
-    }, 0);
-    
+    let sum = starters.reduce((acc, p) => { if (p.status && p.status.suspended === 2) return acc; return acc + getEffectiveOverall(p); }, 0);
     let baseStr = Math.floor(sum / starters.length); 
     if (gameState.userTeam.roles && gameState.userTeam.roles.captain) {
         let capOnPitch = starters.find(p => p.id === gameState.userTeam.roles.captain && p.status.suspended === 0);
@@ -114,16 +116,12 @@ export function getGlobalTeam(teamName) {
     if (teamName === gameState.userTeam.name) return { name: teamName, strength: getUserTeamStrength() };
     for (let lg in gameState.world) {
         for (let d of [1, 2, 3]) {
-            if (gameState.world[lg][d]) {
-                let t = gameState.world[lg][d].find(x => x.name === teamName);
-                if (t) return t;
-            }
+            if (gameState.world[lg][d]) { let t = gameState.world[lg][d].find(x => x.name === teamName); if (t) return t; }
         }
     }
     return { name: teamName, strength: 50 }; 
 }
 
-// CALCOLA LA CLASSIFICA REALE IN OGNI MOMENTO
 export function getStandings(league, div) {
     let teams = gameState.world[league]?.[div] ? [...gameState.world[league][div]] : [];
     if (gameState.userTeam.league === league && gameState.userTeam.division === div) {
@@ -141,53 +139,32 @@ export function getStandings(league, div) {
     });
 }
 
-// DETERMINA GLI SCONTRI DEI PLAYOFF
 export function getPlayoffMatchup() {
     let S = getStandings(gameState.userTeam.league, gameState.userTeam.division);
-    let uRank = S.findIndex(t => t.isUser) + 1; // Posizione da 1 a 14
-    
+    let uRank = S.findIndex(t => t.isUser) + 1; 
     if (gameState.userTeam.division === 1 && [11, 12, 13].includes(uRank)) {
-        let oppRank = uRank === 11 ? 4 : (uRank === 12 ? 3 : 2);
-        return { opp: getStandings(gameState.userTeam.league, 2)[oppRank - 1], isHome: true, type: 'playout' };
-    } 
-    else if (gameState.userTeam.division === 2) {
-        if ([2, 3, 4].includes(uRank)) {
-            let oppRank = uRank === 2 ? 13 : (uRank === 3 ? 12 : 11);
-            return { opp: getStandings(gameState.userTeam.league, 1)[oppRank - 1], isHome: false, type: 'playoff' };
-        } else if ([11, 12, 13].includes(uRank)) {
-            let oppRank = uRank === 11 ? 4 : (uRank === 12 ? 3 : 2);
-            return { opp: getStandings(gameState.userTeam.league, 3)[oppRank - 1], isHome: true, type: 'playout' };
-        }
-    } 
-    else if (gameState.userTeam.division === 3 && [2, 3, 4].includes(uRank)) {
-        let oppRank = uRank === 2 ? 13 : (uRank === 3 ? 12 : 11);
-        return { opp: getStandings(gameState.userTeam.league, 2)[oppRank - 1], isHome: false, type: 'playoff' };
+        let oppRank = uRank === 11 ? 4 : (uRank === 12 ? 3 : 2); return { opp: getStandings(gameState.userTeam.league, 2)[oppRank - 1], isHome: true, type: 'playout' };
+    } else if (gameState.userTeam.division === 2) {
+        if ([2, 3, 4].includes(uRank)) { let oppRank = uRank === 2 ? 13 : (uRank === 3 ? 12 : 11); return { opp: getStandings(gameState.userTeam.league, 1)[oppRank - 1], isHome: false, type: 'playoff' }; } 
+        else if ([11, 12, 13].includes(uRank)) { let oppRank = uRank === 11 ? 4 : (uRank === 12 ? 3 : 2); return { opp: getStandings(gameState.userTeam.league, 3)[oppRank - 1], isHome: true, type: 'playout' }; }
+    } else if (gameState.userTeam.division === 3 && [2, 3, 4].includes(uRank)) {
+        let oppRank = uRank === 2 ? 13 : (uRank === 3 ? 12 : 11); return { opp: getStandings(gameState.userTeam.league, 2)[oppRank - 1], isHome: false, type: 'playoff' };
     }
-    return null; // Se riturna null, il giocatore non fa i playoff
+    return null; 
 }
 
 export function simulateCupRound(roundIndex) {
     if(!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[roundIndex]) return;
-    let roundMatches = gameState.userTeam.cup.rounds[roundIndex];
-    let nextRoundIndex = roundIndex + 1;
-    let advancingTeams = [];
-
+    let roundMatches = gameState.userTeam.cup.rounds[roundIndex]; let nextRoundIndex = roundIndex + 1; let advancingTeams = [];
     roundMatches.forEach(m => {
         if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) return; 
-
         let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
         let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
-        let diff = Math.abs(t1.strength - t2.strength);
-        let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
-
+        let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
         let g1=0, g2=0;
-        for(let i=0; i<totalChances; i++) {
-            if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; }
-        }
+        for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
         m.scoreHome = g1; m.scoreAway = g2;
-
         let isSingleLeg = [0, 1, 8].includes(roundIndex); let isSecondLeg = [3, 5, 7].includes(roundIndex);
-
         if (isSingleLeg) {
             if (g1 === g2) { if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; } 
             advancingTeams.push(m.scoreHome > m.scoreAway ? m.home : m.away);
@@ -204,9 +181,7 @@ export function simulateCupRound(roundIndex) {
         if (roundIndex === 0 && gameState.userTeam.cup.byes) advancingTeams.push(...gameState.userTeam.cup.byes);
         advancingTeams.sort(() => Math.random() - 0.5); 
         let nextMatches = [];
-        for(let i=0; i<advancingTeams.length; i+=2) {
-            if (advancingTeams[i] && advancingTeams[i+1]) nextMatches.push({ home: advancingTeams[i], away: advancingTeams[i+1], scoreHome: null, scoreAway: null });
-        }
+        for(let i=0; i<advancingTeams.length; i+=2) { if (advancingTeams[i] && advancingTeams[i+1]) nextMatches.push({ home: advancingTeams[i], away: advancingTeams[i+1], scoreHome: null, scoreAway: null }); }
         gameState.userTeam.cup.rounds[nextRoundIndex] = nextMatches;
     } else if ([2, 4, 6].includes(roundIndex)) {
         let nextMatches = roundMatches.map(m => ({ home: m.away, away: m.home, scoreHome: null, scoreAway: null }));
@@ -226,4 +201,91 @@ export function generateCupBracket() {
     for(let i=0; i<10; i++) r0.push({home: prelims[i*2], away: prelims[i*2+1], scoreHome:null, scoreAway:null});
     
     gameState.userTeam.cup = { byes: byes, rounds: { 0: r0, 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[] } };
+}
+
+// LOGICA COPPA CAMPIONI GLOBALE
+export function simulateChampionsRound(roundIndex) {
+    if(!gameState.userTeam.champions || !gameState.userTeam.champions.rounds[roundIndex]) return;
+    let roundMatches = gameState.userTeam.champions.rounds[roundIndex]; let nextRoundIndex = roundIndex + 1; let advancingTeams = [];
+    
+    roundMatches.forEach(m => {
+        if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) return; 
+        
+        let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
+        let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
+        let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
+        
+        let g1=0, g2=0;
+        for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
+        m.scoreHome = g1; m.scoreAway = g2;
+
+        if (roundIndex < 5) {
+            let st1 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.home);
+            let st2 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.away);
+            st1.gf += g1; st1.ga += g2; st2.gf += g2; st2.ga += g1;
+            if (g1 > g2) st1.pts += 3; else if (g1 < g2) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
+        } else {
+            let isSingleLeg = [9].includes(roundIndex); let isSecondLeg = [6, 8].includes(roundIndex);
+            if (isSingleLeg) {
+                if (g1 === g2) { if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; } 
+                advancingTeams.push(m.scoreHome > m.scoreAway ? m.home : m.away);
+            } else if (isSecondLeg) {
+                let prevM = gameState.userTeam.champions.rounds[roundIndex-1].find(pm => (pm.home===m.home && pm.away===m.away) || (pm.home===m.away && pm.away===m.home));
+                let agg1 = g1 + (prevM.home === m.home ? prevM.scoreHome : prevM.scoreAway);
+                let agg2 = g2 + (prevM.away === m.away ? prevM.scoreHome : prevM.scoreAway);
+                if (agg1 === agg2) { if(Math.random()>0.5) agg1++; else agg2++; } 
+                advancingTeams.push(agg1 > agg2 ? m.home : m.away);
+            }
+        }
+    });
+
+    if (roundIndex === 4) {
+        for (let g=0; g<4; g++) {
+            let st = gameState.userTeam.champions.groupStandings[g];
+            st.sort((a,b) => { if (b.pts !== a.pts) return b.pts - a.pts; let gdA = a.gf - a.ga; let gdB = b.gf - b.ga; if (gdA !== gdB) return gdB - gdA; return b.gf - a.gf; });
+            advancingTeams.push(st[0].name, st[1].name); 
+        }
+        let nextMatches = [ {home: advancingTeams[0], away: advancingTeams[3], scoreHome: null, scoreAway: null}, {home: advancingTeams[2], away: advancingTeams[1], scoreHome: null, scoreAway: null}, {home: advancingTeams[4], away: advancingTeams[7], scoreHome: null, scoreAway: null}, {home: advancingTeams[6], away: advancingTeams[5], scoreHome: null, scoreAway: null} ];
+        gameState.userTeam.champions.rounds[5] = nextMatches;
+    } else if ([6, 8].includes(roundIndex)) {
+        advancingTeams.sort(() => Math.random() - 0.5); 
+        let nextMatches = [];
+        for(let i=0; i<advancingTeams.length; i+=2) { if (advancingTeams[i] && advancingTeams[i+1]) nextMatches.push({ home: advancingTeams[i], away: advancingTeams[i+1], scoreHome: null, scoreAway: null }); }
+        gameState.userTeam.champions.rounds[nextRoundIndex] = nextMatches;
+    } else if ([5, 7].includes(roundIndex)) {
+        let nextMatches = roundMatches.map(m => ({ home: m.away, away: m.home, scoreHome: null, scoreAway: null }));
+        gameState.userTeam.champions.rounds[nextRoundIndex] = nextMatches;
+    }
+}
+
+export function generateChampionsBracket(qualifiedTeams = null) {
+    if (!qualifiedTeams || qualifiedTeams.length !== 20) {
+        qualifiedTeams = [];
+        for (let lg in gameState.world) {
+            let div1 = [...gameState.world[lg][1]];
+            if (gameState.userTeam.league === lg && gameState.userTeam.division === 1) div1.push({ name: gameState.userTeam.name, strength: getUserTeamStrength() });
+            div1.sort((a,b) => b.strength - a.strength);
+            qualifiedTeams.push(...div1.slice(0, 5).map(t => t.name));
+        }
+    }
+    
+    qualifiedTeams.sort(() => Math.random() - 0.5);
+    
+    let groups = [[], [], [], []]; let groupStandings = [[], [], [], []];
+    for (let i=0; i<20; i++) {
+        let gIdx = Math.floor(i / 5); groups[gIdx].push(qualifiedTeams[i]); groupStandings[gIdx].push({name: qualifiedTeams[i], pts: 0, gf: 0, ga: 0});
+    }
+
+    let rounds = {};
+    for (let md=0; md<5; md++) {
+        rounds[md] = [];
+        for (let g=0; g<4; g++) {
+            let gTeams = groups[g];
+            let pairings = [ [[0,1], [2,3]], [[0,2], [4,1]], [[0,3], [2,4]], [[0,4], [3,1]], [[1,2], [3,4]] ];
+            pairings[md].forEach(pair => { rounds[md].push({ home: gTeams[pair[0]], away: gTeams[pair[1]], scoreHome: null, scoreAway: null, group: g }); });
+        }
+    }
+    for(let r=5; r<=9; r++) rounds[r] = [];
+
+    gameState.userTeam.champions = { groups, groupStandings, rounds };
 }

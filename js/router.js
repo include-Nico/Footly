@@ -1,5 +1,5 @@
 // js/router.js
-import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, getStandings } from './state.js';
+import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, generateCupBracket, getPlayoffMatchup, getStandings, simulateChampionsRound, generateChampionsBracket } from './state.js';
 import { updateDashboardHeader, showNotification, showConfirm, updateNavUI } from './ui.js';
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 import { startMatchEngine } from './engine.js'; 
@@ -64,7 +64,7 @@ function getEnergyBarHTML(p) {
 }
 
 // ==========================================
-// STORE (NEGOZIO) E PACK OPENING ANIMATION
+// STORE E PACK OPENING
 // ==========================================
 function renderStore() {
     document.querySelectorAll('.btn-buy-pack').forEach(btn => {
@@ -171,22 +171,24 @@ function renderHome() {
     if (divNumEl) divNumEl.textContent = gameState.userTeam.division;
     
     let currentWk = gameState.userTeam.seasonWeek || 1;
-    if (matchdayCounter) matchdayCounter.textContent = currentWk <= 36 ? currentWk : 36;
-    document.getElementById('home-div-num').nextSibling.textContent = " · Settimana ";
+    if (matchdayCounter) matchdayCounter.textContent = currentWk <= 46 ? currentWk : 46;
+    let divLabel = document.getElementById('home-div-num').nextSibling;
+    if(divLabel) divLabel.textContent = " · Settimana ";
 
     const userStr = getUserTeamStrength();
     const homeRatingEl = document.getElementById('home-team-rating');
     if (homeRatingEl) homeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:14px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
 
-    const isEndOfSeason = currentWk > 36;
+    const isEndOfSeason = currentWk > 46;
 
     if (scheduleContainer) {
         scheduleContainer.innerHTML = '';
-        for (let i = 0; i < 36; i++) {
+        for (let i = 0; i < 46; i++) {
             let sched = SEASON_SCHEDULE[i];
             let isCup = sched.type === 'C';
+            let isChampions = sched.type === 'CC';
             let isPlayoff = sched.type === 'P';
-            let title = isPlayoff ? `🔥 PLAYOFF` : (isCup ? `🏆 ${sched.name}` : `Giornata ${sched.day}`);
+            let title = isPlayoff ? `🔥 PLAYOFF` : (isCup || isChampions ? `🏆 ${sched.name}` : `Giornata ${sched.day}`);
             
             let statusClass = ''; let statusText = '';
             if (i+1 < currentWk) { statusClass = 'opacity: 0.5; border-color: var(--border-dim);'; statusText = 'Giocata ✅'; } 
@@ -196,39 +198,47 @@ function renderHome() {
             let oppName = "???"; let isHome = true; let sStr = 0;
             
             if (isPlayoff) {
-                // UI logica per finta se non siamo ancora alla settimana 36
                 if (i+1 === currentWk) {
                     let m = getPlayoffMatchup();
                     if (m) { oppName = m.opp.name; sStr = m.opp.strength; isHome = m.isHome; } 
                     else { oppName = "Salvo/Promosso"; sStr = 0; }
                 } else { oppName = "Da definire"; sStr = 0; }
             }
-            else if (!isCup) {
-                let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
-                if(opponents.length>0) { let opp = opponents[(sched.day - 1) % opponents.length]; oppName = opp.name; sStr = opp.strength; isHome = (sched.day % 2 !== 0); }
-            } else {
+            else if (isChampions) {
+                if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
+                    let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
+                    if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
+                    else { oppName = "Non qualificato/Eliminato"; sStr = 0; }
+                } else { oppName = "Non qualificato"; sStr = 0; }
+            }
+            else if (isCup) {
                 if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
                     let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                     if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
                     else { oppName = "Eliminato/Riposo"; sStr = 0; }
-                }
+                } else { oppName = "Eliminato/Riposo"; sStr = 0; }
+            } 
+            else {
+                let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+                if(opponents.length>0) { let opp = opponents[(sched.day - 1) % opponents.length]; oppName = opp.name; sStr = opp.strength; isHome = (sched.day % 2 !== 0); }
             }
 
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
-            if (oppName === "Eliminato/Riposo" || oppName === "Salvo/Promosso" || oppName === "Da definire") { venueText = "-"; venueIcon = ""; }
+            if (oppName === "Eliminato/Riposo" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Non qualificato/Eliminato" || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
 
             let item = document.createElement('div'); item.className = 'glass-panel';
             item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
-            item.innerHTML = `<div style="font-size: 10px; color: ${isCup ? 'var(--gold)' : (isPlayoff ? '#ff4757' : 'var(--text-muted)')}; margin-bottom: 4px; font-weight:bold;">${title}</div><div style="font-weight: bold; font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${oppName}">${oppName}</div><div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${venueIcon} ${venueText}</div><div style="display: flex; flex-direction: column; align-items: center; margin-top: 6px;"><div style="font-size: 11px; font-weight: bold; color: var(--gold);">${sStr>0?sStr:'-'}</div>${sStr>0 ? getStarsHTML(sStr) : ''}</div><div style="font-size: 10px; font-weight: bold; color: ${i+1 === currentWk ? 'var(--accent)' : 'var(--text-muted)'}; margin-top: 8px;">${statusText}</div>`;
+            item.innerHTML = `<div style="font-size: 10px; color: ${isCup ? 'var(--gold)' : (isChampions ? '#00d4ff' : (isPlayoff ? '#ff4757' : 'var(--text-muted)'))}; margin-bottom: 4px; font-weight:bold;">${title}</div><div style="font-weight: bold; font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${oppName}">${oppName}</div><div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${venueIcon} ${venueText}</div><div style="display: flex; flex-direction: column; align-items: center; margin-top: 6px;"><div style="font-size: 11px; font-weight: bold; color: var(--gold);">${sStr>0?sStr:'-'}</div>${sStr>0 ? getStarsHTML(sStr) : ''}</div><div style="font-size: 10px; font-weight: bold; color: ${i+1 === currentWk ? 'var(--accent)' : 'var(--text-muted)'}; margin-top: 8px;">${statusText}</div>`;
             scheduleContainer.appendChild(item);
         }
-        setTimeout(() => { const currentCard = scheduleContainer.children[Math.min(currentWk - 1, 35)]; if (currentCard) currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); }, 150);
+        setTimeout(() => { const currentCard = scheduleContainer.children[Math.min(currentWk - 1, 45)]; if (currentCard) currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); }, 150);
     }
 
     if (!isEndOfSeason) {
         let sched = SEASON_SCHEDULE[currentWk - 1];
         let isCup = sched.type === 'C';
+        let isChampions = sched.type === 'CC';
         let isPlayoff = sched.type === 'P';
         let oppName = ""; let sStr = 0; let userPlays = true;
 
@@ -236,6 +246,13 @@ function renderHome() {
             let m = getPlayoffMatchup();
             if (m) { oppName = m.opp.name; sStr = m.opp.strength; } 
             else { userPlays = false; oppName = "Salvo o Promosso!"; }
+        }
+        else if (isChampions) {
+            if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
+                let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
+                if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
+                else { userPlays = false; }
+            } else { userPlays = false; }
         }
         else if (isCup) {
             if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
@@ -258,14 +275,14 @@ function renderHome() {
         const cpuRatingEl = document.getElementById('cpu-team-rating');
         if (cpuRatingEl) cpuRatingEl.innerHTML = userPlays ? `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${sStr}</span>${getStarsHTML(sStr)}` : "";
         
-        document.getElementById('match-vs-badge').textContent = isPlayoff ? "🔥" : (isCup ? "🏆" : "VS");
+        document.getElementById('match-vs-badge').textContent = isPlayoff ? "🔥" : ((isCup || isChampions) ? "🏆" : "VS");
         
         if (userPlays) {
-            playBtnText.textContent = isPlayoff ? "Gioca Playoff!" : "Gioca Partita";
+            playBtnText.textContent = isPlayoff ? "Gioca Playoff!" : (isChampions ? "Gioca Champions" : "Gioca Partita");
             playBtnIcon.innerHTML = '<i class="fas fa-play"></i>';
             playBtn.style.background = isPlayoff ? "rgba(255, 71, 87, 0.1)" : "transparent"; 
-            playBtn.style.color = isPlayoff ? "#ff4757" : "var(--accent)"; 
-            playBtn.style.borderColor = isPlayoff ? "#ff4757" : "rgba(0,245,160,0.3)";
+            playBtn.style.color = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "var(--accent)"); 
+            playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
             playBtnText.textContent = isPlayoff ? "Termina Stagione" : "Simula Turno";
@@ -275,7 +292,8 @@ function renderHome() {
                 if (isPlayoff) {
                     showConfirm("Fine Stagione", "Calcolo premi, promozioni e retrocessioni...", () => { handleEndSeason(); }, "Procedi", false, true);
                 } else {
-                    simulateCupRound(sched.round);
+                    if (isCup) simulateCupRound(sched.round);
+                    if (isChampions) simulateChampionsRound(sched.round);
                     gameState.userTeam.seasonWeek++;
                     saveGame(); loadView('home'); showNotification("Turno Simulato", "Le altre squadre hanno giocato.", "info");
                 }
@@ -300,12 +318,12 @@ function renderHome() {
         standings.forEach((team, index) => {
             const trStyle = team.isUser ? "background: rgba(0, 245, 160, 0.1); font-weight: bold; color: var(--accent);" : "";
             
-            // Colori Playoff Classifica
             let posColor = "var(--text-hint)";
-            if (index === 0) posColor = "var(--gold)"; 
-            else if (index > 0 && index < 4) posColor = "#00d4ff"; 
-            else if (index > 9 && index < 13) posColor = "var(--notif-warning)"; 
-            else if (index === 13) posColor = "var(--notif-error)"; 
+            if (gameState.userTeam.division === 1 && index < 5) posColor = "#00d4ff"; // Champions spots
+            else if (index === 0) posColor = "var(--gold)"; // Promo Diretta
+            else if (index > 0 && index < 4 && gameState.userTeam.division > 1) posColor = "var(--accent)"; // Playoff Promo
+            else if (index > 9 && index < 13 && gameState.userTeam.division < 3) posColor = "var(--notif-warning)"; // Playout Retro
+            else if (index === 13 && gameState.userTeam.division < 3) posColor = "var(--notif-error)"; // Retro Diretta
 
             tableBody.innerHTML += `
                 <tr style="border-bottom: 1px solid var(--border-dim); ${trStyle}">
@@ -332,7 +350,6 @@ function resolvePlayoffMatch(tHigh, tLow) {
 function handleEndSeason() {
     let retirements = []; let evolutions = [];
     
-    // Calcolo Gemme base (sulla posizione di fine campionato 26)
     let S_old = getStandings(gameState.userTeam.league, gameState.userTeam.division);
     let uRank = S_old.findIndex(t => t.isUser) + 1;
     let gemsEarned = 0;
@@ -340,60 +357,67 @@ function handleEndSeason() {
     else if(uRank <= 4) gemsEarned = 50;
     else if(uRank <= 10) gemsEarned = 20;
     else if(uRank <= 13) gemsEarned = 10;
-    else gemsEarned = 0;
     
-    // Bonus extra se ha vinto un playoff Promozione
     let mInfo = getPlayoffMatchup();
-    if (mInfo && mInfo.type === 'playoff' && gameState.userTeam.playoffWon) gemsEarned += 30; // +30 per vittoria Promozione
-    if (mInfo && mInfo.type === 'playout' && gameState.userTeam.playoffWon) gemsEarned += 10; // +10 per essersi salvato
+    if (mInfo && mInfo.type === 'playoff' && gameState.userTeam.playoffWon) gemsEarned += 30; 
+    if (mInfo && mInfo.type === 'playout' && gameState.userTeam.playoffWon) gemsEarned += 10; 
+
+    // GESTIONE PALMARES
+    if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
+    if (uRank === 1) {
+        gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🏆', name: `Campionato Div. ${gameState.userTeam.division} - 1° Posto` });
+    } else if (mInfo && mInfo.type === 'playoff' && gameState.userTeam.playoffWon) {
+        gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '📈', name: `Promozione in Div. ${gameState.userTeam.division - 1} (Playoff)` });
+    }
 
     gameState.userTeam.gems += gemsEarned;
     const reward = gameState.userTeam.stats.points * 150;
     gameState.userTeam.coins += reward;
+
+    // PREPARA SQUADRE CHAMPIONS ANNO SUCCESSIVO
+    let qualTeams = [];
+    for (let lg in gameState.world) {
+        let S1 = getStandings(lg, 1);
+        qualTeams.push(...S1.slice(0, 5).map(t => t.name));
+    }
 
     // GESTIONE MONDIALE PROMOZIONI / RETROCESSIONI
     for (const lg in gameState.world) {
         let S1 = getStandings(lg, 1); let S2 = getStandings(lg, 2); let S3 = getStandings(lg, 3);
         let N1 = []; let N2 = []; let N3 = [];
         
-        N1.push(...S1.slice(0, 10)); // 1-10 Div 1
-        if(S2[0]) N1.push(S2[0]); // 1 Div 2
+        N1.push(...S1.slice(0, 10)); 
+        if(S2[0]) N1.push(S2[0]); 
         
-        if(S1[13]) N2.push(S1[13]); // 14 Div 1
-        N2.push(...S2.slice(4, 10)); // 5-10 Div 2
-        if(S3[0]) N2.push(S3[0]); // 1 Div 3
+        if(S1[13]) N2.push(S1[13]); 
+        N2.push(...S2.slice(4, 10)); 
+        if(S3[0]) N2.push(S3[0]); 
         
-        if(S2[13]) N3.push(S2[13]); // 14 Div 2
-        N3.push(...S3.slice(4, 14)); // 5-14 Div 3
+        if(S2[13]) N3.push(S2[13]); 
+        N3.push(...S3.slice(4, 14)); 
         
-        // Simula Playoff D1 vs D2
         if(S1[10] && S2[3]) { let p1 = resolvePlayoffMatch(S1[10], S2[3]); N1.push(p1.winner); N2.push(p1.loser); }
         if(S1[11] && S2[2]) { let p2 = resolvePlayoffMatch(S1[11], S2[2]); N1.push(p2.winner); N2.push(p2.loser); }
         if(S1[12] && S2[1]) { let p3 = resolvePlayoffMatch(S1[12], S2[1]); N1.push(p3.winner); N2.push(p3.loser); }
         
-        // Simula Playoff D2 vs D3
         if(S2[10] && S3[3]) { let p4 = resolvePlayoffMatch(S2[10], S3[3]); N2.push(p4.winner); N3.push(p4.loser); }
         if(S2[11] && S3[2]) { let p5 = resolvePlayoffMatch(S2[11], S3[2]); N2.push(p5.winner); N3.push(p5.loser); }
         if(S2[12] && S3[1]) { let p6 = resolvePlayoffMatch(S2[12], S3[1]); N2.push(p6.winner); N3.push(p6.loser); }
         
-        // Salva array puliti dalla userTeam
         if(gameState.world[lg][1]) gameState.world[lg][1] = N1.filter(t => !t.isUser);
         if(gameState.world[lg][2]) gameState.world[lg][2] = N2.filter(t => !t.isUser);
         if(gameState.world[lg][3]) gameState.world[lg][3] = N3.filter(t => !t.isUser);
         
-        // Aggiorna Divisione User
         if (gameState.userTeam.league === lg) {
             if (N1.find(t => t.isUser)) gameState.userTeam.division = 1;
             else if (N2.find(t => t.isUser)) gameState.userTeam.division = 2;
             else gameState.userTeam.division = 3;
         }
 
-        // Resetta i contatori per la nuova stagione
         [1, 2, 3].forEach(div => {
             if(gameState.world[lg][div]) {
                 gameState.world[lg][div].forEach(team => {
                     team.points = 0; team.played = 0; team.won = 0; team.drawn = 0; team.lost = 0; team.goalsFor = 0; team.goalsAgainst = 0;
-                    // Rimpiazzo CPU vecchi (simulazione)
                     team.roster = team.roster.filter(p => !processEndOfSeason(p).retired);
                     while(team.roster.length < 14) {
                         const pos = ['POR', 'DIF', 'DIF', 'CEN', 'CEN', 'ATT'][Math.floor(Math.random()*6)];
@@ -406,7 +430,6 @@ function handleEndSeason() {
         });
     }
 
-    // Invecchiamento Giocatori User
     gameState.userTeam.players = gameState.userTeam.players.filter(p => {
         const result = processEndOfSeason(p);
         if (result.retired) { retirements.push(p.name); return false; }
@@ -423,13 +446,15 @@ function handleEndSeason() {
     gameState.userTeam.matchday = 1;
     gameState.userTeam.seasonWeek = 1; 
     gameState.userTeam.playoffWon = false;
+    gameState.userTeam.seasonYear++; 
     
     generateCupBracket(); 
+    generateChampionsBracket(qualTeams);
 
     let seasonMsg = `<b>Nuova Divisione: ${gameState.userTeam.division}</b><br><br><b>Premio Totale:</b> 💰 ${reward.toLocaleString()} | 💎 ${gemsEarned}<br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`;
     
     saveGame(); updateDashboardHeader();
-    showConfirm("🏆 Stagione Conclusa!", seasonMsg, () => { renderHome(); }, "Inizia Nuova Stagione", false, true);
+    showConfirm(`🏆 Anno ${gameState.userTeam.seasonYear - 1} Concluso!`, seasonMsg, () => { renderHome(); }, "Inizia Nuova Stagione", false, true);
 }
 
 // ==========================================
@@ -913,9 +938,10 @@ function renderProfile() {
     
     const strEl = document.getElementById('profile-strength');
     const starsEl = document.getElementById('profile-stars');
+    const palmaresEl = document.getElementById('profile-palmares'); // NUOVO
 
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
-    if (leagueDivEl) leagueDivEl.textContent = `${gameState.userTeam.league} · Div ${gameState.userTeam.division}`;
+    if (leagueDivEl) leagueDivEl.textContent = `${gameState.userTeam.league} · Div ${gameState.userTeam.division} · Anno ${gameState.userTeam.seasonYear}`;
     if (coinsEl) coinsEl.textContent = gameState.userTeam.coins.toLocaleString('it-IT');
     if (playersCountEl && gameState.userTeam.players) playersCountEl.textContent = gameState.userTeam.players.length;
 
@@ -923,6 +949,17 @@ function renderProfile() {
         const str = getUserTeamStrength();
         strEl.textContent = str;
         starsEl.innerHTML = getStarsHTML(str);
+    }
+
+    // CARICA IL PALMARES
+    if (palmaresEl) {
+        if (gameState.userTeam.palmares && gameState.userTeam.palmares.length > 0) {
+            palmaresEl.innerHTML = [...gameState.userTeam.palmares].reverse().map(p => `
+                <div style="font-size: 13px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;"><span style="color:var(--gold); margin-right:8px;">${p.icon}</span> <b style="color:var(--text-hint);">Anno ${p.year}:</b> ${p.name}</div>
+            `).join('');
+        } else {
+            palmaresEl.innerHTML = `<div style="font-size: 12px; color: var(--text-hint); text-align: center; margin-top: 20px;">Nessun trofeo ancora vinto...</div>`;
+        }
     }
 
     if (deleteBtn) {

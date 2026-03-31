@@ -1,10 +1,10 @@
-<div class="profile-view glass-panel" style="min-height: 550px; padding: 20px; text-align: center;">
+<div class="profile-view glass-panel" style="min-height: 550px; padding: 20px; text-align: center; max-height: 90vh; overflow-y: auto;">
     
     <i class="fas fa-shield-halved" style="font-size: 60px; color: var(--accent); margin-bottom: 15px; filter: drop-shadow(0 0 10px var(--accent));"></i>
     <h2 id="profile-team-name" style="margin-bottom: 5px;">Nome Team</h2>
-    <p id="profile-league-div" style="color: var(--text-hint); margin-bottom: 25px;">Campionato · Div</p>
+    <p id="profile-league-div" style="color: var(--text-hint); margin-bottom: 25px;">Campionato · Div 3 · Anno 1</p>
 
-    <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+    <div style="display: flex; gap: 10px; margin-bottom: 25px;">
         <div class="glass-panel" style="flex: 1; padding: 15px;">
             <div style="font-size: 11px; color: var(--text-hint); text-transform: uppercase; margin-bottom: 5px;">Forza Squadra</div>
             <div id="profile-strength" style="font-size: 28px; font-weight: bold; color: var(--gold);">0</div>
@@ -16,15 +16,19 @@
         </div>
     </div>
 
+    <div class="section-label" style="text-align: left;">Bacheca Trofei</div>
+    <div id="profile-palmares" class="glass-panel" style="padding: 15px; margin-bottom: 25px; text-align: left; min-height: 80px; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+        </div>
+
     <div class="section-label" style="text-align: left;">Codice Segreto</div>
-    <div style="display: flex; gap: 10px; margin-bottom: 40px;">
+    <div style="display: flex; gap: 10px; margin-bottom: 30px;">
         <input type="text" id="promo-code-input" class="glass-select" placeholder="Inserisci codice..." style="flex: 1; margin: 0; padding: 10px; font-size: 14px; text-transform: uppercase;">
         <button id="promo-code-btn" class="glass-btn" style="border-color: #00d4ff; color: #00d4ff; padding: 0 20px;">
             <i class="fas fa-check"></i>
         </button>
     </div>
 
-    <div class="divider" style="margin: 30px 0;"></div>
+    <div class="divider" style="margin: 20px 0;"></div>
 
     <button id="delete-account-btn" class="glass-btn" style="width: 100%; border-color: var(--notif-error); color: var(--notif-error); justify-content: center;">
         <i class="fas fa-triangle-exclamation"></i> Cancella Definitivamente Account

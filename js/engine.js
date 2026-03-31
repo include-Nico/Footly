@@ -1,5 +1,5 @@
 // js/engine.js
-import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup } from './state.js';
+import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
 import { loadView, FORMATIONS } from './router.js'; 
@@ -55,7 +55,8 @@ export function startMatchEngine() {
     let sched = SEASON_SCHEDULE[currentWk - 1];
     
     let isCup = sched.type === 'C';
-    let isPlayoff = sched.type === 'P'; // Settimana 36
+    let isChampions = sched.type === 'CC';
+    let isPlayoff = sched.type === 'P'; 
 
     let oppName = "";
     let isHomeMatch = true;
@@ -66,24 +67,27 @@ export function startMatchEngine() {
         if (matchup) {
             oppName = matchup.opp.name;
             isHomeMatch = matchup.isHome;
-        } else {
-            showNotification("Errore", "Non sei nei playoff.", "error"); return;
+        } else { showNotification("Errore", "Non sei nei playoff.", "error"); return; }
+    }
+    else if (isChampions) {
+        document.getElementById('intro-match-type').textContent = `🏆 ${sched.name}`;
+        if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
+            let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
+            if (m) { isHomeMatch = (m.home === gameState.userTeam.name); oppName = isHomeMatch ? m.away : m.home; } 
+            else { showNotification("Errore", "Nessun avversario trovato in champions.", "error"); return; }
         }
     }
     else if (isCup) {
         document.getElementById('intro-match-type').textContent = `🏆 ${sched.name}`;
         if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
             let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
-            if (m) {
-                isHomeMatch = (m.home === gameState.userTeam.name);
-                oppName = isHomeMatch ? m.away : m.home;
-            } else {
-                showNotification("Errore", "Nessun avversario trovato in coppa.", "error"); return;
-            }
+            if (m) { isHomeMatch = (m.home === gameState.userTeam.name); oppName = isHomeMatch ? m.away : m.home; } 
+            else { showNotification("Errore", "Nessun avversario trovato in coppa.", "error"); return; }
         }
     } else {
         document.getElementById('intro-match-type').textContent = `Giornata ${sched.day}`;
         let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+        if (opponents.length === 0) { showNotification("Errore", "Mondo non caricato.", "error"); return; }
         let opp = opponents[(sched.day - 1) % opponents.length];
         oppName = opp.name;
         isHomeMatch = (sched.day % 2 !== 0);
@@ -104,11 +108,8 @@ export function startMatchEngine() {
 
     function updateMatchHeaderStr() {
         const str = getUserTeamStrength(); 
-        if (isHomeMatch) {
-            let el = document.getElementById('intro-home-str'); if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`;
-        } else {
-            let el = document.getElementById('intro-away-str'); if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`;
-        }
+        if (isHomeMatch) { let el = document.getElementById('intro-home-str'); if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`; } 
+        else { let el = document.getElementById('intro-away-str'); if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`; }
     }
     
     document.getElementById('intro-stadium').textContent = isHomeMatch ? "Stadio di Casa" : "Stadio in Trasferta (Ospiti)";
@@ -116,6 +117,13 @@ export function startMatchEngine() {
     let aggregateText = "";
     if (isCup && [3, 5, 7].includes(sched.round)) {
         let prevM = gameState.userTeam.cup.rounds[sched.round-1].find(pm => (pm.home===oppName && pm.away===gameState.userTeam.name) || (pm.home===gameState.userTeam.name && pm.away===oppName));
+        if (prevM) {
+            let uAgg = prevM.home === gameState.userTeam.name ? prevM.scoreHome : prevM.scoreAway;
+            let cAgg = prevM.home === oppName ? prevM.scoreHome : prevM.scoreAway;
+            aggregateText = `Andata: ${uAgg} - ${cAgg}`;
+        }
+    } else if (isChampions && [6, 8].includes(sched.round)) {
+        let prevM = gameState.userTeam.champions.rounds[sched.round-1].find(pm => (pm.home===oppName && pm.away===gameState.userTeam.name) || (pm.home===gameState.userTeam.name && pm.away===oppName));
         if (prevM) {
             let uAgg = prevM.home === gameState.userTeam.name ? prevM.scoreHome : prevM.scoreAway;
             let cAgg = prevM.home === oppName ? prevM.scoreHome : prevM.scoreAway;
@@ -188,8 +196,7 @@ export function startMatchEngine() {
     document.getElementById('btn-intro-sim').onclick = () => {
         if(gameState.userTeam.gems >= 5) {
             showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
-                gameState.userTeam.gems -= 5;
-                updateDashboardHeader();
+                gameState.userTeam.gems -= 5; updateDashboardHeader();
                 
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
@@ -203,10 +210,8 @@ export function startMatchEngine() {
                     }
                 });
 
-                const currentF = FORMATIONS[gameState.userTeam.formation];
-                let wUser = Math.pow(getUserTeamStrength() + currentF.att, 2);
-                let wCpu = Math.pow(nextOpponent.strength - (currentF.def * 0.5), 2);
-                
+                let wUser = Math.pow(getUserTeamStrength() + FORMATIONS[gameState.userTeam.formation].att, 2);
+                let wCpu = Math.pow(nextOpponent.strength - (FORMATIONS[gameState.userTeam.formation].def * 0.5), 2);
                 let diff = Math.abs(getUserTeamStrength() - nextOpponent.strength);
                 let totalSimChances = randomInt(3, 5) + Math.floor(diff / 8);
 
@@ -221,8 +226,7 @@ export function startMatchEngine() {
                 }
 
                 for(let i=0; i<userScore; i++) {
-                    let scorer = getRandomShooter();
-                    if(scorer) scorer.stats.goals++;
+                    let scorer = getRandomShooter(); if(scorer) scorer.stats.goals++;
                 }
 
                 document.getElementById('match-intro').style.display = 'none';
@@ -231,10 +235,7 @@ export function startMatchEngine() {
         } else { showNotification('Gemme Insufficienti', 'Servono 💎 5 Gemme per simulare.', 'error'); }
     };
 
-    function startTimerLoop() {
-        if(timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(matchTick, speeds[currentSpeedIdx]);
-    }
+    function startTimerLoop() { if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(matchTick, speeds[currentSpeedIdx]); }
     function pauseMatch(reason) { pauseReasons.add(reason); }
     function resumeMatch(reason) { pauseReasons.delete(reason); if (pauseReasons.size === 0) startTimerLoop(); }
     function startTimer() { pauseReasons.clear(); startTimerLoop(); }
@@ -246,24 +247,27 @@ export function startMatchEngine() {
     };
 
     function checkExtraTimeOrPenalties(simUser = userScore, simCpu = cpuScore) {
-        if (isPlayoff) return simUser === simCpu; // In Playoff si va sempre ai rigori se pari
-        if (!isCup) return false; 
-        
-        let isSingleLeg = [0, 1, 8].includes(sched.round);
-        let isSecondLeg = [3, 5, 7].includes(sched.round);
-
-        let userAgg = simUser;
-        let cpuAgg = simCpu;
-
-        if (isSecondLeg) {
-            let prevM = gameState.userTeam.cup.rounds[sched.round-1].find(pm => (pm.home===oppName && pm.away===gameState.userTeam.name) || (pm.home===gameState.userTeam.name && pm.away===oppName));
-            if (prevM) {
-                userAgg += prevM.home === gameState.userTeam.name ? prevM.scoreHome : prevM.scoreAway;
-                cpuAgg += prevM.home === oppName ? prevM.scoreHome : prevM.scoreAway;
+        if (isPlayoff) return simUser === simCpu; 
+        if (isCup) {
+            let isSingleLeg = [0, 1, 8].includes(sched.round);
+            let isSecondLeg = [3, 5, 7].includes(sched.round);
+            let userAgg = simUser; let cpuAgg = simCpu;
+            if (isSecondLeg) {
+                let prevM = gameState.userTeam.cup.rounds[sched.round-1].find(pm => (pm.home===oppName && pm.away===gameState.userTeam.name) || (pm.home===gameState.userTeam.name && pm.away===oppName));
+                if (prevM) { userAgg += prevM.home === gameState.userTeam.name ? prevM.scoreHome : prevM.scoreAway; cpuAgg += prevM.home === oppName ? prevM.scoreHome : prevM.scoreAway; }
             }
+            if ((isSingleLeg || isSecondLeg) && userAgg === cpuAgg) return true;
+        } else if (isChampions) {
+            if (sched.round < 5) return false; 
+            let isSingleLeg = [9].includes(sched.round);
+            let isSecondLeg = [6, 8].includes(sched.round);
+            let userAgg = simUser; let cpuAgg = simCpu;
+            if (isSecondLeg) {
+                let prevM = gameState.userTeam.champions.rounds[sched.round-1].find(pm => (pm.home===oppName && pm.away===gameState.userTeam.name) || (pm.home===gameState.userTeam.name && pm.away===oppName));
+                if (prevM) { userAgg += prevM.home === gameState.userTeam.name ? prevM.scoreHome : prevM.scoreAway; cpuAgg += prevM.home === oppName ? prevM.scoreHome : prevM.scoreAway; }
+            }
+            if ((isSingleLeg || isSecondLeg) && userAgg === cpuAgg) return true;
         }
-
-        if ((isSingleLeg || isSecondLeg) && userAgg === cpuAgg) return true;
         return false;
     }
 
@@ -341,9 +345,8 @@ export function startMatchEngine() {
 
         if (chanceMinutes.includes(minute)) {
             pauseMatch('chance');
-            const currentF = FORMATIONS[gameState.userTeam.formation];
-            let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + currentF.att, 2);
-            let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + currentF.def * 0.5), 2);
+            let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + FORMATIONS[gameState.userTeam.formation].att, 2);
+            let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + FORMATIONS[gameState.userTeam.formation].def * 0.5), 2);
 
             if(Math.random() * (wUser + wCpu) < wUser) {
                 let shooter = getRandomShooter(); let assister = null;
@@ -416,9 +419,8 @@ export function startMatchEngine() {
         let pOff = getActivePlayer(['ATT', 'CEN']) || getActivePlayer();
         let pDef = getActivePlayer(['DIF', 'CEN']) || getActivePlayer();
         
-        const currentF = FORMATIONS[gameState.userTeam.formation];
-        let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + currentF.att, 2);
-        let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + currentF.def * 0.5), 2);
+        let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + FORMATIONS[gameState.userTeam.formation].att, 2);
+        let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + FORMATIONS[gameState.userTeam.formation].def * 0.5), 2);
         let userProb = wUser / (wUser + wCpu);
         
         let isUserEvent = Math.random() < userProb;
@@ -797,7 +799,7 @@ export function startMatchEngine() {
                 let roleIcons = '';
                 if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
                 if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-                let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+                let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
                 let isSelected = selectedPlayerId === p.id;
                 let selStyle = isSelected ? `border: 2px solid #00f5a0; box-shadow: 0 0 20px #00f5a0; transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
@@ -810,7 +812,7 @@ export function startMatchEngine() {
                             ${warningHTML}
                             ${rolesHtml}
                             <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
+                            <div class="card-pos">${p.position}</div>
                             ${getEnergyBarHTML(p)}
                             <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                         </div>
@@ -921,6 +923,33 @@ export function startMatchEngine() {
             title = "Playoff Conclusi!";
             coinsEarned += gameState.userTeam.playoffWon ? 1000 : 100;
         }
+        else if (isChampions) {
+            let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
+            if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
+            else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
+            
+            if (sched.round < 5) {
+                let st1 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.home);
+                let st2 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.away);
+                st1.gf += m.scoreHome; st1.ga += m.scoreAway; st2.gf += m.scoreAway; st2.ga += m.scoreHome;
+                if (m.scoreHome > m.scoreAway) st1.pts += 3; else if (m.scoreHome < m.scoreAway) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
+            }
+
+            simulateChampionsRound(sched.round);
+            title = "Partita di Champions Conclusa!";
+            if (userScore > cpuScore) {
+                coinsEarned += 1000;
+                if(sched.round === 9) { 
+                    gameState.userTeam.gems += 100; 
+                    if (!gameState.userTeam.inventory.superBoosts) gameState.userTeam.inventory.superBoosts = 0;
+                    gameState.userTeam.inventory.superBoosts += 3;
+                    if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
+                    gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🌟', name: 'Coppa dei Campioni' });
+                    showNotification("CAMPIONI D'EUROPA!", "Hai vinto la Coppa dei Campioni! +100 Gemme e 3 Super Boost!", "success", 6000); 
+                }
+            } else if (userScore === cpuScore) coinsEarned += 400;
+
+        }
         else if (isCup) {
             let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
             if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
@@ -931,7 +960,12 @@ export function startMatchEngine() {
             title = "Partita di Coppa Conclusa!";
             if (userScore > cpuScore) {
                 coinsEarned += 800;
-                if(sched.round === 8) { gameState.userTeam.gems += 50; showNotification("CAMPIONI DI COPPA!", "Hai vinto la Coppa Nazionale! +50 Gemme!", "success", 6000); }
+                if(sched.round === 8) { 
+                    gameState.userTeam.gems += 50; 
+                    if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
+                    gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🏅', name: 'Coppa Nazionale' });
+                    showNotification("CAMPIONI DI COPPA!", "Hai vinto la Coppa Nazionale! +50 Gemme!", "success", 6000); 
+                }
             }
             else if (userScore === cpuScore) coinsEarned += 300;
         } else {
