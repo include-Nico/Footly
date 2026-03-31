@@ -1,5 +1,5 @@
 // js/onboarding.js
-import { gameState, saveGame, generateCupBracket, generateChampionsBracket } from './state.js';
+import { gameState, saveGame, generateCupBracket, generateChampionsBracket, applyTheme } from './state.js';
 import { elements, switchToMainApp, updateDashboardHeader, showNotification } from './ui.js';
 import { generateInitialSquad } from './players.js';
 import { initializeWorld } from './teams.js'; 
@@ -30,17 +30,15 @@ export function initOnboarding() {
         gameState.userTeam.colors.primary   = colorPrimaryInput.value;
         gameState.userTeam.colors.secondary = colorSecondaryInput.value;
         gameState.userTeam.kitStyle         = kitStyleSelect.value;
+        gameState.userTeam.ownedKits        = ["solid", "stripes", "halves"];
         
-        // Genera Rosa Utente
         gameState.userTeam.players = generateInitialSquad();
-        
-        // Genera TUTTO il Mondo (Div 1, 2 e 3)
         gameState.world = initializeWorld(gameState.userTeam.league);
         
-        // FIX BUG ANNO 1: Genera subito i tabelloni di Coppa e Champions
         generateCupBracket();
         generateChampionsBracket();
         
+        applyTheme(); // Applica il colore primario alla UI subito!
         saveGame();
         showPackOpening();
     });

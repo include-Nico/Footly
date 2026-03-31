@@ -1,6 +1,7 @@
 <div class="profile-view glass-panel" style="min-height: 550px; padding: 20px; text-align: center; max-height: 90vh; overflow-y: auto;">
     
-    <i class="fas fa-shield-halved" style="font-size: 60px; color: var(--accent); margin-bottom: 15px; filter: drop-shadow(0 0 10px var(--accent));"></i>
+    <div id="profile-crest" style="width: 80px; height: 95px; margin: 0 auto 15px; border-radius: 12px 12px 50% 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 3px solid rgba(255,255,255,0.8);"></div>
+    
     <h2 id="profile-team-name" style="margin-bottom: 5px;">Nome Team</h2>
     <p id="profile-league-div" style="color: var(--text-hint); margin-bottom: 25px;">Campionato · Div 3 · Anno 1</p>
 
@@ -16,22 +17,36 @@
         </div>
     </div>
 
-    <div class="section-label" style="text-align: left;">Bacheca Trofei</div>
-    <div id="profile-palmares" class="glass-panel" style="padding: 15px; margin-bottom: 25px; text-align: left; min-height: 80px; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+    <div class="section-label" style="text-align: left;">Stile & Colori Divisa</div>
+    <div class="glass-panel" style="padding: 15px; margin-bottom: 25px; text-align: left; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;">
+                <label style="font-size: 11px; color: var(--text-hint); text-transform: uppercase;">Colore 1</label>
+                <input type="color" id="edit-color-1" style="width: 100%; height: 35px; border-radius: 4px; border: none; cursor: pointer; background: transparent;">
+            </div>
+            <div style="flex: 1;">
+                <label style="font-size: 11px; color: var(--text-hint); text-transform: uppercase;">Colore 2</label>
+                <input type="color" id="edit-color-2" style="width: 100%; height: 35px; border-radius: 4px; border: none; cursor: pointer; background: transparent;">
+            </div>
         </div>
+        <div>
+            <label style="font-size: 11px; color: var(--text-hint); text-transform: uppercase;">Stile (Acquista nello Shop)</label>
+            <select id="edit-kit-style" class="glass-select"></select>
+        </div>
+        <button id="save-kit-btn" class="glass-btn" style="border-color: var(--accent); color: var(--accent); justify-content: center; margin-top: 5px;">
+            <i class="fas fa-palette"></i> Applica Modifiche
+        </button>
+    </div>
+
+    <div class="section-label" style="text-align: left;">Bacheca Trofei</div>
+    <div id="profile-palmares" class="glass-panel" style="padding: 15px; margin-bottom: 25px; text-align: left; min-height: 80px; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
 
     <div class="section-label" style="text-align: left;">Codice Segreto</div>
     <div style="display: flex; gap: 10px; margin-bottom: 30px;">
         <input type="text" id="promo-code-input" class="glass-select" placeholder="Inserisci codice..." style="flex: 1; margin: 0; padding: 10px; font-size: 14px; text-transform: uppercase;">
-        <button id="promo-code-btn" class="glass-btn" style="border-color: #00d4ff; color: #00d4ff; padding: 0 20px;">
-            <i class="fas fa-check"></i>
-        </button>
+        <button id="promo-code-btn" class="glass-btn" style="border-color: #00d4ff; color: #00d4ff; padding: 0 20px;"><i class="fas fa-check"></i></button>
     </div>
 
     <div class="divider" style="margin: 20px 0;"></div>
-
-    <button id="delete-account-btn" class="glass-btn" style="width: 100%; border-color: var(--notif-error); color: var(--notif-error); justify-content: center;">
-        <i class="fas fa-triangle-exclamation"></i> Cancella Definitivamente Account
-    </button>
-    
+    <button id="delete-account-btn" class="glass-btn" style="width: 100%; border-color: var(--notif-error); color: var(--notif-error); justify-content: center;"><i class="fas fa-triangle-exclamation"></i> Cancella Definitivamente Account</button>
 </div>

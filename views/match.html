@@ -7,7 +7,7 @@
         
         <div style="display: flex; justify-content: center; align-items: center; gap: 15px; width: 100%; margin-bottom: 40px;">
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                <div id="intro-home-icon" style="font-size: 40px; margin-bottom: 8px;">⚽</div>
+                <div id="intro-home-icon" style="margin-bottom: 8px;">⚽</div>
                 <h3 id="intro-home-name" style="margin: 0 0 5px 0;">Tu</h3>
                 <div id="intro-home-str" style="display: flex; flex-direction: column; align-items: center; color: var(--gold); font-weight: bold; font-size: 16px;"></div>
             </div>
@@ -15,7 +15,7 @@
             <div style="font-size: 24px; font-weight: bold; color: var(--text-muted);">VS</div>
             
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                <div id="intro-away-icon" style="font-size: 40px; margin-bottom: 8px;">🤖</div>
+                <div id="intro-away-icon" style="margin-bottom: 8px;">🤖</div>
                 <h3 id="intro-away-name" style="margin: 0 0 5px 0;">CPU</h3>
                 <div id="intro-away-str" style="display: flex; flex-direction: column; align-items: center; color: var(--gold); font-weight: bold; font-size: 16px;"></div>
             </div>
@@ -30,20 +30,28 @@
     </div>
 
     <div id="match-engine" style="display: none; flex-direction: column; height: 100%; position: relative;">
-        <div style="background: var(--bg-card); padding: 15px 20px; border-bottom: 1px solid var(--border-dim); display: flex; justify-content: space-between; align-items: center;">
-            <div style="text-align: center; flex: 1;">
-                <div id="score-home-name" style="font-size: 12px; color: var(--text-hint); text-transform: uppercase;">HOME</div>
-                <div id="score-home" style="font-family: 'Barlow Condensed'; font-size: 36px; font-weight: bold; color: var(--accent);">0</div>
+        <div style="background: var(--bg-card); padding: 15px 15px; border-bottom: 1px solid var(--border-dim); display: flex; justify-content: space-between; align-items: center;">
+            <div style="text-align: center; flex: 1; position: relative; overflow: hidden; padding: 8px 0; border-radius: 8px;">
+                <div id="score-home-bg" style="position: absolute; inset: 0; opacity: 0.2; z-index: 0;"></div>
+                <div style="position: relative; z-index: 1;">
+                    <div id="score-home-name" style="font-size: 12px; color: white; text-transform: uppercase;">HOME</div>
+                    <div id="score-home" style="font-family: 'Barlow Condensed'; font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 4px #000;">0</div>
+                </div>
             </div>
-            <div style="text-align: center; flex: 1;">
+            
+            <div style="text-align: center; flex: 1; padding: 0 10px;">
                 <div id="match-time" style="font-family: 'Barlow Condensed'; font-size: 24px; font-weight: bold; color: var(--text-primary);">00'</div>
-                <div class="progress-bar-bg" style="width: 100px; height: 6px; background: var(--bg-surface); border-radius: 3px; margin: 4px auto 0; overflow: hidden;">
+                <div class="progress-bar-bg" style="width: 100%; height: 6px; background: var(--bg-surface); border-radius: 3px; margin: 4px auto 0; overflow: hidden;">
                     <div id="match-progress" style="height: 100%; width: 0%; background: var(--accent); transition: width 0.2s linear;"></div>
                 </div>
             </div>
-            <div style="text-align: center; flex: 1;">
-                <div id="score-away-name" style="font-size: 12px; color: var(--text-hint); text-transform: uppercase;">AWAY</div>
-                <div id="score-away" style="font-family: 'Barlow Condensed'; font-size: 36px; font-weight: bold; color: var(--notif-error);">0</div>
+            
+            <div style="text-align: center; flex: 1; position: relative; overflow: hidden; padding: 8px 0; border-radius: 8px;">
+                <div id="score-away-bg" style="position: absolute; inset: 0; opacity: 0.2; z-index: 0;"></div>
+                <div style="position: relative; z-index: 1;">
+                    <div id="score-away-name" style="font-size: 12px; color: white; text-transform: uppercase;">AWAY</div>
+                    <div id="score-away" style="font-family: 'Barlow Condensed'; font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 4px #000;">0</div>
+                </div>
             </div>
         </div>
 
@@ -62,56 +70,10 @@
         </div>
     </div>
 
-    <div id="event-modal" class="modal-overlay">
-        <div class="modal-box">
-            <h3 id="event-title" style="color: var(--accent); text-align: center; margin-bottom: 10px;">Evento</h3>
-            <p id="event-desc" style="font-size: 14px; color: var(--text-primary); text-align: center; margin-bottom: 20px; line-height: 1.4;"></p>
-            <div id="event-options" style="display: flex; flex-direction: column; gap: 10px;"></div>
-        </div>
-    </div>
-
-    <div id="goal-modal" class="modal-overlay" style="background: rgba(0,0,0,0.95);">
-        <div class="modal-box" style="background: transparent; border: none; box-shadow: none;">
-            <h2 id="goal-modal-title" style="color: white; text-align: center; margin-bottom: 5px; text-shadow: 0 2px 4px black;">OCCASIONE GOL!</h2>
-            <p id="shooter-name" style="color: var(--gold); text-align: center; margin-bottom: 20px; font-weight: bold;"></p>
-            <div class="goal-grid">
-                <div class="goal-section" data-zone="0"></div><div class="goal-section" data-zone="1"></div><div class="goal-section" data-zone="2"></div>
-                <div class="goal-section" data-zone="3"></div><div class="goal-section" data-zone="4"></div><div class="goal-section" data-zone="5"></div>
-            </div>
-            <p id="goal-helper-text" style="color: white; text-align: center; margin-top: 15px; font-size: 12px;">Scegli dove tirare!</p>
-        </div>
-    </div>
-
-    <div id="pk-modal" class="modal-overlay" style="background: rgba(0,0,0,0.98); z-index: 300;">
-        <div class="modal-box" style="background: transparent; border: none; box-shadow: none; width: 100%; max-width: 500px; padding: 10px;">
-            <h2 style="color: var(--gold); text-align: center; margin-bottom: 20px; font-size: 28px; text-shadow: 0 0 10px var(--gold);">CALCI DI RIGORE</h2>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px;">
-                <div style="text-align: center; flex: 1;">
-                    <div id="pk-home-name" style="color: var(--accent); font-weight: bold; font-size: 16px; margin-bottom: 8px;">HOME</div>
-                    <div id="pk-home-dots" style="display: flex; justify-content: center; gap: 5px;"></div>
-                </div>
-                <div id="pk-score" style="font-size: 36px; font-weight: bold; color: white; padding: 0 20px; font-family: 'Barlow Condensed';">0 - 0</div>
-                <div style="text-align: center; flex: 1;">
-                    <div id="pk-away-name" style="color: var(--notif-error); font-weight: bold; font-size: 16px; margin-bottom: 8px;">AWAY</div>
-                    <div id="pk-away-dots" style="display: flex; justify-content: center; gap: 5px;"></div>
-                </div>
-            </div>
-
-            <div id="pk-status-text" style="color: white; text-align: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;">Tocca a te! Scegli dove tirare.</div>
-            
-            <div class="goal-grid" id="pk-grid">
-                <div class="goal-section" data-zone="0"></div><div class="goal-section" data-zone="1"></div><div class="goal-section" data-zone="2"></div>
-                <div class="goal-section" data-zone="3"></div><div class="goal-section" data-zone="4"></div><div class="goal-section" data-zone="5"></div>
-            </div>
-            
-            <div id="pk-result-overlay" style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:10; justify-content:center; align-items:center; flex-direction:column;">
-                <h1 id="pk-result-title" style="font-size:40px; margin-bottom:20px;">VITTORIA!</h1>
-                <button id="pk-finish-btn" class="primary-btn">Continua</button>
-            </div>
-        </div>
-    </div>
-
+    <div id="event-modal" class="modal-overlay"><div class="modal-box"><h3 id="event-title" style="color: var(--accent); text-align: center; margin-bottom: 10px;">Evento</h3><p id="event-desc" style="font-size: 14px; color: var(--text-primary); text-align: center; margin-bottom: 20px; line-height: 1.4;"></p><div id="event-options" style="display: flex; flex-direction: column; gap: 10px;"></div></div></div>
+    <div id="goal-modal" class="modal-overlay" style="background: rgba(0,0,0,0.95);"><div class="modal-box" style="background: transparent; border: none; box-shadow: none;"><h2 id="goal-modal-title" style="color: white; text-align: center; margin-bottom: 5px; text-shadow: 0 2px 4px black;">OCCASIONE GOL!</h2><p id="shooter-name" style="color: var(--gold); text-align: center; margin-bottom: 20px; font-weight: bold;"></p><div class="goal-grid"><div class="goal-section" data-zone="0"></div><div class="goal-section" data-zone="1"></div><div class="goal-section" data-zone="2"></div><div class="goal-section" data-zone="3"></div><div class="goal-section" data-zone="4"></div><div class="goal-section" data-zone="5"></div></div><p id="goal-helper-text" style="color: white; text-align: center; margin-top: 15px; font-size: 12px;">Scegli dove tirare!</p></div></div>
+    <div id="pk-modal" class="modal-overlay" style="background: rgba(0,0,0,0.98); z-index: 300;"><div class="modal-box" style="background: transparent; border: none; box-shadow: none; width: 100%; max-width: 500px; padding: 10px;"><h2 style="color: var(--gold); text-align: center; margin-bottom: 20px; font-size: 28px; text-shadow: 0 0 10px var(--gold);">CALCI DI RIGORE</h2><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px;"><div style="text-align: center; flex: 1;"><div id="pk-home-name" style="color: var(--accent); font-weight: bold; font-size: 16px; margin-bottom: 8px;">HOME</div><div id="pk-home-dots" style="display: flex; justify-content: center; gap: 5px;"></div></div><div id="pk-score" style="font-size: 36px; font-weight: bold; color: white; padding: 0 20px; font-family: 'Barlow Condensed';">0 - 0</div><div style="text-align: center; flex: 1;"><div id="pk-away-name" style="color: var(--notif-error); font-weight: bold; font-size: 16px; margin-bottom: 8px;">AWAY</div><div id="pk-away-dots" style="display: flex; justify-content: center; gap: 5px;"></div></div></div><div id="pk-status-text" style="color: white; text-align: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;">Tocca a te! Scegli dove tirare.</div><div class="goal-grid" id="pk-grid"><div class="goal-section" data-zone="0"></div><div class="goal-section" data-zone="1"></div><div class="goal-section" data-zone="2"></div><div class="goal-section" data-zone="3"></div><div class="goal-section" data-zone="4"></div><div class="goal-section" data-zone="5"></div></div><div id="pk-result-overlay" style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:10; justify-content:center; align-items:center; flex-direction:column;"><h1 id="pk-result-title" style="font-size:40px; margin-bottom:20px;">VITTORIA!</h1><button id="pk-finish-btn" class="primary-btn">Continua</button></div></div></div>
+    
     <div id="subs-modal" class="modal-overlay">
         <div class="modal-box" style="width: 100%; max-width: 480px; height: 95vh; padding: 15px; display: flex; flex-direction: column; background: var(--bg-deep); border: none; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">

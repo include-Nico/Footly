@@ -34,7 +34,7 @@ export const gameState = {
         roles: { captain: null, penalty: null },
         colors: { primary: "#00f5a0", secondary: "#ffffff" },
         kitStyle: "solid",
-        formation: "2-3-1",
+        ownedKits: ["solid", "stripes", "halves"], // NUOVO: Stili posseduti
         seasonYear: 1, 
         matchday: 1, 
         seasonWeek: 1, 
@@ -48,6 +48,36 @@ export const gameState = {
     world: {},
     currentView: "home"
 };
+
+// === NUOVO: SISTEMA TEMA E DIVISE ===
+function hexToRgb(hex) {
+    let r = 0, g = 0, b = 0;
+    if (hex.length === 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } 
+    else if (hex.length === 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
+    return `${+r}, ${+g}, ${+b}`;
+}
+
+export function applyTheme() {
+    const root = document.documentElement;
+    const pColor = gameState.userTeam.colors.primary;
+    root.style.setProperty('--accent', pColor);
+    const rgb = hexToRgb(pColor);
+    root.style.setProperty('--accent-dim', `rgba(${rgb}, 0.15)`);
+    root.style.setProperty('--accent-glow', `rgba(${rgb}, 0.3)`);
+}
+
+export function getKitCSS(c1, c2, style) {
+    switch(style) {
+        case 'stripes': return `background: repeating-linear-gradient(90deg, ${c1} 0px, ${c1} 20%, ${c2} 20%, ${c2} 40%);`;
+        case 'halves': return `background: linear-gradient(90deg, ${c1} 50%, ${c2} 50%);`;
+        case 'diagonal': return `background: linear-gradient(135deg, ${c1} 50%, ${c2} 50%);`;
+        case 'hoops': return `background: repeating-linear-gradient(0deg, ${c1} 0px, ${c1} 20%, ${c2} 20%, ${c2} 40%);`;
+        case 'checkered': return `background-color: ${c1}; background-image: conic-gradient(${c1} 90deg, ${c2} 90deg 180deg, ${c1} 180deg 270deg, ${c2} 270deg); background-size: 50% 50%;`;
+        case 'camouflage': return `background-color: ${c1}; background-image: radial-gradient(circle at 20% 30%, ${c2} 30%, transparent 30%), radial-gradient(circle at 80% 70%, ${c2} 30%, transparent 30%);`;
+        case 'solid': default: return `background: ${c1};`;
+    }
+}
+// ====================================
 
 export function saveGame() {
     localStorage.setItem('footly_save_data', JSON.stringify(gameState));
@@ -72,10 +102,12 @@ export function loadGame() {
         if (!gameState.userTeam.roles) gameState.userTeam.roles = { captain: null, penalty: null };
         if (gameState.userTeam.seasonWeek === undefined) gameState.userTeam.seasonWeek = gameState.userTeam.matchday; 
         if (gameState.userTeam.playoffWon === undefined) gameState.userTeam.playoffWon = false;
+        
         if (!gameState.userTeam.seasonYear) gameState.userTeam.seasonYear = 1;
         if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
+        
+        if (!gameState.userTeam.ownedKits) gameState.userTeam.ownedKits = ["solid", "stripes", "halves"]; // FIX Migrazione
 
-        // FIX EMERGENZA BUG COPPA: Se ricarichi la pagina e non c'è la coppa la genera al volo
         if (!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[0] || gameState.userTeam.cup.rounds[0].length === 0) {
             generateCupBracket();
         }
@@ -92,6 +124,7 @@ export function loadGame() {
             });
         }
         
+        applyTheme(); // Applica il colore al caricamento
         saveGame(); return true;
     }
     return false;

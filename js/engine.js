@@ -1,5 +1,5 @@
 // js/engine.js
-import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound } from './state.js';
+import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
 import { loadView, FORMATIONS } from './router.js'; 
@@ -132,16 +132,33 @@ export function startMatchEngine() {
     }
     if (document.getElementById('intro-aggregate')) document.getElementById('intro-aggregate').textContent = aggregateText;
 
+    // === TEMA DINAMICO TABELLONE ===
+    let userKit = getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+    let cpuKit = `background: linear-gradient(135deg, #444 50%, #222 50%);`; 
+    let userShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto; ${userKit}"></div>`;
+
     if (isHomeMatch) {
-        document.getElementById('intro-home-icon').textContent = "⚽"; document.getElementById('intro-away-icon').textContent = "🤖";
-        document.getElementById('intro-home-name').textContent = gameState.userTeam.name; document.getElementById('intro-away-name').textContent = nextOpponent.name;
+        document.getElementById('intro-home-icon').innerHTML = userShield;
+        document.getElementById('intro-away-icon').innerHTML = "🤖";
+        document.getElementById('intro-home-name').textContent = gameState.userTeam.name; 
+        document.getElementById('intro-away-name').textContent = nextOpponent.name;
         document.getElementById('intro-away-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
-        document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase(); document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
+        document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase(); 
+        document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
+        
+        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
+        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKit}`;
     } else {
-        document.getElementById('intro-home-icon').textContent = "🤖"; document.getElementById('intro-away-icon').textContent = "⚽";
-        document.getElementById('intro-home-name').textContent = nextOpponent.name; document.getElementById('intro-home-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
+        document.getElementById('intro-home-icon').innerHTML = "🤖"; 
+        document.getElementById('intro-away-icon').innerHTML = userShield;
+        document.getElementById('intro-home-name').textContent = nextOpponent.name; 
+        document.getElementById('intro-home-str').innerHTML = `${nextOpponent.strength} ${getStarsHTML(nextOpponent.strength)}`;
         document.getElementById('intro-away-name').textContent = gameState.userTeam.name;
-        document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase(); document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
+        document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase(); 
+        document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
+        
+        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
+        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKit}`;
     }
     
     updateMatchHeaderStr(); updateScoreUI();
@@ -180,10 +197,6 @@ export function startMatchEngine() {
     }
     if(Math.random() > 0.4) chanceMinutes.push(90 + randomInt(1, stoppageTime)); 
 
-    document.getElementById('btn-intro-sim').innerHTML = `Simula Rapida (💎 5) <i class="fas fa-bolt"></i>`;
-    document.getElementById('btn-intro-sim').style.borderColor = "#00d4ff";
-    document.getElementById('btn-intro-sim').style.color = "#00d4ff";
-
     document.getElementById('start-kickoff-btn').onclick = () => {
         document.getElementById('match-intro').style.display = 'none';
         document.getElementById('match-engine').style.display = 'flex';
@@ -196,8 +209,7 @@ export function startMatchEngine() {
     document.getElementById('btn-intro-sim').onclick = () => {
         if(gameState.userTeam.gems >= 5) {
             showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
-                gameState.userTeam.gems -= 5;
-                updateDashboardHeader();
+                gameState.userTeam.gems -= 5; updateDashboardHeader();
                 
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
@@ -774,7 +786,6 @@ export function startMatchEngine() {
         let totalTacAtt = tacBonusAtt + currentF.att;
         let totalTacDef = tacBonusDef + currentF.def;
         
-        // FIX SICUREZZA: Evita che l'assenza del testo causi il crash null
         let attEl = document.getElementById('match-tactics-att');
         let defEl = document.getElementById('match-tactics-def');
         if (attEl) attEl.textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
@@ -785,6 +796,8 @@ export function startMatchEngine() {
         let starters = gameState.userTeam.players.filter(p => p.isStarter);
         let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
 
+        let userKitCSS = getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+
         currentF.pos.forEach((slot, idx) => {
             let p = starters.find(pl => pl.slotIndex === idx);
             if(p) {
@@ -794,245 +807,4 @@ export function startMatchEngine() {
                 let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
 
                 let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
-                if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
-                if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
-                else if (p.status.yellowCards === 1 || p.matchYellows === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
-
-                let roleIcons = '';
-                if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
-                if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-                let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
-
-                let isSelected = selectedPlayerId === p.id;
-                let selStyle = isSelected ? `border: 2px solid #00f5a0; box-shadow: 0 0 20px #00f5a0; transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
-                const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
-
-                pitch.innerHTML += `
-                    <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
-                        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                        <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
-                            ${warningHTML}
-                            ${rolesHtml}
-                            <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position}</div>
-                            ${getEnergyBarHTML(p)}
-                            <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
-                        </div>
-                    </div>
-                `;
-            } else pitch.innerHTML += `<div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};"><div class="empty-slot" data-idx="${idx}"><i class="fas fa-plus"></i><br>${slot.role}</div></div>`;
-        });
-
-        reserves.forEach(p => {
-            let isSelected = selectedPlayerId === p.id;
-            let selStyle = isSelected ? `border: 2px solid #00f5a0; box-shadow: 0 0 20px #00f5a0; transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
-            const flag = p.nationality ? p.nationality.split(' ')[0] : '';
-            
-            let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
-
-            let warningHTML = '';
-            if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
-            if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
-            else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
-
-            let roleIcons = '';
-            if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
-            if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-            let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
-
-            bench.innerHTML += `
-                <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
-                    ${warningHTML}
-                    ${rolesHtml}
-                    <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
-                    <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
-                    ${getEnergyBarHTML(p)}
-                    <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
-                </div>
-            `;
-        });
-
-        function executeMatchSwap(id1, id2) {
-            if(id1 === id2) return;
-            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
-            
-            if(p1.isStarter !== p2.isStarter) {
-                if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
-                subsLeft--;
-                if(sLeftEl) sLeftEl.textContent = subsLeft;
-                if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
-                addLog(`🔄 Sostituzione: Esce ${p1.isStarter ? p1.name : p2.name}, entra ${p1.isStarter ? p2.name : p1.name}.`);
-            }
-            let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
-            let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
-            
-            renderMatchSubsList(); updateMatchHeaderStr();
-        }
-
-        document.querySelectorAll('.match-card-interactive').forEach(card => {
-            if(card.classList.contains('disabled')) return;
-            card.onclick = (e) => {
-                e.stopPropagation(); 
-                const id = card.getAttribute('data-id');
-                if (!selectedPlayerId) { selectedPlayerId = id; renderMatchSubsList(); } 
-                else { if (selectedPlayerId === id) selectedPlayerId = null; else executeMatchSwap(selectedPlayerId, id); selectedPlayerId = null; renderMatchSubsList(); }
-            };
-        });
-    }
-
-    function processCpuTeam(team) {
-        team.roster.forEach(p => {
-            if(p.energy === undefined) p.energy = 100;
-            if(Math.random() < 0.7) p.energy = Math.max(10, p.energy - randomInt(30, 50)) + randomInt(20, 40); 
-            else p.energy = Math.min(100, p.energy + randomInt(50, 80)); 
-        });
-        let best = [...team.roster].sort((a,b) => getEffectiveOverall(b) - getEffectiveOverall(a)).slice(0,7);
-        team.strength = Math.floor(best.reduce((acc, p) => acc + getEffectiveOverall(p), 0) / 7);
-    }
-
-    function endMatchLogic() {
-        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
-        document.getElementById('match-engine').style.display = 'none'; 
-
-        gameState.userTeam.players.forEach(p => {
-            if (p.status.injured > 0 && (!p.isStarter || p.status.suspended > 0)) p.status.injured--;
-            if (p.status.suspended === 1) p.status.suspended = 0; 
-            else if (p.status.suspended === 2) p.status.suspended = 1; 
-            else if (p.status.yellowCards >= 2 && p.status.suspended === 0) { p.status.suspended = 1; p.status.yellowCards = 0; }
-            else if (p.status.yellowCards === 1 && p.matchYellows === 0 && p.isStarter) p.status.yellowCards = 0;
-
-            if(p.isStarter && p.status.suspended === 0 && p.status.injured === 0) {
-                p.stats.appearances++;
-                if(cpuScore === 0 && (p.position === 'POR' || p.position === 'DIF')) p.stats.cleanSheets = (p.stats.cleanSheets || 0) + 1;
-                p.energy += randomInt(20, 40); 
-            } else { p.energy += randomInt(80, 100); }
-            if(p.energy > 100) p.energy = 100;
-        });
-
-        gameState.userTeam.formation = originalFormation;
-        gameState.userTeam.players.forEach(p => {
-            let orig = originalLineup.find(o => o.id === p.id);
-            if (orig) { p.isStarter = orig.isStarter; p.slotIndex = orig.slotIndex; }
-        });
-
-        if(gameState.userTeam.activeBoostMatches > 0) gameState.userTeam.activeBoostMatches--;
-
-        let coinsEarned = userScore * 50; 
-        let title = "";
-
-        if (isPlayoff) {
-            gameState.userTeam.playoffWon = (userScore > cpuScore);
-            title = "Playoff Conclusi!";
-            coinsEarned += gameState.userTeam.playoffWon ? 1000 : 100;
-        }
-        else if (isChampions) {
-            let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
-            if (m) {
-                if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
-                else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
-                
-                if (sched.round < 5) {
-                    let st1 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.home);
-                    let st2 = gameState.userTeam.champions.groupStandings[m.group].find(s => s.name === m.away);
-                    st1.gf += m.scoreHome; st1.ga += m.scoreAway; st2.gf += m.scoreAway; st2.ga += m.scoreHome;
-                    if (m.scoreHome > m.scoreAway) st1.pts += 3; else if (m.scoreHome < m.scoreAway) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
-                }
-            }
-
-            simulateChampionsRound(sched.round);
-            title = "Partita di Champions Conclusa!";
-            if (userScore > cpuScore) {
-                coinsEarned += 1000;
-                if(sched.round === 9) { 
-                    gameState.userTeam.gems += 100; 
-                    if (!gameState.userTeam.inventory.superBoosts) gameState.userTeam.inventory.superBoosts = 0;
-                    gameState.userTeam.inventory.superBoosts += 3;
-                    if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
-                    gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🌟', name: 'Coppa dei Campioni' });
-                    showNotification("CAMPIONI D'EUROPA!", "Hai vinto la Coppa dei Campioni! +100 Gemme e 3 Super Boost!", "success", 6000); 
-                }
-            } else if (userScore === cpuScore) coinsEarned += 400;
-
-        }
-        else if (isCup) {
-            let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
-            if (m) {
-                if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
-                else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
-            }
-            simulateCupRound(sched.round);
-            
-            title = "Partita di Coppa Conclusa!";
-            if (userScore > cpuScore) {
-                coinsEarned += 800;
-                if(sched.round === 8) { 
-                    gameState.userTeam.gems += 50; 
-                    if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
-                    gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🏅', name: 'Coppa Nazionale' });
-                    showNotification("CAMPIONI DI COPPA!", "Hai vinto la Coppa Nazionale! +50 Gemme!", "success", 6000); 
-                }
-            }
-            else if (userScore === cpuScore) coinsEarned += 300;
-        } else {
-            gameState.userTeam.stats.played++;
-            gameState.userTeam.stats.goalsFor += userScore;
-            gameState.userTeam.stats.goalsAgainst += cpuScore;
-            
-            if (userScore > cpuScore) { gameState.userTeam.stats.won++; gameState.userTeam.stats.points += 3; coinsEarned += 500; title="Vittoria!"; }
-            else if (userScore === cpuScore) { gameState.userTeam.stats.drawn++; gameState.userTeam.stats.points += 1; coinsEarned += 200; title="Pareggio!"; }
-            else { gameState.userTeam.stats.lost++; coinsEarned += 50; title="Sconfitta!"; }
-
-            processCpuTeam(nextOpponent);
-            nextOpponent.played++; nextOpponent.goalsFor += cpuScore; nextOpponent.goalsAgainst += userScore;
-            if (cpuScore > userScore) { nextOpponent.won++; nextOpponent.points += 3; }
-            else if (cpuScore === userScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
-            else { nextOpponent.lost++; }
-
-            for (const lg in gameState.world) {
-                [1, 2, 3].forEach(div => {
-                    if(gameState.world[lg][div]) {
-                        let teams = gameState.world[lg][div];
-                        if (lg === gameState.userTeam.league && div === gameState.userTeam.division) {
-                            let otherCPUs = teams.filter(t => t.name !== nextOpponent.name);
-                            for (let i = 0; i < otherCPUs.length; i += 2) {
-                                if(i+1 >= otherCPUs.length) break;
-                                simulateGlobalMatch(otherCPUs[i], otherCPUs[i+1]);
-                            }
-                        } else {
-                            for(let i=0; i<teams.length; i+=2) {
-                                if(i+1 >= teams.length) break;
-                                simulateGlobalMatch(teams[i], teams[i+1]);
-                            }
-                        }
-                    }
-                });
-            }
-            gameState.userTeam.matchday++;
-        }
-
-        gameState.userTeam.coins += coinsEarned;
-        gameState.userTeam.seasonWeek++;
-        saveGame();
-        updateDashboardHeader();
-
-        showConfirm(title, `Partita conclusa: <b>${userScore} - ${cpuScore}</b><br><br>Hai guadagnato 💰${coinsEarned}.`, () => {
-            loadView('home');
-        }, "Torna alla Dashboard", false, true); 
-    }
-
-    function simulateGlobalMatch(t1, t2) {
-        processCpuTeam(t1); processCpuTeam(t2);
-        let diff = Math.abs(t1.strength - t2.strength);
-        let totalSimChances = randomInt(3, 5) + Math.floor(diff / 8);
-        let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
-        let g1 = 0, g2 = 0;
-        for(let i=0; i<totalSimChances; i++) {
-            if (Math.random() * (w1 + w2) <= w1) { if(Math.random() > 0.4) g1++; }
-            else { if(Math.random() > 0.4) g2++; }
-        }
-        t1.played++; t1.goalsFor += g1; t1.goalsAgainst += g2;
-        if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
-        t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
-        if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
-    }
-}
+                if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background
