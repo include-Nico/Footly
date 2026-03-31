@@ -151,7 +151,7 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// HOME E CALENDARIO
+// HOME, CALENDARIO E FINE STAGIONE
 // ==========================================
 function renderHome() {
     const teamNameEl = document.getElementById('home-team-name');
@@ -169,8 +169,6 @@ function renderHome() {
     
     let currentWk = gameState.userTeam.seasonWeek || 1;
     if (matchdayCounter) matchdayCounter.textContent = currentWk <= 46 ? currentWk : 46;
-    let divLabel = document.getElementById('home-div-num').nextSibling;
-    if(divLabel) divLabel.textContent = " · Settimana ";
 
     const userStr = getUserTeamStrength();
     const homeRatingEl = document.getElementById('home-team-rating');
@@ -205,14 +203,21 @@ function renderHome() {
                 if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
                     let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                     if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                    else { oppName = "Eliminato"; sStr = 0; } // TESTO PIU' PULITO E VISIBILE
+                    else { oppName = "Eliminato/Non Qual."; sStr = 0; } 
                 } else { oppName = "Non qualificato"; sStr = 0; }
             }
             else if (isCup) {
                 if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
                     let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                     if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                    else { oppName = "Eliminato"; sStr = 0; } // TESTO PIU' PULITO E VISIBILE
+                    else { 
+                        if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
+                            oppName = "Qualificato";
+                        } else {
+                            oppName = "Eliminato";
+                        }
+                        sStr = 0; 
+                    } 
                 } else { oppName = "Eliminato"; sStr = 0; }
             } 
             else {
@@ -222,7 +227,7 @@ function renderHome() {
 
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
-            if (oppName === "Eliminato" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
+            if (oppName === "Eliminato" || oppName === "Qualificato" || oppName === "Qualificato d'ufficio (Riposo)" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
 
             let item = document.createElement('div'); item.className = 'glass-panel';
             item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
@@ -248,14 +253,21 @@ function renderHome() {
             if(gameState.userTeam.champions && gameState.userTeam.champions.rounds[sched.round]) {
                 let m = gameState.userTeam.champions.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                 if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                else { userPlays = false; oppName = "Eliminato"; }
+                else { userPlays = false; oppName = "Eliminato/Non Qual."; }
             } else { userPlays = false; oppName = "Non qualificato"; }
         }
         else if (isCup) {
             if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
                 let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                 if(m) { oppName = m.home === gameState.userTeam.name ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
-                else { userPlays = false; oppName = "Eliminato"; }
+                else { 
+                    userPlays = false; 
+                    if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
+                        oppName = "Qualificato d'ufficio (Riposo)";
+                    } else {
+                        oppName = "Eliminato";
+                    }
+                }
             } else { userPlays = false; oppName = "Eliminato"; }
         } else {
             let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
@@ -268,7 +280,7 @@ function renderHome() {
         const nextHomeRatingEl = document.getElementById('next-home-rating');
         if (nextHomeRatingEl) nextHomeRatingEl.innerHTML = `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${userStr}</span>${getStarsHTML(userStr)}`;
         
-        if (cpuTeamNameEl) cpuTeamNameEl.textContent = oppName;
+        if (cpuTeamNameEl) cpuTeamNameEl.textContent = userPlays ? oppName : (isPlayoff ? "Attesa Fine Stagione" : oppName);
         const cpuRatingEl = document.getElementById('cpu-team-rating');
         if (cpuRatingEl) cpuRatingEl.innerHTML = userPlays ? `<span style="font-weight:bold; font-size:16px; color:var(--gold);">${sStr}</span>${getStarsHTML(sStr)}` : "";
         
@@ -282,7 +294,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : "Simula Turno Coppa";
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {

@@ -152,7 +152,6 @@ export function getPlayoffMatchup() {
     return null; 
 }
 
-// FIX: Calcolo perfetto che non salta la userTeam
 export function simulateCupRound(roundIndex) {
     if(!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[roundIndex]) return;
     let roundMatches = gameState.userTeam.cup.rounds[roundIndex];
@@ -162,7 +161,6 @@ export function simulateCupRound(roundIndex) {
     roundMatches.forEach(m => {
         let g1, g2;
         if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) {
-            // Seleziona i risultati dell'utente, salvati poco prima da endMatchLogic
             g1 = m.scoreHome !== null ? m.scoreHome : 0;
             g2 = m.scoreAway !== null ? m.scoreAway : 0;
         } else {
@@ -180,7 +178,6 @@ export function simulateCupRound(roundIndex) {
         if (isSingleLeg) {
             if (g1 === g2) { 
                 if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) {
-                    // Risolto dai rigori in partita. Se arriva qui pari (simulazione rapida), forziamo un vincitore
                     if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++;
                 } else {
                     if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; 
@@ -214,21 +211,32 @@ export function simulateCupRound(roundIndex) {
     }
 }
 
+// FIX: Pescava squadre da TUTTO il mondo. Ora prende solo quelle della nazione dell'utente!
 export function generateCupBracket() {
     let teams = [];
-    for(let lg in gameState.world) { [1,2,3].forEach(d => gameState.world[lg][d].forEach(t => teams.push(t.name))); }
+    let lg = gameState.userTeam.league;
+    
+    [1,2,3].forEach(d => {
+        if (gameState.world[lg] && gameState.world[lg][d]) {
+            gameState.world[lg][d].forEach(t => teams.push(t.name));
+        }
+    });
     teams.push(gameState.userTeam.name);
+    
+    // Le 42 squadre vengono ordinate per forza.
     teams.sort((a,b) => getGlobalTeam(b).strength - getGlobalTeam(a).strength); 
     
     let byes = teams.slice(0, 22);
     let prelims = teams.slice(22).sort(() => Math.random()-0.5);
+    
     let r0 = [];
-    for(let i=0; i<10; i++) r0.push({home: prelims[i*2], away: prelims[i*2+1], scoreHome:null, scoreAway:null});
+    for(let i=0; i<10; i++) {
+        r0.push({home: prelims[i*2], away: prelims[i*2+1], scoreHome:null, scoreAway:null});
+    }
     
     gameState.userTeam.cup = { byes: byes, rounds: { 0: r0, 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[] } };
 }
 
-// FIX: Calcolo perfetto per la Champions League (con classifica)
 export function simulateChampionsRound(roundIndex) {
     if(!gameState.userTeam.champions || !gameState.userTeam.champions.rounds[roundIndex]) return;
     let roundMatches = gameState.userTeam.champions.rounds[roundIndex]; 
