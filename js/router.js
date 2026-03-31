@@ -1,5 +1,5 @@
 // js/router.js
-import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam } from './state.js';
+import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, generateCupBracket } from './state.js';
 import { updateDashboardHeader, showNotification, showConfirm, updateNavUI } from './ui.js';
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 import { startMatchEngine } from './engine.js'; 
@@ -10,33 +10,31 @@ let selectedPlayerId = null; let draggedId = null;
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 export const FORMATIONS = {
-    "2-3-1": { att: 0, def: 0, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, {role:'CEN', t:'42%', l:'20%'}, {role:'CEN', t:'42%', l:'50%'}, {role:'CEN', t:'42%', l:'80%'}, {role:'ATT', t:'16%', l:'50%'}] },
-    "3-2-1": { att: -10, def: 15, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'20%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'DIF', t:'66%', l:'80%'}, {role:'CEN', t:'42%', l:'35%'}, {role:'CEN', t:'42%', l:'65%'}, {role:'ATT', t:'16%', l:'50%'}] },
-    "2-2-2": { att: 15, def: -10, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, {role:'CEN', t:'42%', l:'30%'}, {role:'CEN', t:'42%', l:'70%'}, {role:'ATT', t:'16%', l:'35%'}, {role:'ATT', t:'16%', l:'65%'}] },
-    "1-4-1": { att: 5, def: 5, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, {role:'ATT', t:'16%', l:'50%'}] }
+    "2-3-1": { att: 0, def: 0, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, 
+        {role:'CEN', t:'42%', l:'20%'}, {role:'CEN', t:'42%', l:'50%'}, {role:'CEN', t:'42%', l:'80%'}, 
+        {role:'ATT', t:'16%', l:'50%'}
+    ] },
+    "3-2-1": { att: -10, def: 15, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'20%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'DIF', t:'66%', l:'80%'}, 
+        {role:'CEN', t:'42%', l:'35%'}, {role:'CEN', t:'42%', l:'65%'}, 
+        {role:'ATT', t:'16%', l:'50%'}
+    ] },
+    "2-2-2": { att: 15, def: -10, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, 
+        {role:'CEN', t:'42%', l:'30%'}, {role:'CEN', t:'42%', l:'70%'}, 
+        {role:'ATT', t:'16%', l:'35%'}, {role:'ATT', t:'16%', l:'65%'}
+    ] },
+    "1-4-1": { att: 5, def: 5, pos: [
+        {role:'POR', t:'86%', l:'50%'}, 
+        {role:'DIF', t:'66%', l:'50%'}, 
+        {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, 
+        {role:'ATT', t:'16%', l:'50%'}
+    ] }
 };
-
-// IL CALENDARIO COMPLETO (35 SETTIMANE)
-export const SEASON_SCHEDULE = [
-    {type:'L', day:1}, {type:'L', day:2}, {type:'L', day:3}, 
-    {type:'C', round:0, name:'Preliminari Coppa'},
-    {type:'L', day:4}, {type:'L', day:5}, 
-    {type:'C', round:1, name:'Sedicesimi Coppa'},
-    {type:'L', day:6}, {type:'L', day:7}, 
-    {type:'C', round:2, name:'Ottavi (Andata)'},
-    {type:'L', day:8}, 
-    {type:'C', round:3, name:'Ottavi (Ritorno)'},
-    {type:'L', day:9}, {type:'L', day:10}, 
-    {type:'C', round:4, name:'Quarti (Andata)'},
-    {type:'L', day:11}, 
-    {type:'C', round:5, name:'Quarti (Ritorno)'},
-    {type:'L', day:12}, {type:'L', day:13}, 
-    {type:'C', round:6, name:'Semifinale (Andata)'},
-    {type:'L', day:14}, 
-    {type:'C', round:7, name:'Semifinale (Ritorno)'},
-    {type:'L', day:15}, {type:'L', day:16}, {type:'L', day:17}, {type:'L', day:18}, {type:'L', day:19}, {type:'L', day:20}, {type:'L', day:21}, {type:'L', day:22}, {type:'L', day:23}, {type:'L', day:24}, {type:'L', day:25}, {type:'L', day:26},
-    {type:'C', round:8, name:'Finale Coppa Nazionale'}
-];
 
 export async function loadView(viewName) {
     try {
@@ -55,6 +53,7 @@ export async function loadView(viewName) {
         else if (viewName === 'market') renderMarket();
         else if (viewName === 'store') renderStore(); 
         else if (viewName === 'match') startMatchEngine();
+
     } catch (error) { console.error("Errore router:", error); }
 }
 
@@ -125,6 +124,7 @@ function openPack(type) {
         let player = generatePlayer(pos, false, rarity);
         items.push({ type: 'player', data: player }); gameState.userTeam.players.push(player);
     }
+
     saveGame(); updateDashboardHeader(); triggerPackAnimation(items);
 }
 
@@ -175,77 +175,6 @@ function triggerPackAnimation(items) {
 }
 
 // ==========================================
-// AUTO SIMULAZIONE COPPA CPU (Silenziosa)
-// ==========================================
-export function simulateCupRound(roundIndex) {
-    if(!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[roundIndex]) return;
-    
-    let roundMatches = gameState.userTeam.cup.rounds[roundIndex];
-    let nextRoundIndex = roundIndex + 1;
-    let advancingTeams = [];
-
-    roundMatches.forEach(m => {
-        if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) return; // Tu giochi a parte!
-
-        let t1 = getGlobalTeam(m.home);
-        let t2 = getGlobalTeam(m.away);
-        let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
-        
-        let diff = Math.abs(t1.strength - t2.strength);
-        let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
-
-        let g1=0, g2=0;
-        for(let i=0; i<totalChances; i++) {
-            if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; }
-            else { if(Math.random()>0.4) g2++; }
-        }
-
-        m.scoreHome = g1; m.scoreAway = g2;
-
-        let isSingleLeg = [0, 1, 8].includes(roundIndex);
-        let isSecondLeg = [3, 5, 7].includes(roundIndex);
-
-        if (isSingleLeg) {
-            if (g1 === g2) { if(Math.random()>0.5) m.scoreHome++; else m.scoreAway++; } // Rigori auto
-            advancingTeams.push(m.scoreHome > m.scoreAway ? m.home : m.away);
-        } else if (isSecondLeg) {
-            let prevM = gameState.userTeam.cup.rounds[roundIndex-1].find(pm => (pm.home===m.home && pm.away===m.away) || (pm.home===m.away && pm.away===m.home));
-            let agg1 = g1 + (prevM.home === m.home ? prevM.scoreHome : prevM.scoreAway);
-            let agg2 = g2 + (prevM.away === m.away ? prevM.scoreHome : prevM.scoreAway);
-            if (agg1 === agg2) { if(Math.random()>0.5) agg1++; else agg2++; } // Rigori auto
-            advancingTeams.push(agg1 > agg2 ? m.home : m.away);
-        }
-    });
-
-    if ([0, 1, 3, 5, 7].includes(roundIndex)) {
-        if (roundIndex === 0 && gameState.userTeam.cup.byes) advancingTeams.push(...gameState.userTeam.cup.byes);
-        advancingTeams.sort(() => Math.random() - 0.5); // Shuffle draw
-        let nextMatches = [];
-        for(let i=0; i<advancingTeams.length; i+=2) {
-            if (advancingTeams[i] && advancingTeams[i+1]) nextMatches.push({ home: advancingTeams[i], away: advancingTeams[i+1], scoreHome: null, scoreAway: null });
-        }
-        gameState.userTeam.cup.rounds[nextRoundIndex] = nextMatches;
-    } else if ([2, 4, 6].includes(roundIndex)) {
-        let nextMatches = roundMatches.map(m => ({ home: m.away, away: m.home, scoreHome: null, scoreAway: null }));
-        gameState.userTeam.cup.rounds[nextRoundIndex] = nextMatches;
-    }
-}
-
-function generateCupBracket() {
-    let teams = [];
-    for(let lg in gameState.world) { [1,2,3].forEach(d => gameState.world[lg][d].forEach(t => teams.push(t.name))); }
-    teams.push(gameState.userTeam.name);
-    teams.sort((a,b) => getGlobalTeam(b).strength - getGlobalTeam(a).strength); // I top 22 saltano il turno
-    
-    let byes = teams.slice(0, 22);
-    let prelims = teams.slice(22).sort(() => Math.random()-0.5);
-    let r0 = [];
-    for(let i=0; i<10; i++) r0.push({home: prelims[i*2], away: prelims[i*2+1], scoreHome:null, scoreAway:null});
-    
-    gameState.userTeam.cup = { byes: byes, rounds: { 0: r0, 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[] } };
-}
-
-// ==========================================
 // HOME, CALENDARIO E FINE STAGIONE
 // ==========================================
 function renderHome() {
@@ -262,7 +191,6 @@ function renderHome() {
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
     if (divNumEl) divNumEl.textContent = gameState.userTeam.division;
     
-    // Ora il counter fa riferimento alla settimana sulle 35 totali
     let currentWk = gameState.userTeam.seasonWeek || 1;
     if (matchdayCounter) matchdayCounter.textContent = currentWk <= 35 ? currentWk : 35;
     document.getElementById('home-div-num').nextSibling.textContent = " · Settimana ";
@@ -286,7 +214,6 @@ function renderHome() {
             else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
             else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
 
-            // Trova l'avversario
             let oppName = "???"; let isHome = true; let sStr = 0;
             if (!isCup) {
                 let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
@@ -385,7 +312,6 @@ function renderHome() {
         playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo premi e nuovo calendario...", () => { handleEndSeason(); }, "Procedi", false, true); };
     }
 
-    // CLASSIFICA CAMPIONATO
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     if (opponents.length > 0 && tableBody) {
         let standings = [...opponents];
@@ -458,9 +384,9 @@ function handleEndSeason() {
     gameState.userTeam.coins += reward;
     gameState.userTeam.stats = { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 };
     gameState.userTeam.matchday = 1;
-    gameState.userTeam.seasonWeek = 1; // RESET CALENDARIO
+    gameState.userTeam.seasonWeek = 1; 
     
-    generateCupBracket(); // GENERA LA NUOVA COPPA
+    generateCupBracket(); 
 
     let seasonMsg = `<b>Posizione:</b> ${userRank}°<br><b>Premio:</b> 💰 ${reward.toLocaleString()} | 💎 ${gemsEarned}<br><br><b>Sviluppo Rosa:</b> <span style="color:var(--accent);">${evolutions.slice(0,5).join(', ')}...</span>`;
     
@@ -765,7 +691,7 @@ function renderSquad() {
             let roleIcons = '';
             if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
             if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-            let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+            let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
             let isSelected = selectedPlayerId === p.id;
             let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
@@ -799,9 +725,15 @@ function renderSquad() {
         if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
         else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
 
+        let roleIcons = '';
+        if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
+        if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
+        let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+
         bench.innerHTML += `
             <div class="player-card player-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
                 ${warningHTML}
+                ${rolesHtml}
                 <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
                 <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                 ${getEnergyBarHTML(p)}
