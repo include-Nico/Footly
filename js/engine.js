@@ -1,5 +1,5 @@
 // js/engine.js
-import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound } from './state.js';
+import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
 import { loadView, FORMATIONS } from './router.js'; 
@@ -53,12 +53,24 @@ export function startMatchEngine() {
     
     let currentWk = gameState.userTeam.seasonWeek || 1;
     let sched = SEASON_SCHEDULE[currentWk - 1];
+    
     let isCup = sched.type === 'C';
+    let isPlayoff = sched.type === 'P'; // Settimana 36
 
     let oppName = "";
     let isHomeMatch = true;
 
-    if (isCup) {
+    if (isPlayoff) {
+        document.getElementById('intro-match-type').textContent = `🔥 PLAYOFF / PLAYOUT`;
+        let matchup = getPlayoffMatchup();
+        if (matchup) {
+            oppName = matchup.opp.name;
+            isHomeMatch = matchup.isHome;
+        } else {
+            showNotification("Errore", "Non sei nei playoff.", "error"); return;
+        }
+    }
+    else if (isCup) {
         document.getElementById('intro-match-type').textContent = `🏆 ${sched.name}`;
         if(gameState.userTeam.cup && gameState.userTeam.cup.rounds[sched.round]) {
             let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
@@ -72,7 +84,6 @@ export function startMatchEngine() {
     } else {
         document.getElementById('intro-match-type').textContent = `Giornata ${sched.day}`;
         let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
-        if (opponents.length === 0) { showNotification("Errore", "Mondo non caricato.", "error"); return; }
         let opp = opponents[(sched.day - 1) % opponents.length];
         oppName = opp.name;
         isHomeMatch = (sched.day % 2 !== 0);
@@ -94,11 +105,9 @@ export function startMatchEngine() {
     function updateMatchHeaderStr() {
         const str = getUserTeamStrength(); 
         if (isHomeMatch) {
-            let el = document.getElementById('intro-home-str');
-            if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`;
+            let el = document.getElementById('intro-home-str'); if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`;
         } else {
-            let el = document.getElementById('intro-away-str');
-            if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`;
+            let el = document.getElementById('intro-away-str'); if(el) el.innerHTML = `${str} ${getStarsHTML(str)}`;
         }
     }
     
@@ -143,15 +152,12 @@ export function startMatchEngine() {
     function showMatchBanner(type, mainText, subText, callback) {
         const banner = document.getElementById('match-banner'); const titleEl = document.getElementById('match-banner-text'); const detailsEl = document.getElementById('match-banner-details');
         if (!banner || !titleEl || !detailsEl) { if(callback) callback(); return; }
-
         titleEl.textContent = mainText; detailsEl.innerHTML = subText; titleEl.style.color = "white"; titleEl.style.textShadow = "0 4px 20px rgba(255, 255, 255, 0.4)";
-
         if (type === 'goal-user') { titleEl.style.color = "var(--accent)"; titleEl.style.textShadow = "0 4px 20px rgba(0, 245, 160, 0.6)"; } 
         else if (type === 'goal-cpu') { titleEl.style.color = "var(--notif-error)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 82, 82, 0.6)"; } 
         else if (type === 'yellow') { titleEl.style.color = "var(--gold)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 180, 41, 0.6)"; } 
         else if (type === 'red' || type === 'injury') { titleEl.style.color = "var(--notif-error)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 82, 82, 0.6)"; }
         else if (type === 'info') { titleEl.style.color = "var(--text-primary)"; }
-
         banner.classList.add('show'); setTimeout(() => { banner.classList.remove('show'); if(callback) callback(); }, 3000);
     }
 
@@ -188,7 +194,6 @@ export function startMatchEngine() {
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
                     p.energy = Math.max(0, p.energy - matchLoss);
-                    
                     if(Math.random() < 0.08) { 
                         if(Math.random() > 0.6) { p.status.injured = Math.floor(Math.random()*2)+1; } 
                         else {
@@ -211,7 +216,7 @@ export function startMatchEngine() {
                     else { if(Math.random() > 0.4) cpuScore++; }
                 }
 
-                if (isCup && checkExtraTimeOrPenalties(userScore, cpuScore)) {
+                if (checkExtraTimeOrPenalties(userScore, cpuScore)) {
                     if (Math.random() > 0.5) userScore++; else cpuScore++;
                 }
 
@@ -241,6 +246,7 @@ export function startMatchEngine() {
     };
 
     function checkExtraTimeOrPenalties(simUser = userScore, simCpu = cpuScore) {
+        if (isPlayoff) return simUser === simCpu; // In Playoff si va sempre ai rigori se pari
         if (!isCup) return false; 
         
         let isSingleLeg = [0, 1, 8].includes(sched.round);
@@ -307,7 +313,6 @@ export function startMatchEngine() {
 
     function applyYellowCard(p, reason) {
         p.matchYellows++; p.stats.yellowCards++; p.status.yellowCards++;
-
         if (p.matchYellows === 2) {
             p.status.suspended = 2; p.stats.redCards++; p.status.yellowCards = 0; 
             addLog(`🟥 DOPPIO GIALLO! <b>${p.name}</b> viene espulso!`, 'log-red');
@@ -766,7 +771,6 @@ export function startMatchEngine() {
         let totalTacAtt = tacBonusAtt + currentF.att;
         let totalTacDef = tacBonusDef + currentF.def;
         
-        // FIX SICUREZZA
         let attEl = document.getElementById('match-tactics-att');
         let defEl = document.getElementById('match-tactics-def');
         if (attEl) attEl.textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
@@ -806,7 +810,7 @@ export function startMatchEngine() {
                             ${warningHTML}
                             ${rolesHtml}
                             <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position}</div>
+                            <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                             ${getEnergyBarHTML(p)}
                             <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                         </div>
@@ -837,7 +841,7 @@ export function startMatchEngine() {
                     ${warningHTML}
                     ${rolesHtml}
                     <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
-                    <div class="card-pos">${p.position}</div>
+                    <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                     ${getEnergyBarHTML(p)}
                     <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                 </div>
@@ -912,7 +916,12 @@ export function startMatchEngine() {
         let coinsEarned = userScore * 50; 
         let title = "";
 
-        if (isCup) {
+        if (isPlayoff) {
+            gameState.userTeam.playoffWon = (userScore > cpuScore);
+            title = "Playoff Conclusi!";
+            coinsEarned += gameState.userTeam.playoffWon ? 1000 : 100;
+        }
+        else if (isCup) {
             let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
             if (isHomeMatch) { m.scoreHome = userScore; m.scoreAway = cpuScore; }
             else { m.scoreAway = userScore; m.scoreHome = cpuScore; }
@@ -920,7 +929,10 @@ export function startMatchEngine() {
             simulateCupRound(sched.round);
             
             title = "Partita di Coppa Conclusa!";
-            if (userScore > cpuScore) coinsEarned += 800;
+            if (userScore > cpuScore) {
+                coinsEarned += 800;
+                if(sched.round === 8) { gameState.userTeam.gems += 50; showNotification("CAMPIONI DI COPPA!", "Hai vinto la Coppa Nazionale! +50 Gemme!", "success", 6000); }
+            }
             else if (userScore === cpuScore) coinsEarned += 300;
         } else {
             gameState.userTeam.stats.played++;
