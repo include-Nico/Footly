@@ -50,13 +50,6 @@ export const gameState = {
     currentView: "home"
 };
 
-function hexToRgb(hex) {
-    let r = 0, g = 0, b = 0;
-    if (hex.length === 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } 
-    else if (hex.length === 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
-    return `${+r}, ${+g}, ${+b}`;
-}
-
 export function getKitCSS(c1, c2, style) {
     switch(style) {
         case 'stripes': return `background: repeating-linear-gradient(90deg, ${c1} 0px, ${c1} 20%, ${c2} 20%, ${c2} 40%);`;
@@ -111,7 +104,6 @@ export function loadGame() {
                 if (p.stats.yellowCards === undefined) p.stats.yellowCards = 0;
                 if (p.stats.redCards === undefined) p.stats.redCards = 0;
                 if (p.status.yellowCards === undefined) p.status.yellowCards = 0; 
-                // Inizializza Trasferimenti
                 if (p.isListed === undefined) p.isListed = false;
                 if (p.offers === undefined) p.offers = [];
             });
@@ -380,15 +372,15 @@ export function generateChampionsBracket(qualifiedTeams = null) {
     gameState.userTeam.champions = { groups, groupStandings, rounds };
 }
 
-// === NUOVA LOGICA CALCIOMERCATO: GENERAZIONE OFFERTE ===
+// === MERCATO: 60% PROBABILITÀ ===
 export function generateTransferOffers() {
     let hasNewOffer = false;
     if(!gameState.userTeam.players) return false;
 
     gameState.userTeam.players.forEach(p => {
         if (p.isListed && (!p.offers || p.offers.length === 0)) {
-            // 35% probabilità di ricevere un'offerta a settimana
-            if (Math.random() < 0.35) {
+            // 60% probabilità di ricevere un'offerta a settimana
+            if (Math.random() < 0.60) {
                 let lgKeys = Object.keys(gameState.world);
                 let randLg = lgKeys[Math.floor(Math.random() * lgKeys.length)];
                 let randDiv = [1, 2, 3][Math.floor(Math.random() * 3)];
@@ -399,7 +391,7 @@ export function generateTransferOffers() {
                     
                     if (buyer && buyer.name !== gameState.userTeam.name) {
                         let val = p.value || (p.overall * 100);
-                        let offerAmount = Math.floor(val * (0.8 + Math.random() * 0.4)); // Offerta tra 80% e 120% del valore
+                        let offerAmount = Math.floor(val * (0.8 + Math.random() * 0.4)); 
                         p.offers = [{
                             teamName: buyer.name,
                             league: randLg,

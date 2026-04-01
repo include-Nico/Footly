@@ -18,7 +18,6 @@ export const FORMATIONS = {
     "1-4-1": { att: 5, def: 5, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, {role:'ATT', t:'16%', l:'50%'}] }
 };
 
-// CHECK NOTIFICHE CALCIOMERCATO GLOBALE
 export function checkMarketNotifications() {
     let hasOffers = false;
     if(gameState.userTeam.players) {
@@ -49,7 +48,7 @@ export async function loadView(viewName) {
 
         selectedPlayerId = null;
         updateNavUI(viewName);
-        checkMarketNotifications(); // Aggiorna sempre il pallino mercato
+        checkMarketNotifications(); 
 
         if (viewName === 'home') renderHome();
         else if (viewName === 'squad') renderSquad();
@@ -227,6 +226,7 @@ function renderHome() {
 
     const isEndOfSeason = currentWk > 46;
 
+    // RENDERING CALENDARIO CON RISULTATI (STORICO)
     if (scheduleContainer) {
         scheduleContainer.innerHTML = '';
         for (let i = 0; i < 46; i++) {
@@ -269,6 +269,7 @@ function renderHome() {
                 if(opponents.length>0) { let opp = opponents[(sched.day - 1) % opponents.length]; oppName = opp.name; sStr = opp.strength; isHome = (sched.day % 2 !== 0); }
             }
 
+            // GESTIONE CRONOLOGIA RISULTATI
             if (i+1 < currentWk) { 
                 statusClass = 'opacity: 0.8; border-color: var(--border-dim);'; 
                 let hist = gameState.userTeam.matchHistory?.find(h => h.week === i+1);
@@ -325,7 +326,7 @@ function renderHome() {
                 else { 
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                        oppName = "Qualificato d'ufficio (Riposo)";
+                        oppName = "Qualificato";
                     } else { oppName = "Eliminato"; }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
@@ -354,7 +355,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -809,7 +810,6 @@ function renderSquad() {
         detailsContainer.innerHTML = detailsHtml;
         hubContent.appendChild(detailsContainer);
 
-        // BOTTONE MERCATO TRASFERIMENTI
         document.getElementById('btn-toggle-transfer').onclick = () => {
             if (gameState.userTeam.players.length <= 12 && !p.isListed) {
                 showNotification("Rosa Corta", "Devi avere almeno 12 giocatori prima di venderne uno.", "error"); return;
@@ -818,7 +818,7 @@ function renderSquad() {
                 showNotification("In Campo", "Togli il giocatore dai titolari prima di metterlo in vendita.", "warning"); return;
             }
             p.isListed = !p.isListed;
-            if (!p.isListed) p.offers = []; // Resetta offerte se lo togli
+            if (!p.isListed) p.offers = []; 
             saveGame();
             showNotification("Mercato", p.isListed ? "Giocatore inserito in Lista Trasferimenti." : "Giocatore rimosso dal mercato.", "info");
             renderHubPlayerDetail(p);
@@ -1005,7 +1005,6 @@ function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
     const resultsContainer = document.getElementById('market-results');
     
-    // NUOVA LOGICA TAB MERCATO TRASFERIMENTI
     const tabSearch = document.getElementById('tab-market-search');
     const tabTransfer = document.getElementById('tab-market-transfer');
     const searchView = document.getElementById('market-search-view');
@@ -1029,7 +1028,6 @@ function renderMarket() {
         };
     }
 
-    // LOGICA TAB CESSIONI
     function renderTransferList() {
         const c = document.getElementById('transfer-list-container');
         c.innerHTML = '';
@@ -1112,7 +1110,7 @@ function renderMarket() {
                     else acceptChance = 0.05;
 
                     if (Math.random() < acceptChance) {
-                        off.amount = reqPrice; // Aggiorna offerta e accetta
+                        off.amount = reqPrice; 
                         showConfirm("Affare Fatto!", `Il ${off.teamName} ha accettato la tua controproposta di 💰${reqPrice.toLocaleString()}!`, () => {
                             executeTransfer(player, off);
                         }, "Vendi", false, true);
@@ -1170,7 +1168,9 @@ function renderMarket() {
             if(nameFilter && !p.name.toLowerCase().includes(nameFilter)) return false;
             if(posFilter && p.position !== posFilter) return false;
             if(rarityFilter && p.rarity !== rarityFilter) return false;
-            if(nationFilter && p.nationKey !== nationFilter) return false;
+            
+            // FIX Ricerca Nazionalità: controlla se il nome completo della nazione è incluso (es. "Italia" è nella stringa "🇮🇹 Italia")
+            if(nationFilter && (!p.nationality || !p.nationality.includes(nationFilter))) return false;
             
             if(ageFilter) {
                 let [minAge, maxAge] = ageFilter.split('-');
