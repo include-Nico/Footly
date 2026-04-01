@@ -205,7 +205,6 @@ function renderHome() {
 
     const isEndOfSeason = currentWk > 46;
 
-    // RENDERING CALENDARIO CON RISULTATI (STORICO)
     if (scheduleContainer) {
         scheduleContainer.innerHTML = '';
         for (let i = 0; i < 46; i++) {
@@ -248,7 +247,6 @@ function renderHome() {
                 if(opponents.length>0) { let opp = opponents[(sched.day - 1) % opponents.length]; oppName = opp.name; sStr = opp.strength; isHome = (sched.day % 2 !== 0); }
             }
 
-            // GESTIONE CRONOLOGIA RISULTATI
             if (i+1 < currentWk) { 
                 statusClass = 'opacity: 0.8; border-color: var(--border-dim);'; 
                 let hist = gameState.userTeam.matchHistory?.find(h => h.week === i+1);
@@ -305,7 +303,7 @@ function renderHome() {
                 else { 
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                        oppName = "Qualificato";
+                        oppName = "Qualificato d'ufficio (Riposo)";
                     } else { oppName = "Eliminato"; }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
@@ -334,7 +332,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato" ? "Avanza Turno" : "Simula Turno");
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -360,7 +358,6 @@ function renderHome() {
         playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo premi, promozioni e retrocessioni...", () => { handleEndSeason(); }, "Procedi", false, true); };
     }
 
-    // CLASSIFICA E STATISTICHE GIOCATORI
     const tabClassifica = document.getElementById('tab-classifica');
     const tabStatistiche = document.getElementById('tab-statistiche');
     const tableContainer = document.getElementById('home-table-container');
@@ -403,7 +400,6 @@ function renderHome() {
             `;
         });
 
-        // POPOLAMENTO STATISTICHE GIOCATORI
         let allDivPlayers = [...gameState.userTeam.players.map(p => ({...p, teamName: gameState.userTeam.name, isUser: true}))];
         opponents.forEach(t => t.roster.forEach(p => allDivPlayers.push({...p, teamName: t.name, isUser: false})));
 
@@ -456,7 +452,7 @@ function handleEndSeason() {
         gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '📈', name: `Promozione in Div. ${gameState.userTeam.division - 1} (Playoff)` });
     }
 
-    // CALCOLO PREMI INDIVIDUALI (Scarpa d'oro, Assist, GK)
+    // CALCOLO PREMI INDIVIDUALI
     let allDivPlayers = [...gameState.userTeam.players.map(p => ({...p, isUser: true}))];
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     opponents.forEach(t => t.roster.forEach(p => allDivPlayers.push({...p, isUser: false})));
@@ -557,7 +553,7 @@ function handleEndSeason() {
     gameState.userTeam.seasonWeek = 1; 
     gameState.userTeam.playoffWon = false;
     gameState.userTeam.seasonYear++; 
-    gameState.userTeam.matchHistory = []; // Azzera la cronologia
+    gameState.userTeam.matchHistory = []; 
     
     generateCupBracket(); 
     generateChampionsBracket(qualTeams);
@@ -568,9 +564,6 @@ function handleEndSeason() {
     showConfirm(`🏆 Anno ${gameState.userTeam.seasonYear - 1} Concluso!`, seasonMsg, () => { renderHome(); }, "Inizia Nuova Stagione", false, true);
 }
 
-// ==========================================
-// GESTIONE SQUADRA E INVENTARIO
-// ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
     const bench = document.getElementById('bench-players');
@@ -598,15 +591,49 @@ function renderSquad() {
             const currentF = FORMATIONS[gameState.userTeam.formation];
             allPlayers.sort((a, b) => getEffectiveOverall(b) - getEffectiveOverall(a));
 
-            currentF.pos.forEach((slot, idx) => {
-                let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && (p.position === slot.role || (p.secondaryPositions && p.secondaryPositions.includes(slot.role))));
-                if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1 && (p.position === slot.role || (p.secondaryPositions && p.secondaryPositions.includes(slot.role))));
-                if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0);
-                if (!bestFit) bestFit = allPlayers.find(p => p.slotIndex === -1);
-                
+            let unfilledSlots = currentF.pos.map((slot, idx) => ({ role: slot.role, idx: idx }));
+
+            // Pass 1: Sani + Ruolo Principale
+            unfilledSlots = unfilledSlots.filter(slot => {
+                let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && p.position === slot.role);
                 if (bestFit) {
-                    bestFit.isStarter = true;
-                    bestFit.slotIndex = idx;
+                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
+                }
+                return true;
+            });
+
+            // Pass 2: Sani + Ruolo Secondario
+            unfilledSlots = unfilledSlots.filter(slot => {
+                let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && p.secondaryPositions && p.secondaryPositions.includes(slot.role));
+                if (bestFit) {
+                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
+                }
+                return true;
+            });
+
+            // Pass 3: Infortunati/Squalificati + Ruolo Principale (nel caso non ci siano sani)
+            unfilledSlots = unfilledSlots.filter(slot => {
+                let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.position === slot.role);
+                if (bestFit) {
+                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
+                }
+                return true;
+            });
+            
+            // Pass 4: Sani + Adattati in qualsiasi ruolo
+            unfilledSlots = unfilledSlots.filter(slot => {
+                let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0);
+                if (bestFit) {
+                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
+                }
+                return true;
+            });
+
+            // Pass 5: Gli scarti finali
+            unfilledSlots.forEach(slot => {
+                let bestFit = allPlayers.find(p => p.slotIndex === -1);
+                if (bestFit) {
+                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx;
                 }
             });
 
@@ -800,9 +827,7 @@ function renderSquad() {
         };
 
         document.getElementById('btn-train-role').onclick = () => {
-            // REGOLA GIÀ ESISTENTE: Blocca il potenziamento ai portieri
             if(p.position === 'POR') { showNotification("Impossibile", "I portieri non imparano altri ruoli.", "warning"); return; }
-            
             if(gameState.userTeam.coins >= roleTrainCost) {
                 showConfirm("Corso Tattico", `Spendere 💰${roleTrainCost} per un nuovo ruolo a ${p.name}? 30% di successo.`, () => {
                     gameState.userTeam.coins -= roleTrainCost; updateDashboardHeader();
