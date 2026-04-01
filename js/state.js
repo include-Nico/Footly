@@ -28,7 +28,7 @@ export const SEASON_SCHEDULE = [
 export const gameState = {
     userTeam: {
         name: "", league: "", division: 3,
-        coins: 10000, gems: 50,
+        coins: 1000, gems: 50, // MODIFICATO DA 10000 a 1000
         inventory: { healAll: 0, healPlayer: 0, superBoosts: 0 },
         activeBoostMatches: 0,
         roles: { captain: null, penalty: null },
@@ -49,6 +49,13 @@ export const gameState = {
     world: {},
     currentView: "home"
 };
+
+function hexToRgb(hex) {
+    let r = 0, g = 0, b = 0;
+    if (hex.length === 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } 
+    else if (hex.length === 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
+    return `${+r}, ${+g}, ${+b}`;
+}
 
 export function getKitCSS(c1, c2, style) {
     switch(style) {
@@ -372,7 +379,6 @@ export function generateChampionsBracket(qualifiedTeams = null) {
     gameState.userTeam.champions = { groups, groupStandings, rounds };
 }
 
-// === MERCATO: 60% PROBABILITÀ ===
 export function generateTransferOffers() {
     let hasNewOffer = false;
     if(!gameState.userTeam.players) return false;
