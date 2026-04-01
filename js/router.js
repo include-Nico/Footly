@@ -285,6 +285,7 @@ function renderHome() {
             else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
             else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
 
+
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
             if (oppName === "Eliminato" || oppName === "Qualificato" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
@@ -323,7 +324,7 @@ function renderHome() {
                 else { 
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                        oppName = "Qualificato d'ufficio (Riposo)";
+                        oppName = "Qualificato";
                     } else { oppName = "Eliminato"; }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
@@ -352,7 +353,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -1025,41 +1026,6 @@ function renderMarket() {
         };
     }
 
-    // LOGICA DUAL SLIDER PREZZO
-    const minSlider = document.getElementById('market-price-min');
-    const maxSlider = document.getElementById('market-price-max');
-    const minVal = document.getElementById('price-min-val');
-    const maxVal = document.getElementById('price-max-val');
-    const trackFill = document.getElementById('price-track-fill');
-
-    if (minSlider && maxSlider) {
-        function updateSlider() {
-            let min = parseInt(minSlider.value);
-            let max = parseInt(maxSlider.value);
-            if(min > max) { let tmp = min; min = max; max = tmp; }
-            
-            minVal.textContent = min.toLocaleString('it-IT');
-            maxVal.textContent = max.toLocaleString('it-IT');
-            
-            let percentMin = (min / 1000000) * 100;
-            let percentMax = (max / 1000000) * 100;
-            trackFill.style.left = percentMin + "%";
-            trackFill.style.width = (percentMax - percentMin) + "%";
-        }
-        
-        minSlider.addEventListener('input', () => {
-            if(parseInt(minSlider.value) > parseInt(maxSlider.value)) minSlider.value = maxSlider.value;
-            updateSlider();
-        });
-        
-        maxSlider.addEventListener('input', () => {
-            if(parseInt(maxSlider.value) < parseInt(minSlider.value)) maxSlider.value = minSlider.value;
-            updateSlider();
-        });
-        
-        updateSlider();
-    }
-
     function renderTransferList() {
         const c = document.getElementById('transfer-list-container');
         c.innerHTML = '';
@@ -1181,9 +1147,7 @@ function renderMarket() {
         const posFilter = document.getElementById('market-pos').value;
         const rarityFilter = document.getElementById('market-rarity').value;
         const ageFilter = document.getElementById('market-age').value;
-        
-        const minPrice = parseInt(document.getElementById('market-price-min').value);
-        const maxPrice = parseInt(document.getElementById('market-price-max').value);
+        const budgetFilter = document.getElementById('market-budget').value; 
 
         let allPlayers = [];
         if(gameState.world) {
@@ -1204,7 +1168,7 @@ function renderMarket() {
             if(rarityFilter && p.rarity !== rarityFilter) return false;
             
             let playerPrice = p.value || (p.overall * 100);
-            if (playerPrice < minPrice || playerPrice > maxPrice) return false;
+            if (budgetFilter && playerPrice > parseInt(budgetFilter)) return false;
             
             if(ageFilter) {
                 let [minAge, maxAge] = ageFilter.split('-');
@@ -1216,7 +1180,7 @@ function renderMarket() {
 
         filtered.sort((a, b) => b.overall - a.overall);
         resultsContainer.innerHTML = '';
-        if(filtered.length === 0) { resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato in questa fascia di prezzo.</p>'; return; }
+        if(filtered.length === 0) { resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato col budget selezionato.</p>'; return; }
 
         filtered.slice(0, 30).forEach(p => {
             const flag = p.nationality ? p.nationality.split(' ')[0] : '';
@@ -1227,7 +1191,7 @@ function renderMarket() {
                     <div class="card-pos">${p.position} <span style="font-size:10px;">${flag} ${p.age}a</span></div>
                     <div class="card-name" title="${p.name}" style="font-size: 10px; margin-bottom: 4px;">${p.name.split(' ')[1] || p.name}</div>
                     <div style="font-size: 8px; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; border-top: 1px solid var(--border-dim); padding-top: 4px;">${p.teamName}</div>
-                    <button class="glass-btn buy-btn" data-id="${p.id}" data-team="${p.teamName}" data-league="${p.leagueName}" data-div="${p.divLevel}" data-price="${p.value}" style="padding: 6px; font-size: 11px; margin-top: 8px; width: 100%; border-color: var(--gold); color: var(--gold);">💰 ${p.value.toLocaleString()}</button>
+                    <button class="glass-btn buy-btn" data-id="${p.id}" data-team="${p.teamName}" data-league="${p.leagueName}" data-div="${p.divLevel}" data-price="${p.value || (p.overall*100)}" style="padding: 6px; font-size: 11px; margin-top: 8px; width: 100%; border-color: var(--gold); color: var(--gold);">💰 ${(p.value || p.overall*100).toLocaleString()}</button>
                 </div>
             `;
         });
