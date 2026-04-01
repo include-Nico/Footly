@@ -264,7 +264,6 @@ function renderHome() {
             else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
             else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
 
-
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
             if (oppName === "Eliminato" || oppName === "Qualificato" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
@@ -452,7 +451,6 @@ function handleEndSeason() {
         gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '📈', name: `Promozione in Div. ${gameState.userTeam.division - 1} (Playoff)` });
     }
 
-    // CALCOLO PREMI INDIVIDUALI
     let allDivPlayers = [...gameState.userTeam.players.map(p => ({...p, isUser: true}))];
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     opponents.forEach(t => t.roster.forEach(p => allDivPlayers.push({...p, isUser: false})));
@@ -593,53 +591,36 @@ function renderSquad() {
 
             let unfilledSlots = currentF.pos.map((slot, idx) => ({ role: slot.role, idx: idx }));
 
-            // Pass 1: Sani + Ruolo Principale
             unfilledSlots = unfilledSlots.filter(slot => {
                 let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && p.position === slot.role);
-                if (bestFit) {
-                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
-                }
+                if (bestFit) { bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false; }
                 return true;
             });
 
-            // Pass 2: Sani + Ruolo Secondario
             unfilledSlots = unfilledSlots.filter(slot => {
                 let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0 && p.secondaryPositions && p.secondaryPositions.includes(slot.role));
-                if (bestFit) {
-                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
-                }
+                if (bestFit) { bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false; }
                 return true;
             });
 
-            // Pass 3: Infortunati/Squalificati + Ruolo Principale (nel caso non ci siano sani)
             unfilledSlots = unfilledSlots.filter(slot => {
                 let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.position === slot.role);
-                if (bestFit) {
-                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
-                }
+                if (bestFit) { bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false; }
                 return true;
             });
             
-            // Pass 4: Sani + Adattati in qualsiasi ruolo
             unfilledSlots = unfilledSlots.filter(slot => {
                 let bestFit = allPlayers.find(p => p.slotIndex === -1 && p.status.injured === 0 && p.status.suspended === 0);
-                if (bestFit) {
-                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false;
-                }
+                if (bestFit) { bestFit.isStarter = true; bestFit.slotIndex = slot.idx; return false; }
                 return true;
             });
 
-            // Pass 5: Gli scarti finali
             unfilledSlots.forEach(slot => {
                 let bestFit = allPlayers.find(p => p.slotIndex === -1);
-                if (bestFit) {
-                    bestFit.isStarter = true; bestFit.slotIndex = slot.idx;
-                }
+                if (bestFit) { bestFit.isStarter = true; bestFit.slotIndex = slot.idx; }
             });
 
-            saveGame();
-            renderSquad();
-            showNotification('Ottimizzazione Completata', 'I giocatori migliori sono stati schierati.', 'success');
+            saveGame(); renderSquad(); showNotification('Ottimizzazione Completata', 'I giocatori migliori sono stati schierati.', 'success');
         };
     }
 
@@ -1109,6 +1090,22 @@ function renderProfile() {
         }
     }
 
+    const kitEditorHeader = document.getElementById('kit-editor-header');
+    const kitEditorContent = document.getElementById('kit-editor-content');
+    const kitEditorChevron = document.getElementById('kit-editor-chevron');
+
+    if (kitEditorHeader && kitEditorContent) {
+        kitEditorHeader.onclick = () => {
+            if (kitEditorContent.style.display === 'none' || kitEditorContent.style.display === '') {
+                kitEditorContent.style.display = 'flex';
+                kitEditorChevron.style.transform = 'rotate(180deg)';
+            } else {
+                kitEditorContent.style.display = 'none';
+                kitEditorChevron.style.transform = 'rotate(0deg)';
+            }
+        };
+    }
+
     const c1 = document.getElementById('edit-color-1');
     const c2 = document.getElementById('edit-color-2');
     const styleSel = document.getElementById('edit-kit-style');
@@ -1121,12 +1118,26 @@ function renderProfile() {
         styleSel.innerHTML = gameState.userTeam.ownedKits.map(k => `<option value="${k}" ${gameState.userTeam.kitStyle === k ? 'selected' : ''}>${KIT_STYLES_LABELS[k]}</option>`).join('');
         
         saveKitBtn.onclick = () => {
+            saveKitBtn.innerHTML = `<i class="fas fa-check"></i> Salvato!`;
+            saveKitBtn.style.transform = 'scale(1.05)';
+            saveKitBtn.style.background = 'rgba(0, 245, 160, 0.2)';
+            
             gameState.userTeam.colors.primary = c1.value;
             gameState.userTeam.colors.secondary = c2.value;
             gameState.userTeam.kitStyle = styleSel.value;
             saveGame();
-            renderProfile();
-            showNotification("Divisa Aggiornata!", "I nuovi colori sono stati applicati.", "success");
+            
+            if (crestEl) {
+                crestEl.style.cssText = `width: 80px; height: 95px; margin: 0 auto 15px; border-radius: 12px 12px 50% 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 3px solid rgba(255,255,255,0.8);`;
+                crestEl.style.cssText += getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+            }
+            
+            setTimeout(() => {
+                saveKitBtn.innerHTML = `<i class="fas fa-palette"></i> Applica Modifiche`;
+                saveKitBtn.style.transform = 'scale(1)';
+                saveKitBtn.style.background = 'transparent';
+                showNotification("Divisa Aggiornata!", "I nuovi colori sono stati applicati.", "success");
+            }, 600);
         };
     }
 
