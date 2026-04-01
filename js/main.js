@@ -54,7 +54,9 @@ mainContent.addEventListener('touchend', e => {
         e.target.closest('.goal-grid') ||                   // Griglia dei rigori / occasioni
         e.target.closest('.table-responsive') ||            // Tabelle scorrimento
         e.target.closest('#pack-reveal-area') ||            // Animazione spacchettamento
-        e.target.closest('.hub-list-item')) {               // Hub Squadra giocatori
+        e.target.closest('.hub-list-item') ||               // Hub Squadra giocatori
+        e.target.closest('.dual-slider-container') ||       // Slider del range di prezzo
+        e.target.closest('.dual-slider-input')) {           // Pallini dello slider
         return;
     }
 
