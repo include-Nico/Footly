@@ -41,7 +41,7 @@ export const gameState = {
         cup: { byes: [], rounds: {} }, 
         champions: { groups: [], groupStandings: [], rounds: {} }, 
         palmares: [], 
-        matchHistory: [], // NUOVO: Salva i risultati per il calendario
+        matchHistory: [],
         playoffWon: false,
         players: [],
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
@@ -95,8 +95,7 @@ export function loadGame() {
         
         if (!gameState.userTeam.seasonYear) gameState.userTeam.seasonYear = 1;
         if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
-        if (!gameState.userTeam.matchHistory) gameState.userTeam.matchHistory = []; // Fix cronologia
-        
+        if (!gameState.userTeam.matchHistory) gameState.userTeam.matchHistory = []; 
         if (!gameState.userTeam.ownedKits) gameState.userTeam.ownedKits = ["solid", "stripes", "halves"];
 
         if (!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[0] || gameState.userTeam.cup.rounds[0].length === 0) {
@@ -112,6 +111,9 @@ export function loadGame() {
                 if (p.stats.yellowCards === undefined) p.stats.yellowCards = 0;
                 if (p.stats.redCards === undefined) p.stats.redCards = 0;
                 if (p.status.yellowCards === undefined) p.status.yellowCards = 0; 
+                // Inizializza Trasferimenti
+                if (p.isListed === undefined) p.isListed = false;
+                if (p.offers === undefined) p.offers = [];
             });
         }
         
@@ -376,4 +378,39 @@ export function generateChampionsBracket(qualifiedTeams = null) {
     for(let r=5; r<=9; r++) rounds[r] = [];
 
     gameState.userTeam.champions = { groups, groupStandings, rounds };
+}
+
+// === NUOVA LOGICA CALCIOMERCATO: GENERAZIONE OFFERTE ===
+export function generateTransferOffers() {
+    let hasNewOffer = false;
+    if(!gameState.userTeam.players) return false;
+
+    gameState.userTeam.players.forEach(p => {
+        if (p.isListed && (!p.offers || p.offers.length === 0)) {
+            // 35% probabilità di ricevere un'offerta a settimana
+            if (Math.random() < 0.35) {
+                let lgKeys = Object.keys(gameState.world);
+                let randLg = lgKeys[Math.floor(Math.random() * lgKeys.length)];
+                let randDiv = [1, 2, 3][Math.floor(Math.random() * 3)];
+                
+                if (gameState.world[randLg] && gameState.world[randLg][randDiv]) {
+                    let teams = gameState.world[randLg][randDiv];
+                    let buyer = teams[Math.floor(Math.random() * teams.length)];
+                    
+                    if (buyer && buyer.name !== gameState.userTeam.name) {
+                        let val = p.value || (p.overall * 100);
+                        let offerAmount = Math.floor(val * (0.8 + Math.random() * 0.4)); // Offerta tra 80% e 120% del valore
+                        p.offers = [{
+                            teamName: buyer.name,
+                            league: randLg,
+                            division: randDiv,
+                            amount: offerAmount
+                        }];
+                        hasNewOffer = true;
+                    }
+                }
+            }
+        }
+    });
+    return hasNewOffer;
 }

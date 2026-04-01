@@ -18,6 +18,27 @@ export const FORMATIONS = {
     "1-4-1": { att: 5, def: 5, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, {role:'ATT', t:'16%', l:'50%'}] }
 };
 
+// CHECK NOTIFICHE CALCIOMERCATO GLOBALE
+export function checkMarketNotifications() {
+    let hasOffers = false;
+    if(gameState.userTeam.players) {
+        hasOffers = gameState.userTeam.players.some(p => p.isListed && p.offers && p.offers.length > 0);
+    }
+    
+    let navIcon = document.querySelector('.nav-item[data-target="market"]');
+    if (navIcon) {
+        let dot = navIcon.querySelector('.market-notif-dot');
+        if (hasOffers) {
+            if (!dot) {
+                navIcon.style.position = 'relative';
+                navIcon.innerHTML += `<div class="market-notif-dot" style="position:absolute; top:2px; right:10px; width:10px; height:10px; background:var(--notif-error); border-radius:50%; box-shadow:0 0 5px var(--notif-error);"></div>`;
+            }
+        } else if (dot) {
+            dot.remove();
+        }
+    }
+}
+
 export async function loadView(viewName) {
     try {
         const cacheBuster = new Date().getTime();
@@ -28,6 +49,7 @@ export async function loadView(viewName) {
 
         selectedPlayerId = null;
         updateNavUI(viewName);
+        checkMarketNotifications(); // Aggiorna sempre il pallino mercato
 
         if (viewName === 'home') renderHome();
         else if (viewName === 'squad') renderSquad();
@@ -263,6 +285,7 @@ function renderHome() {
             } 
             else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
             else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
+
 
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
@@ -754,15 +777,18 @@ function renderSquad() {
                 ${tBoost > 0 ? `<div style="margin-top:10px; font-size:11px; color:var(--accent); text-align:center;"><i class="fas fa-dumbbell"></i> Allenamento Stagionale: +${tBoost}</div>` : ''}
             </div>
 
-            <div class="section-label">Ruoli in Campo</div>
-            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+            <div class="section-label">Mercato & Ruoli</div>
+            <div style="display:flex; gap:10px; margin-bottom: 10px;">
                 <button id="btn-set-cap" class="glass-btn" style="flex:1; border-color:${isCap ? 'var(--gold)' : 'var(--border-dim)'}; color:${isCap ? 'var(--gold)' : 'var(--text-primary)'}">
-                    <i class="fas fa-copyright"></i> ${isCap ? 'Capitano' : 'Fai Capitano'}
+                    <i class="fas fa-copyright"></i> ${isCap ? 'Capitano' : 'Fai Cap.'}
                 </button>
                 <button id="btn-set-pen" class="glass-btn" style="flex:1; border-color:${isPen ? 'var(--accent)' : 'var(--border-dim)'}; color:${isPen ? 'var(--accent)' : 'var(--text-primary)'}">
-                    <i class="fas fa-bullseye"></i> ${isPen ? 'Rigorista' : 'Fai Rigorista'}
+                    <i class="fas fa-bullseye"></i> ${isPen ? 'Rigorista' : 'Fai Rig.'}
                 </button>
             </div>
+            <button id="btn-toggle-transfer" class="glass-btn" style="width:100%; border-color:${p.isListed ? 'var(--notif-warning)' : 'var(--border-dim)'}; color:${p.isListed ? 'var(--notif-warning)' : 'var(--text-primary)'}; margin-bottom: 20px;">
+                <i class="fas fa-right-left"></i> ${p.isListed ? 'Rimuovi dal Mercato' : 'Metti in Vetrina Trasferimenti'}
+            </button>
 
             <div class="section-label">Sviluppo e Gestione</div>
             <button id="btn-train-stats" class="glass-btn hub-action-btn" style="border-color: var(--accent); color: var(--text-primary);">
@@ -775,13 +801,28 @@ function renderSquad() {
             </button>
             <div class="divider" style="margin: 20px 0;"></div>
             <button id="btn-sell-player" class="glass-btn hub-action-btn" style="background: rgba(240,82,82,0.1); border-color: var(--notif-error); color: var(--notif-error); justify-content: center;">
-                <i class="fas fa-trash-can"></i> Svincola Giocatore (Ricavo: 💰 ${Math.floor(val * 0.9).toLocaleString()})
+                <i class="fas fa-trash-can"></i> Svincola Giocatore Subito (Ricavo: 💰 ${Math.floor(val * 0.9).toLocaleString()})
             </button>
         `;
         
         const detailsContainer = document.createElement('div');
         detailsContainer.innerHTML = detailsHtml;
         hubContent.appendChild(detailsContainer);
+
+        // BOTTONE MERCATO TRASFERIMENTI
+        document.getElementById('btn-toggle-transfer').onclick = () => {
+            if (gameState.userTeam.players.length <= 12 && !p.isListed) {
+                showNotification("Rosa Corta", "Devi avere almeno 12 giocatori prima di venderne uno.", "error"); return;
+            }
+            if (p.isStarter && !p.isListed) {
+                showNotification("In Campo", "Togli il giocatore dai titolari prima di metterlo in vendita.", "warning"); return;
+            }
+            p.isListed = !p.isListed;
+            if (!p.isListed) p.offers = []; // Resetta offerte se lo togli
+            saveGame();
+            showNotification("Mercato", p.isListed ? "Giocatore inserito in Lista Trasferimenti." : "Giocatore rimosso dal mercato.", "info");
+            renderHubPlayerDetail(p);
+        };
 
         document.getElementById('btn-set-cap').onclick = () => {
             if (!gameState.userTeam.roles) gameState.userTeam.roles = {};
@@ -963,8 +1004,148 @@ function renderSquad() {
 function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
     const resultsContainer = document.getElementById('market-results');
-    if(!searchBtn || !resultsContainer) return;
+    
+    // NUOVA LOGICA TAB MERCATO TRASFERIMENTI
+    const tabSearch = document.getElementById('tab-market-search');
+    const tabTransfer = document.getElementById('tab-market-transfer');
+    const searchView = document.getElementById('market-search-view');
+    const transferView = document.getElementById('market-transfer-view');
+    
+    let hasOffers = gameState.userTeam.players.some(p => p.isListed && p.offers && p.offers.length > 0);
+    const transferBadge = document.getElementById('transfer-notif-badge');
+    if (transferBadge) transferBadge.style.display = hasOffers ? 'block' : 'none';
 
+    if (tabSearch && tabTransfer) {
+        tabSearch.onclick = () => {
+            tabSearch.style.borderColor = "var(--accent)"; tabSearch.style.color = "var(--accent)";
+            tabTransfer.style.borderColor = "var(--border-dim)"; tabTransfer.style.color = "white";
+            searchView.style.display = 'flex'; transferView.style.display = 'none';
+        };
+        tabTransfer.onclick = () => {
+            tabTransfer.style.borderColor = "var(--accent)"; tabTransfer.style.color = "var(--accent)";
+            tabSearch.style.borderColor = "var(--border-dim)"; tabSearch.style.color = "white";
+            searchView.style.display = 'none'; transferView.style.display = 'flex';
+            renderTransferList();
+        };
+    }
+
+    // LOGICA TAB CESSIONI
+    function renderTransferList() {
+        const c = document.getElementById('transfer-list-container');
+        c.innerHTML = '';
+        let listedPlayers = gameState.userTeam.players.filter(p => p.isListed);
+        
+        if (listedPlayers.length === 0) {
+            c.innerHTML = `<div style="text-align:center; color:var(--text-hint); font-size:12px; margin-top:20px;">Non hai giocatori in vendita.<br>Vai nella schermata Rosa per aggiungere giocatori alla lista trasferimenti.</div>`;
+            return;
+        }
+
+        listedPlayers.forEach(p => {
+            let offerHtml = `<div style="color:var(--text-hint); font-size:11px; margin-top:8px;">Nessuna offerta. Attendi le prossime giornate...</div>`;
+            
+            if (p.offers && p.offers.length > 0) {
+                let off = p.offers[0];
+                offerHtml = `
+                    <div style="background:rgba(0,245,160,0.1); border:1px solid var(--accent); border-radius:4px; padding:10px; margin-top:10px;">
+                        <div style="font-size:11px; color:var(--text-hint); margin-bottom:4px;">Offerta da: <b>${off.teamName}</b></div>
+                        <div style="font-size:18px; font-weight:bold; color:var(--gold); margin-bottom:10px;">💰 ${off.amount.toLocaleString()}</div>
+                        <div style="display:flex; gap:5px;">
+                            <button class="glass-btn btn-accept-offer" data-id="${p.id}" style="flex:1; border-color:var(--accent); color:var(--accent); font-size:11px; padding:6px;"><i class="fas fa-check"></i> Accetta</button>
+                            <button class="glass-btn btn-nego-offer" data-id="${p.id}" style="flex:1; border-color:var(--notif-info); color:var(--notif-info); font-size:11px; padding:6px;"><i class="fas fa-comments"></i> Tratta</button>
+                            <button class="glass-btn btn-reject-offer" data-id="${p.id}" style="flex:1; border-color:var(--notif-error); color:var(--notif-error); font-size:11px; padding:6px;"><i class="fas fa-xmark"></i> Rifiuta</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            c.innerHTML += `
+                <div class="glass-panel" style="padding:15px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div class="card-overall" style="color:${p.color}; font-size:22px;">${p.overall}</div>
+                        <div>
+                            <div style="font-weight:bold; font-size:14px; color:var(--text-primary);">${p.name}</div>
+                            <div style="font-size:10px; color:var(--text-muted);">${p.position} · Valore: 💰 ${(p.value || p.overall * 100).toLocaleString()}</div>
+                        </div>
+                    </div>
+                    ${offerHtml}
+                </div>
+            `;
+        });
+
+        document.querySelectorAll('.btn-accept-offer').forEach(btn => {
+            btn.onclick = (e) => {
+                let pId = e.currentTarget.getAttribute('data-id');
+                let player = gameState.userTeam.players.find(x => x.id === pId);
+                let off = player.offers[0];
+                showConfirm("Accetta Offerta", `Vuoi vendere ${player.name} al ${off.teamName} per 💰${off.amount.toLocaleString()}?`, () => {
+                    executeTransfer(player, off);
+                });
+            };
+        });
+
+        document.querySelectorAll('.btn-reject-offer').forEach(btn => {
+            btn.onclick = (e) => {
+                let pId = e.currentTarget.getAttribute('data-id');
+                let player = gameState.userTeam.players.find(x => x.id === pId);
+                player.offers = []; saveGame(); renderTransferList(); checkMarketNotifications();
+                showNotification("Offerta Rifiutata", "Attendi nuove offerte in futuro.", "info");
+            };
+        });
+
+        document.querySelectorAll('.btn-nego-offer').forEach(btn => {
+            btn.onclick = (e) => {
+                let pId = e.currentTarget.getAttribute('data-id');
+                let player = gameState.userTeam.players.find(x => x.id === pId);
+                let off = player.offers[0];
+                
+                let reqPrice = prompt(`Controproposta per ${player.name} al ${off.teamName}.\nOfferta attuale: ${off.amount.toLocaleString()}\nInserisci la nuova richiesta (es. ${Math.floor(off.amount * 1.1)}):`, off.amount);
+                
+                if (reqPrice !== null) {
+                    reqPrice = parseInt(reqPrice.replace(/\D/g, ''));
+                    if (isNaN(reqPrice) || reqPrice <= 0) return;
+                    
+                    let multiplier = reqPrice / off.amount;
+                    let acceptChance = 0;
+                    if (multiplier <= 1.05) acceptChance = 0.90;
+                    else if (multiplier <= 1.15) acceptChance = 0.60;
+                    else if (multiplier <= 1.25) acceptChance = 0.30;
+                    else acceptChance = 0.05;
+
+                    if (Math.random() < acceptChance) {
+                        off.amount = reqPrice; // Aggiorna offerta e accetta
+                        showConfirm("Affare Fatto!", `Il ${off.teamName} ha accettato la tua controproposta di 💰${reqPrice.toLocaleString()}!`, () => {
+                            executeTransfer(player, off);
+                        }, "Vendi", false, true);
+                    } else {
+                        player.offers = []; saveGame(); renderTransferList(); checkMarketNotifications();
+                        showNotification("Trattativa Saltata", `Il ${off.teamName} ha ritenuto la richiesta eccessiva e si è ritirato.`, "error", 4000);
+                    }
+                }
+            };
+        });
+    }
+
+    function executeTransfer(player, offer) {
+        if(gameState.userTeam.players.length <= 12) { showNotification('Rosa Corta', 'Devi avere ALMENO 12 giocatori! Impossibile vendere.', 'error'); return; }
+        
+        gameState.userTeam.players = gameState.userTeam.players.filter(p => p.id !== player.id);
+        gameState.userTeam.coins += offer.amount;
+        
+        player.isStarter = false; player.slotIndex = -1; player.isListed = false; player.offers = [];
+        let cpuTeam = gameState.world[offer.league][offer.division].find(t => t.name === offer.teamName);
+        if (cpuTeam) {
+            cpuTeam.roster.push(player);
+            if (cpuTeam.roster.length > 14) {
+                cpuTeam.roster.sort((a,b) => a.overall - b.overall);
+                cpuTeam.roster.shift(); 
+            }
+        }
+        
+        saveGame(); updateDashboardHeader(); renderTransferList(); checkMarketNotifications();
+        showNotification('Venduto!', `${player.name} ceduto al ${offer.teamName}. +💰${offer.amount.toLocaleString()}`, 'success');
+    }
+
+    if(!searchBtn || !resultsContainer) return;
     searchBtn.onclick = () => {
         const nameFilter = document.getElementById('market-search-name').value.toLowerCase();
         const posFilter = document.getElementById('market-pos').value;

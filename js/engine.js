@@ -1,8 +1,8 @@
 // js/engine.js
-import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS } from './state.js';
+import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS, generateTransferOffers } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
-import { loadView, FORMATIONS } from './router.js'; 
+import { loadView, FORMATIONS, checkMarketNotifications } from './router.js'; 
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
@@ -195,7 +195,7 @@ export function startMatchEngine() {
         let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
         let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     }
-
+    
     updateMatchHeaderStr(); updateScoreUI();
 
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
@@ -421,7 +421,15 @@ export function startMatchEngine() {
                 if(Math.random() > 0.85) { 
                     p.status.injured = Math.floor(Math.random()*2)+1; 
                     addLog(`🤕 Brutto contrasto! <b>${p.name}</b> è infortunato!`, 'log-injury'); 
-                    showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { renderMatchSubsList(); resumeMatch('foul'); });
+                    showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { 
+                        renderMatchSubsList(); 
+                        resumeMatch('foul'); 
+                        
+                        let availableBench = gameState.userTeam.players.filter(pl => !pl.isStarter && pl.status.injured === 0 && pl.status.suspended === 0);
+                        if (subsLeft > 0 && availableBench.length > 0) {
+                            document.getElementById('btn-pause-sub').click();
+                        }
+                    });
                 } else { applyYellowCard(p, 'foul'); }
             }
         }
@@ -808,6 +816,14 @@ export function startMatchEngine() {
         modal.classList.add('active');
 
         document.getElementById('close-subs-btn').onclick = () => {
+            let injuredStarters = gameState.userTeam.players.filter(p => p.isStarter && p.status.injured > 0);
+            let availableBench = gameState.userTeam.players.filter(p => !p.isStarter && p.status.injured === 0 && p.status.suspended === 0);
+            
+            if (injuredStarters.length > 0 && subsLeft > 0 && availableBench.length > 0) {
+                showNotification("Sostituzione Obbligatoria", "Devi sostituire il giocatore infortunato prima di continuare!", "warning");
+                return;
+            }
+
             modal.classList.remove('active');
             resumeMatch('subs');
         };
@@ -852,10 +868,10 @@ export function startMatchEngine() {
                 let roleIcons = '';
                 if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
                 if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-                let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+                let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
                 let isSelected = selectedPlayerId === p.id;
-                let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
+                let selStyle = isSelected ? `border: 2px solid #00f5a0; box-shadow: 0 0 20px #00f5a0; transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
                 const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
 
                 pitch.innerHTML += `
@@ -865,7 +881,7 @@ export function startMatchEngine() {
                             ${warningHTML}
                             ${rolesHtml}
                             <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
+                            <div class="card-pos">${p.position}</div>
                             ${getEnergyBarHTML(p)}
                             <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                         </div>
@@ -889,7 +905,7 @@ export function startMatchEngine() {
             let roleIcons = '';
             if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
             if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-            let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+            let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
             bench.innerHTML += `
                 <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
@@ -905,14 +921,18 @@ export function startMatchEngine() {
 
         function executeMatchSwap(id1, id2) {
             if(id1 === id2) return;
-            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
-
+            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
+            let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+            
             if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
                 (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
-                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error"); return;
+                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error");
+                return;
             }
+
             if ((p1.isStarter && p1.status.suspended > 0) || (p2.isStarter && p2.status.suspended > 0)) {
-                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error"); return;
+                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error");
+                return;
             }
             
             if(p1.isStarter !== p2.isStarter) {
@@ -1085,12 +1105,18 @@ export function startMatchEngine() {
             gameState.userTeam.matchday++;
         }
 
+        // GENERAZIONE MERCATO
+        let marketUpdated = generateTransferOffers();
+
         gameState.userTeam.coins += coinsEarned;
         gameState.userTeam.seasonWeek++;
         saveGame();
         updateDashboardHeader();
+        checkMarketNotifications();
 
-        showConfirm(title, `Partita conclusa: <b>${userScore} - ${cpuScore}</b><br><br>Hai guadagnato 💰${coinsEarned}.`, () => {
+        let extraMsg = marketUpdated ? "<br><br><b>Novità sul Mercato!</b> Hai ricevuto un'offerta." : "";
+
+        showConfirm(title, `Partita conclusa: <b>${userScore} - ${cpuScore}</b><br><br>Hai guadagnato 💰${coinsEarned}.${extraMsg}`, () => {
             loadView('home');
         }, "Torna alla Dashboard", false, true); 
     }
