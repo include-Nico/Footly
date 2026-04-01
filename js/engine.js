@@ -132,7 +132,17 @@ export function startMatchEngine() {
     }
     if (document.getElementById('intro-aggregate')) document.getElementById('intro-aggregate').textContent = aggregateText;
 
-    // === INIZIO: TEMA DINAMICO COLORI SQUADRE ===
+    let c1 = gameState.userTeam.colors.primary;
+    let c2 = gameState.userTeam.colors.secondary;
+    let sKit = gameState.userTeam.kitStyle;
+    let userKit = `background: ${c1};`;
+    if (sKit === 'stripes') userKit = `background: repeating-linear-gradient(90deg, ${c1} 0px, ${c1} 20px, ${c2} 20px, ${c2} 40px);`;
+    else if (sKit === 'halves') userKit = `background: linear-gradient(90deg, ${c1} 50%, ${c2} 50%);`;
+    else if (sKit === 'diagonal') userKit = `background: linear-gradient(135deg, ${c1} 50%, ${c2} 50%);`;
+    else if (sKit === 'hoops') userKit = `background: repeating-linear-gradient(0deg, ${c1} 0px, ${c1} 20px, ${c2} 20px, ${c2} 40px);`;
+    else if (sKit === 'checkered') userKit = `background-color: ${c1}; background-image: conic-gradient(${c1} 90deg, ${c2} 90deg 180deg, ${c1} 180deg 270deg, ${c2} 270deg); background-size: 20px 20px;`;
+    else if (sKit === 'camouflage') userKit = `background-color: ${c1}; background-image: radial-gradient(circle at 20% 30%, ${c2} 30%, transparent 30%), radial-gradient(circle at 80% 70%, ${c2} 30%, transparent 30%);`;
+
     function hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
         if (!hex) return `rgba(255,255,255,${alpha})`;
@@ -157,22 +167,19 @@ export function startMatchEngine() {
         return palettes[hash % palettes.length];
     }
 
-    let userKitCSS = getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
     let cpuStyle = getCpuTeamStyle(oppName);
     let cpuKitCSS = getKitCSS(cpuStyle.p, cpuStyle.s, cpuStyle.k);
 
-    let userShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${userKitCSS}"></div>`;
+    let userShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${userKit}"></div>`;
     let cpuShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid rgba(255,255,255,0.7); box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${cpuKitCSS}"></div>`;
 
     let homeColor = isHomeMatch ? gameState.userTeam.colors.primary : cpuStyle.p;
     let awayColor = isHomeMatch ? cpuStyle.p : gameState.userTeam.colors.primary;
 
-    // Sfondo Diviso per l'Intro
     document.getElementById('match-intro').style.background = `linear-gradient(135deg, ${hexToRgba(homeColor, 0.15)} 0%, var(--bg-surface) 40%, var(--bg-surface) 60%, ${hexToRgba(awayColor, 0.15)} 100%)`;
 
-    // Sfondo Luci Stadio in Partita (Luci casa o neutre)
     let stadiumColor = isHomeMatch ? gameState.userTeam.colors.primary : cpuStyle.p;
-    if ((isCup && sched.round === 8) || (isChampions && sched.round === 9)) stadiumColor = '#f0b429'; // Oro per le finali
+    if ((isCup && sched.round === 8) || (isChampions && sched.round === 9)) stadiumColor = '#f0b429'; 
     document.querySelector('.match-view').style.backgroundImage = `radial-gradient(circle at top, ${hexToRgba(stadiumColor, 0.15)} 0%, transparent 70%)`;
 
     if (isHomeMatch) {
@@ -184,7 +191,7 @@ export function startMatchEngine() {
         document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase(); 
         document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
         
-        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
+        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
         let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     } else {
         document.getElementById('intro-home-icon').innerHTML = cpuShield; 
@@ -195,11 +202,10 @@ export function startMatchEngine() {
         document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase(); 
         document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
         
-        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
+        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
         let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     }
-    // === FINE: TEMA DINAMICO COLORI SQUADRE ===
-
+    
     updateMatchHeaderStr(); updateScoreUI();
 
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
@@ -425,7 +431,16 @@ export function startMatchEngine() {
                 if(Math.random() > 0.85) { 
                     p.status.injured = Math.floor(Math.random()*2)+1; 
                     addLog(`🤕 Brutto contrasto! <b>${p.name}</b> è infortunato!`, 'log-injury'); 
-                    showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { renderMatchSubsList(); resumeMatch('foul'); });
+                    showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { 
+                        renderMatchSubsList(); 
+                        resumeMatch('foul'); 
+                        
+                        // AUTO OPEN SUB MENU IF FORCED SUB IS NEEDED
+                        let availableBench = gameState.userTeam.players.filter(pl => !pl.isStarter && pl.status.injured === 0 && pl.status.suspended === 0);
+                        if (subsLeft > 0 && availableBench.length > 0) {
+                            document.getElementById('btn-pause-sub').click();
+                        }
+                    });
                 } else { applyYellowCard(p, 'foul'); }
             }
         }
@@ -811,7 +826,16 @@ export function startMatchEngine() {
         renderMatchSubsList();
         modal.classList.add('active');
 
+        // GESTIONE SOSTITUZIONE OBBLIGATORIA
         document.getElementById('close-subs-btn').onclick = () => {
+            let injuredStarters = gameState.userTeam.players.filter(p => p.isStarter && p.status.injured > 0);
+            let availableBench = gameState.userTeam.players.filter(p => !p.isStarter && p.status.injured === 0 && p.status.suspended === 0);
+            
+            if (injuredStarters.length > 0 && subsLeft > 0 && availableBench.length > 0) {
+                showNotification("Sostituzione Obbligatoria", "Devi sostituire il giocatore infortunato prima di continuare!", "warning");
+                return;
+            }
+
             modal.classList.remove('active');
             resumeMatch('subs');
         };
@@ -907,9 +931,24 @@ export function startMatchEngine() {
             `;
         });
 
+        // LOGICA SOSTITUZIONE IN PARTITA CORRETTA E SICURA
         function executeMatchSwap(id1, id2) {
             if(id1 === id2) return;
-            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
+            let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+            
+            // Non si può far entrare dalla panchina chi è infortunato o espulso
+            if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
+                (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
+                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error");
+                return;
+            }
+
+            // Non si può far uscire dal campo chi è espulso
+            if ((p1.isStarter && p1.status.suspended > 0) || (p2.isStarter && p2.status.suspended > 0)) {
+                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error");
+                return;
+            }
             
             if(p1.isStarter !== p2.isStarter) {
                 if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
@@ -925,7 +964,7 @@ export function startMatchEngine() {
         }
 
         document.querySelectorAll('.match-card-interactive').forEach(card => {
-            if(card.classList.contains('disabled')) return;
+            // RIMOSSO IL BLOCCO: ora si possono cliccare i giocatori opacizzati (infortunati) per sostituirli!
             card.onclick = (e) => {
                 e.stopPropagation(); 
                 const id = card.getAttribute('data-id');

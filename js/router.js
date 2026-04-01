@@ -191,7 +191,10 @@ function renderHome() {
 
     if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
     if (divNumEl) divNumEl.textContent = gameState.userTeam.division;
-    if (homeCrestEl) homeCrestEl.style.cssText += getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+    if (homeCrestEl) {
+        homeCrestEl.style.cssText = `width: 36px; height: 42px; border-radius: 8px 8px 50% 50%; border: 2px solid rgba(255,255,255,0.8); box-shadow: 0 2px 6px rgba(0,0,0,0.5);`;
+        homeCrestEl.style.cssText += getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+    }
     
     let currentWk = gameState.userTeam.seasonWeek || 1;
     if (matchdayCounter) matchdayCounter.textContent = currentWk <= 46 ? currentWk : 46;
@@ -824,12 +827,27 @@ function renderSquad() {
     function executeSwap(id1, id2) {
         if(id1 === id2) return;
         let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+
+        // Previene l'inserimento in campo di giocatori indisponibili
+        if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
+            (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
+            showNotification("Azione bloccata", "Non puoi schierare un giocatore infortunato o squalificato.", "error");
+            return;
+        }
+
         let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
         let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
         saveGame(); renderSquad();
     }
     function executeMove(id, targetIdx) {
-        let p1 = gameState.userTeam.players.find(pl => pl.id === id); p1.isStarter = true; p1.slotIndex = targetIdx;
+        let p1 = gameState.userTeam.players.find(pl => pl.id === id); 
+        
+        if (!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) {
+            showNotification("Azione bloccata", "Non puoi schierare un giocatore infortunato o squalificato.", "error");
+            return;
+        }
+
+        p1.isStarter = true; p1.slotIndex = targetIdx;
         saveGame(); renderSquad();
     }
 
@@ -855,9 +873,6 @@ function renderSquad() {
     });
 }
 
-// ==========================================
-// MERCATO E PROFILO
-// ==========================================
 function renderMarket() {
     const searchBtn = document.getElementById('market-search-btn');
     const resultsContainer = document.getElementById('market-results');
