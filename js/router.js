@@ -226,7 +226,6 @@ function renderHome() {
 
     const isEndOfSeason = currentWk > 46;
 
-    // RENDERING CALENDARIO CON RISULTATI (STORICO)
     if (scheduleContainer) {
         scheduleContainer.innerHTML = '';
         for (let i = 0; i < 46; i++) {
@@ -269,7 +268,6 @@ function renderHome() {
                 if(opponents.length>0) { let opp = opponents[(sched.day - 1) % opponents.length]; oppName = opp.name; sStr = opp.strength; isHome = (sched.day % 2 !== 0); }
             }
 
-            // GESTIONE CRONOLOGIA RISULTATI
             if (i+1 < currentWk) { 
                 statusClass = 'opacity: 0.8; border-color: var(--border-dim);'; 
                 let hist = gameState.userTeam.matchHistory?.find(h => h.week === i+1);
@@ -286,7 +284,6 @@ function renderHome() {
             } 
             else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
             else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
-
 
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
@@ -326,7 +323,7 @@ function renderHome() {
                 else { 
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                        oppName = "Qualificato";
+                        oppName = "Qualificato d'ufficio (Riposo)";
                     } else { oppName = "Eliminato"; }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
@@ -355,7 +352,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato" ? "Avanza Turno" : "Simula Turno");
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -1028,6 +1025,41 @@ function renderMarket() {
         };
     }
 
+    // LOGICA DUAL SLIDER PREZZO
+    const minSlider = document.getElementById('market-price-min');
+    const maxSlider = document.getElementById('market-price-max');
+    const minVal = document.getElementById('price-min-val');
+    const maxVal = document.getElementById('price-max-val');
+    const trackFill = document.getElementById('price-track-fill');
+
+    if (minSlider && maxSlider) {
+        function updateSlider() {
+            let min = parseInt(minSlider.value);
+            let max = parseInt(maxSlider.value);
+            if(min > max) { let tmp = min; min = max; max = tmp; }
+            
+            minVal.textContent = min.toLocaleString('it-IT');
+            maxVal.textContent = max.toLocaleString('it-IT');
+            
+            let percentMin = (min / 1000000) * 100;
+            let percentMax = (max / 1000000) * 100;
+            trackFill.style.left = percentMin + "%";
+            trackFill.style.width = (percentMax - percentMin) + "%";
+        }
+        
+        minSlider.addEventListener('input', () => {
+            if(parseInt(minSlider.value) > parseInt(maxSlider.value)) minSlider.value = maxSlider.value;
+            updateSlider();
+        });
+        
+        maxSlider.addEventListener('input', () => {
+            if(parseInt(maxSlider.value) < parseInt(minSlider.value)) maxSlider.value = minSlider.value;
+            updateSlider();
+        });
+        
+        updateSlider();
+    }
+
     function renderTransferList() {
         const c = document.getElementById('transfer-list-container');
         c.innerHTML = '';
@@ -1148,8 +1180,10 @@ function renderMarket() {
         const nameFilter = document.getElementById('market-search-name').value.toLowerCase();
         const posFilter = document.getElementById('market-pos').value;
         const rarityFilter = document.getElementById('market-rarity').value;
-        const nationFilter = document.getElementById('market-nation').value;
         const ageFilter = document.getElementById('market-age').value;
+        
+        const minPrice = parseInt(document.getElementById('market-price-min').value);
+        const maxPrice = parseInt(document.getElementById('market-price-max').value);
 
         let allPlayers = [];
         if(gameState.world) {
@@ -1169,8 +1203,8 @@ function renderMarket() {
             if(posFilter && p.position !== posFilter) return false;
             if(rarityFilter && p.rarity !== rarityFilter) return false;
             
-            // FIX Ricerca Nazionalità: controlla se il nome completo della nazione è incluso (es. "Italia" è nella stringa "🇮🇹 Italia")
-            if(nationFilter && (!p.nationality || !p.nationality.includes(nationFilter))) return false;
+            let playerPrice = p.value || (p.overall * 100);
+            if (playerPrice < minPrice || playerPrice > maxPrice) return false;
             
             if(ageFilter) {
                 let [minAge, maxAge] = ageFilter.split('-');
@@ -1182,7 +1216,7 @@ function renderMarket() {
 
         filtered.sort((a, b) => b.overall - a.overall);
         resultsContainer.innerHTML = '';
-        if(filtered.length === 0) { resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato.</p>'; return; }
+        if(filtered.length === 0) { resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato in questa fascia di prezzo.</p>'; return; }
 
         filtered.slice(0, 30).forEach(p => {
             const flag = p.nationality ? p.nationality.split(' ')[0] : '';

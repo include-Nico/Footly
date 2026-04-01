@@ -11,6 +11,7 @@
     <div id="market-search-view" style="display: flex; flex-direction: column; flex: 1;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
             <input type="text" id="market-search-name" class="glass-select" placeholder="Nome giocatore..." style="grid-column: span 2;">
+            
             <select id="market-pos" class="glass-select">
                 <option value="">Qualsiasi Ruolo</option>
                 <option value="POR">Portieri (POR)</option>
@@ -25,7 +26,7 @@
                 <option value="27-29">Esperti (27-29)</option>
                 <option value="30-45">Veterani (30+)</option>
             </select>
-            <select id="market-rarity" class="glass-select">
+            <select id="market-rarity" class="glass-select" style="grid-column: span 2;">
                 <option value="">Qualsiasi Qualità</option>
                 <option value="Bronzo">Bronzo</option>
                 <option value="Argento">Argento</option>
@@ -35,16 +36,29 @@
                 <option value="Epico">Epico</option>
                 <option value="Leggenda">Leggenda</option>
             </select>
-            <select id="market-nation" class="glass-select">
-                <option value="">Qualsiasi Nazione</option>
-                <option value="Italia">Italia</option>
-                <option value="Inghilterra">Inghilterra</option>
-                <option value="Spagna">Spagna</option>
-                <option value="Francia">Francia</option>
-                <option value="Germania">Germania</option>
-                <option value="Brasile">Brasile</option>
-                <option value="Argentina">Argentina</option>
-            </select>
+
+            <div style="grid-column: span 2; display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-hint); text-transform: uppercase;">
+                    <span>Min: <b id="price-min-val" style="color:var(--gold);">0</b></span>
+                    <span>Max: <b id="price-max-val" style="color:var(--gold);">1.000.000</b></span>
+                </div>
+                
+                <style>
+                    .dual-slider-container { position: relative; height: 30px; display: flex; align-items: center; margin: 0 5px; }
+                    .dual-slider-track { position: absolute; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+                    .dual-slider-fill { position: absolute; height: 6px; background: var(--gold); border-radius: 3px; z-index: 1; }
+                    .dual-slider-input { position: absolute; width: 100%; -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none; z-index: 2; outline: none; margin: 0; }
+                    .dual-slider-input::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 18px; height: 18px; background: var(--gold); border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+                    .dual-slider-input::-moz-range-thumb { pointer-events: auto; width: 18px; height: 18px; background: var(--gold); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+                </style>
+                
+                <div class="dual-slider-container">
+                    <div class="dual-slider-track"></div>
+                    <div id="price-track-fill" class="dual-slider-fill" style="left: 0%; width: 100%;"></div>
+                    <input type="range" id="market-price-min" class="dual-slider-input" min="0" max="1000000" step="5000" value="0">
+                    <input type="range" id="market-price-max" class="dual-slider-input" min="0" max="1000000" step="5000" value="1000000">
+                </div>
+            </div>
         </div>
 
         <button id="market-search-btn" class="primary-btn" style="margin-bottom: 20px;"><i class="fas fa-search"></i> Cerca</button>
