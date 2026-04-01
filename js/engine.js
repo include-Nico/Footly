@@ -1,8 +1,8 @@
 // js/engine.js
-import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS, generateTransferOffers } from './state.js';
+import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
-import { loadView, FORMATIONS, checkMarketNotifications } from './router.js'; 
+import { loadView, FORMATIONS } from './router.js'; 
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
@@ -195,7 +195,7 @@ export function startMatchEngine() {
         let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
         let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     }
-    
+
     updateMatchHeaderStr(); updateScoreUI();
 
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
@@ -219,6 +219,29 @@ export function startMatchEngine() {
         else if (type === 'red' || type === 'injury') { titleEl.style.color = "var(--notif-error)"; titleEl.style.textShadow = "0 4px 20px rgba(240, 82, 82, 0.6)"; }
         else if (type === 'info') { titleEl.style.color = "var(--text-primary)"; }
         banner.classList.add('show'); setTimeout(() => { banner.classList.remove('show'); if(callback) callback(); }, 3000);
+    }
+
+    // === GESTIONE AUTOMATICA RUOLI IN GARA ===
+    function reassignRolesIfNeeded(outPlayerId) {
+        let startersNow = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.id !== outPlayerId);
+        if (startersNow.length === 0) return;
+
+        if (outPlayerId === gameState.userTeam.roles?.captain) {
+            let oldest = startersNow.reduce((prev, current) => (prev.age > current.age) ? prev : current);
+            if(oldest) {
+                gameState.userTeam.roles.captain = oldest.id;
+                addLog(`©️ La fascia di capitano passa a <b>${oldest.name}</b> (${oldest.age} anni).`);
+            }
+        }
+
+        if (outPlayerId === gameState.userTeam.roles?.penalty) {
+            let attackers = startersNow.filter(p => p.position === 'ATT');
+            let newPen = attackers.length > 0 ? attackers.sort((a,b) => b.overall - a.overall)[0] : startersNow.sort((a,b) => b.overall - a.overall)[0];
+            if(newPen) {
+                gameState.userTeam.roles.penalty = newPen.id;
+                addLog(`🎯 Il nuovo rigorista in campo è <b>${newPen.name}</b>.`);
+            }
+        }
     }
 
     let strDiffAbs = Math.abs(userStr - nextOpponent.strength);
@@ -373,6 +396,7 @@ export function startMatchEngine() {
         if (p.matchYellows === 2) {
             p.status.suspended = 2; p.stats.redCards++; p.status.yellowCards = 0; 
             addLog(`🟥 DOPPIO GIALLO! <b>${p.name}</b> viene espulso!`, 'log-red');
+            reassignRolesIfNeeded(p.id);
             showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}<br><span style="font-size:12px;">Doppio Giallo</span>`, () => { updateMatchHeaderStr(); renderMatchSubsList(); resumeMatch(reason); });
         } else if (p.status.yellowCards >= 2) {
             addLog(`🟨 Ammonito <b>${p.name}</b>. Era diffidato, salterà la prossima gara!`, 'log-yellow');
@@ -386,6 +410,7 @@ export function startMatchEngine() {
     function applyRedCard(p, reason) {
         p.status.suspended = 2; p.status.yellowCards = 0; p.stats.redCards++;
         addLog(`🟥 ROSSO DIRETTO! <b>${p.name}</b> finisce negli spogliatoi!`, 'log-red');
+        reassignRolesIfNeeded(p.id);
         showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}`, () => { updateMatchHeaderStr(); renderMatchSubsList(); resumeMatch(reason); });
     }
 
@@ -871,7 +896,7 @@ export function startMatchEngine() {
                 let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
                 let isSelected = selectedPlayerId === p.id;
-                let selStyle = isSelected ? `border: 2px solid #00f5a0; box-shadow: 0 0 20px #00f5a0; transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
+                let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
                 const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
 
                 pitch.innerHTML += `
@@ -881,7 +906,7 @@ export function startMatchEngine() {
                             ${warningHTML}
                             ${rolesHtml}
                             <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position}</div>
+                            <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
                             ${getEnergyBarHTML(p)}
                             <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
                         </div>
@@ -935,15 +960,22 @@ export function startMatchEngine() {
                 return;
             }
             
+            let outPlayer = null;
             if(p1.isStarter !== p2.isStarter) {
                 if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
                 subsLeft--;
                 if(sLeftEl) sLeftEl.textContent = subsLeft;
                 if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
-                addLog(`🔄 Sostituzione: Esce ${p1.isStarter ? p1.name : p2.name}, entra ${p1.isStarter ? p2.name : p1.name}.`);
+                
+                outPlayer = p1.isStarter ? p1 : p2;
+                let inPlayer = p1.isStarter ? p2 : p1;
+                addLog(`🔄 Sostituzione: Esce ${outPlayer.name}, entra ${inPlayer.name}.`);
             }
+            
             let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
             let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
+            
+            if (outPlayer) reassignRolesIfNeeded(outPlayer.id);
             
             renderMatchSubsList(); updateMatchHeaderStr();
         }
@@ -1022,6 +1054,7 @@ export function startMatchEngine() {
                     if (m.scoreHome > m.scoreAway) st1.pts += 3; else if (m.scoreHome < m.scoreAway) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
                 }
             }
+
             simulateChampionsRound(sched.round);
             title = "Partita di Champions Conclusa!";
             if (userScore > cpuScore) {
@@ -1105,7 +1138,6 @@ export function startMatchEngine() {
             gameState.userTeam.matchday++;
         }
 
-        // GENERAZIONE MERCATO
         let marketUpdated = generateTransferOffers();
 
         gameState.userTeam.coins += coinsEarned;
