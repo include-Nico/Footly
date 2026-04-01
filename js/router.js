@@ -205,6 +205,7 @@ function renderHome() {
 
     const isEndOfSeason = currentWk > 46;
 
+    // RENDERING CALENDARIO CON RISULTATI (STORICO)
     if (scheduleContainer) {
         scheduleContainer.innerHTML = '';
         for (let i = 0; i < 46; i++) {
@@ -215,17 +216,13 @@ function renderHome() {
             let title = isPlayoff ? `🔥 PLAYOFF` : (isCup || isChampions ? `🏆 ${sched.name}` : `Giornata ${sched.day}`);
             
             let statusClass = ''; let statusText = '';
-            if (i+1 < currentWk) { statusClass = 'opacity: 0.5; border-color: var(--border-dim);'; statusText = 'Giocata ✅'; } 
-            else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
-            else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
-
+            
             let oppName = "???"; let isHome = true; let sStr = 0;
             
             if (isPlayoff) {
                 if (i+1 === currentWk) {
                     let m = getPlayoffMatchup();
-                    if (m) { oppName = m.opp.name; sStr = m.opp.strength; isHome = m.isHome; } 
-                    else { oppName = "Salvo/Promosso"; sStr = 0; }
+                    if (m) { oppName = m.opp.name; sStr = m.opp.strength; isHome = m.isHome; } else { oppName = "Salvo/Promosso"; sStr = 0; }
                 } else { oppName = "Da definire"; sStr = 0; }
             }
             else if (isChampions) {
@@ -240,9 +237,8 @@ function renderHome() {
                     let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
                     if(m) { isHome = m.home === gameState.userTeam.name; oppName = isHome ? m.away : m.home; sStr = getGlobalTeam(oppName).strength; } 
                     else { 
-                        if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                            oppName = "Qualificato d'ufficio (Riposo)";
-                        } else { oppName = "Eliminato"; }
+                        if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) { oppName = "Qualificato"; } 
+                        else { oppName = "Eliminato"; }
                         sStr = 0; 
                     } 
                 } else { oppName = "Eliminato"; sStr = 0; }
@@ -252,9 +248,28 @@ function renderHome() {
                 if(opponents.length>0) { let opp = opponents[(sched.day - 1) % opponents.length]; oppName = opp.name; sStr = opp.strength; isHome = (sched.day % 2 !== 0); }
             }
 
+            // GESTIONE CRONOLOGIA RISULTATI
+            if (i+1 < currentWk) { 
+                statusClass = 'opacity: 0.8; border-color: var(--border-dim);'; 
+                let hist = gameState.userTeam.matchHistory?.find(h => h.week === i+1);
+                if (hist) {
+                    oppName = hist.oppName;
+                    let isWin = hist.userScore > hist.oppScore;
+                    let isLoss = hist.userScore < hist.oppScore;
+                    let color = isWin ? 'var(--accent)' : (isLoss ? 'var(--notif-error)' : 'var(--gold)');
+                    let resStr = hist.isHome ? `${hist.userScore} - ${hist.oppScore}` : `${hist.oppScore} - ${hist.userScore}`;
+                    statusText = `<span style="color:${color}; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:4px;">${resStr}</span>`;
+                } else {
+                    statusText = 'Giocata ✅'; 
+                }
+            } 
+            else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
+            else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
+
+
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
-            if (oppName === "Eliminato" || oppName === "Qualificato d'ufficio (Riposo)" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
+            if (oppName === "Eliminato" || oppName === "Qualificato" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
 
             let item = document.createElement('div'); item.className = 'glass-panel';
             item.style.cssText = `min-width: 120px; padding: 10px; flex-shrink: 0; scroll-snap-align: center; border: 1px solid transparent; text-align: center; ${statusClass}`;
@@ -290,7 +305,7 @@ function renderHome() {
                 else { 
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                        oppName = "Qualificato d'ufficio (Riposo)";
+                        oppName = "Qualificato";
                     } else { oppName = "Eliminato"; }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
@@ -319,7 +334,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -345,6 +360,25 @@ function renderHome() {
         playBtn.onclick = () => { showConfirm("Fine Stagione", "Calcolo premi, promozioni e retrocessioni...", () => { handleEndSeason(); }, "Procedi", false, true); };
     }
 
+    // CLASSIFICA E STATISTICHE GIOCATORI
+    const tabClassifica = document.getElementById('tab-classifica');
+    const tabStatistiche = document.getElementById('tab-statistiche');
+    const tableContainer = document.getElementById('home-table-container');
+    const statsContainer = document.getElementById('home-stats-container');
+
+    if (tabClassifica && tabStatistiche) {
+        tabClassifica.onclick = () => {
+            tabClassifica.style.background = "rgba(0, 245, 160, 0.1)"; tabClassifica.style.color = "var(--accent)"; tabClassifica.style.borderColor = "var(--accent)";
+            tabStatistiche.style.background = "transparent"; tabStatistiche.style.color = "white"; tabStatistiche.style.borderColor = "var(--border-dim)";
+            tableContainer.style.display = 'block'; statsContainer.style.display = 'none';
+        };
+        tabStatistiche.onclick = () => {
+            tabStatistiche.style.background = "rgba(0, 245, 160, 0.1)"; tabStatistiche.style.color = "var(--accent)"; tabStatistiche.style.borderColor = "var(--accent)";
+            tabClassifica.style.background = "transparent"; tabClassifica.style.color = "white"; tabClassifica.style.borderColor = "var(--border-dim)";
+            tableContainer.style.display = 'none'; statsContainer.style.display = 'flex';
+        };
+    }
+
     let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
     if (opponents.length > 0 && tableBody) {
         let standings = getStandings(gameState.userTeam.league, gameState.userTeam.division);
@@ -368,6 +402,26 @@ function renderHome() {
                 </tr>
             `;
         });
+
+        // POPOLAMENTO STATISTICHE GIOCATORI
+        let allDivPlayers = [...gameState.userTeam.players.map(p => ({...p, teamName: gameState.userTeam.name, isUser: true}))];
+        opponents.forEach(t => t.roster.forEach(p => allDivPlayers.push({...p, teamName: t.name, isUser: false})));
+
+        let topScorers = [...allDivPlayers].sort((a,b) => (b.stats.goals || 0) - (a.stats.goals || 0)).slice(0, 5);
+        let topAssists = [...allDivPlayers].sort((a,b) => (b.stats.assists || 0) - (a.stats.assists || 0)).slice(0, 5);
+        let topGks = [...allDivPlayers].filter(p => p.position === 'POR').sort((a,b) => (b.stats.cleanSheets || 0) - (a.stats.cleanSheets || 0)).slice(0, 5);
+
+        let goalsHtml = "";
+        topScorers.forEach((p, i) => { if((p.stats.goals||0) > 0) goalsHtml += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); ${p.isUser?'color:var(--accent); font-weight:bold;':''}"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--text-muted); margin-right:5px;">${i+1}.</span> ${p.name} <span style="font-size:9px; color:var(--text-hint);">(${p.teamName.substring(0,3)})</span></div><div>${p.stats.goals}</div></div>`; });
+        document.getElementById('stats-goals-list').innerHTML = goalsHtml || "<div style='color:var(--text-hint); text-align:center;'>Nessun dato</div>";
+
+        let astHtml = "";
+        topAssists.forEach((p, i) => { if((p.stats.assists||0) > 0) astHtml += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); ${p.isUser?'color:var(--accent); font-weight:bold;':''}"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--text-muted); margin-right:5px;">${i+1}.</span> ${p.name} <span style="font-size:9px; color:var(--text-hint);">(${p.teamName.substring(0,3)})</span></div><div>${p.stats.assists}</div></div>`; });
+        document.getElementById('stats-assists-list').innerHTML = astHtml || "<div style='color:var(--text-hint); text-align:center;'>Nessun dato</div>";
+
+        let csHtml = "";
+        topGks.forEach((p, i) => { if((p.stats.cleanSheets||0) > 0) csHtml += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); ${p.isUser?'color:var(--accent); font-weight:bold;':''}"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:var(--text-muted); margin-right:5px;">${i+1}.</span> ${p.name} <span style="font-size:9px; color:var(--text-hint);">(${p.teamName.substring(0,3)})</span></div><div>${p.stats.cleanSheets}</div></div>`; });
+        document.getElementById('stats-cs-list').innerHTML = csHtml || "<div style='color:var(--text-hint); text-align:center;'>Nessun dato</div>";
     }
 }
 
@@ -400,6 +454,32 @@ function handleEndSeason() {
         gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🏆', name: `Campionato Div. ${gameState.userTeam.division} - 1° Posto` });
     } else if (mInfo && mInfo.type === 'playoff' && gameState.userTeam.playoffWon) {
         gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '📈', name: `Promozione in Div. ${gameState.userTeam.division - 1} (Playoff)` });
+    }
+
+    // CALCOLO PREMI INDIVIDUALI (Scarpa d'oro, Assist, GK)
+    let allDivPlayers = [...gameState.userTeam.players.map(p => ({...p, isUser: true}))];
+    let opponents = gameState.world[gameState.userTeam.league]?.[gameState.userTeam.division] || [];
+    opponents.forEach(t => t.roster.forEach(p => allDivPlayers.push({...p, isUser: false})));
+
+    let topScorer = [...allDivPlayers].sort((a,b) => (b.stats.goals || 0) - (a.stats.goals || 0))[0];
+    if (topScorer && (topScorer.stats.goals || 0) > 0 && topScorer.isUser) {
+        gemsEarned += 25;
+        gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '⚽', name: `Scarpa d'Oro: ${topScorer.name}` });
+        evolutions.push(`Scarpa d'Oro (+25💎)`);
+    }
+
+    let topAssist = [...allDivPlayers].sort((a,b) => (b.stats.assists || 0) - (a.stats.assists || 0))[0];
+    if (topAssist && (topAssist.stats.assists || 0) > 0 && topAssist.isUser) {
+        gemsEarned += 25;
+        gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '👟', name: `Assistman: ${topAssist.name}` });
+        evolutions.push(`Assistman (+25💎)`);
+    }
+
+    let topGk = [...allDivPlayers].filter(p => p.position === 'POR').sort((a,b) => (b.stats.cleanSheets || 0) - (a.stats.cleanSheets || 0))[0];
+    if (topGk && (topGk.stats.cleanSheets || 0) > 0 && topGk.isUser) {
+        gemsEarned += 25;
+        gameState.userTeam.palmares.push({ year: gameState.userTeam.seasonYear, icon: '🧤', name: `Miglior Portiere: ${topGk.name}` });
+        evolutions.push(`Miglior Portiere (+25💎)`);
     }
 
     gameState.userTeam.gems += gemsEarned;
@@ -477,6 +557,7 @@ function handleEndSeason() {
     gameState.userTeam.seasonWeek = 1; 
     gameState.userTeam.playoffWon = false;
     gameState.userTeam.seasonYear++; 
+    gameState.userTeam.matchHistory = []; // Azzera la cronologia
     
     generateCupBracket(); 
     generateChampionsBracket(qualTeams);
@@ -487,6 +568,9 @@ function handleEndSeason() {
     showConfirm(`🏆 Anno ${gameState.userTeam.seasonYear - 1} Concluso!`, seasonMsg, () => { renderHome(); }, "Inizia Nuova Stagione", false, true);
 }
 
+// ==========================================
+// GESTIONE SQUADRA E INVENTARIO
+// ==========================================
 function renderSquad() {
     const pitch = document.getElementById('pitch-players');
     const bench = document.getElementById('bench-players');
@@ -716,7 +800,9 @@ function renderSquad() {
         };
 
         document.getElementById('btn-train-role').onclick = () => {
+            // REGOLA GIÀ ESISTENTE: Blocca il potenziamento ai portieri
             if(p.position === 'POR') { showNotification("Impossibile", "I portieri non imparano altri ruoli.", "warning"); return; }
+            
             if(gameState.userTeam.coins >= roleTrainCost) {
                 showConfirm("Corso Tattico", `Spendere 💰${roleTrainCost} per un nuovo ruolo a ${p.name}? 30% di successo.`, () => {
                     gameState.userTeam.coins -= roleTrainCost; updateDashboardHeader();
@@ -828,11 +914,9 @@ function renderSquad() {
         if(id1 === id2) return;
         let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
 
-        // Previene l'inserimento in campo di giocatori indisponibili
         if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
             (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
-            showNotification("Azione bloccata", "Non puoi schierare un giocatore infortunato o squalificato.", "error");
-            return;
+            showNotification("Azione bloccata", "Non puoi schierare un giocatore infortunato o squalificato.", "error"); return;
         }
 
         let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
@@ -841,12 +925,9 @@ function renderSquad() {
     }
     function executeMove(id, targetIdx) {
         let p1 = gameState.userTeam.players.find(pl => pl.id === id); 
-        
         if (!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) {
-            showNotification("Azione bloccata", "Non puoi schierare un giocatore infortunato o squalificato.", "error");
-            return;
+            showNotification("Azione bloccata", "Non puoi schierare un giocatore infortunato o squalificato.", "error"); return;
         }
-
         p1.isStarter = true; p1.slotIndex = targetIdx;
         saveGame(); renderSquad();
     }

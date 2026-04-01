@@ -132,17 +132,6 @@ export function startMatchEngine() {
     }
     if (document.getElementById('intro-aggregate')) document.getElementById('intro-aggregate').textContent = aggregateText;
 
-    let c1 = gameState.userTeam.colors.primary;
-    let c2 = gameState.userTeam.colors.secondary;
-    let sKit = gameState.userTeam.kitStyle;
-    let userKit = `background: ${c1};`;
-    if (sKit === 'stripes') userKit = `background: repeating-linear-gradient(90deg, ${c1} 0px, ${c1} 20px, ${c2} 20px, ${c2} 40px);`;
-    else if (sKit === 'halves') userKit = `background: linear-gradient(90deg, ${c1} 50%, ${c2} 50%);`;
-    else if (sKit === 'diagonal') userKit = `background: linear-gradient(135deg, ${c1} 50%, ${c2} 50%);`;
-    else if (sKit === 'hoops') userKit = `background: repeating-linear-gradient(0deg, ${c1} 0px, ${c1} 20px, ${c2} 20px, ${c2} 40px);`;
-    else if (sKit === 'checkered') userKit = `background-color: ${c1}; background-image: conic-gradient(${c1} 90deg, ${c2} 90deg 180deg, ${c1} 180deg 270deg, ${c2} 270deg); background-size: 20px 20px;`;
-    else if (sKit === 'camouflage') userKit = `background-color: ${c1}; background-image: radial-gradient(circle at 20% 30%, ${c2} 30%, transparent 30%), radial-gradient(circle at 80% 70%, ${c2} 30%, transparent 30%);`;
-
     function hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
         if (!hex) return `rgba(255,255,255,${alpha})`;
@@ -167,10 +156,11 @@ export function startMatchEngine() {
         return palettes[hash % palettes.length];
     }
 
+    let userKitCSS = getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
     let cpuStyle = getCpuTeamStyle(oppName);
     let cpuKitCSS = getKitCSS(cpuStyle.p, cpuStyle.s, cpuStyle.k);
 
-    let userShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${userKit}"></div>`;
+    let userShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${userKitCSS}"></div>`;
     let cpuShield = `<div style="width: 44px; height: 50px; border-radius: 8px 8px 50% 50%; border: 2px solid rgba(255,255,255,0.7); box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 auto 8px; ${cpuKitCSS}"></div>`;
 
     let homeColor = isHomeMatch ? gameState.userTeam.colors.primary : cpuStyle.p;
@@ -191,7 +181,7 @@ export function startMatchEngine() {
         document.getElementById('score-home-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase(); 
         document.getElementById('score-away-name').textContent = nextOpponent.name.substring(0,3).toUpperCase();
         
-        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
+        let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
         let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     } else {
         document.getElementById('intro-home-icon').innerHTML = cpuShield; 
@@ -202,10 +192,10 @@ export function startMatchEngine() {
         document.getElementById('score-home-name').textContent = nextOpponent.name.substring(0,3).toUpperCase(); 
         document.getElementById('score-away-name').textContent = gameState.userTeam.name.substring(0,3).toUpperCase();
         
-        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKit}`;
+        let saBg = document.getElementById('score-away-bg'); if(saBg) saBg.style.cssText = `position: absolute; inset: 0; opacity: 0.4; z-index: 0; ${userKitCSS}`;
         let shBg = document.getElementById('score-home-bg'); if(shBg) shBg.style.cssText = `position: absolute; inset: 0; opacity: 0.2; z-index: 0; ${cpuKitCSS}`;
     }
-    
+
     updateMatchHeaderStr(); updateScoreUI();
 
     const unavailable = gameState.userTeam.players.filter(p => p.isStarter && (p.status.injured > 0 || p.status.suspended > 0));
@@ -431,16 +421,7 @@ export function startMatchEngine() {
                 if(Math.random() > 0.85) { 
                     p.status.injured = Math.floor(Math.random()*2)+1; 
                     addLog(`🤕 Brutto contrasto! <b>${p.name}</b> è infortunato!`, 'log-injury'); 
-                    showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { 
-                        renderMatchSubsList(); 
-                        resumeMatch('foul'); 
-                        
-                        // AUTO OPEN SUB MENU IF FORCED SUB IS NEEDED
-                        let availableBench = gameState.userTeam.players.filter(pl => !pl.isStarter && pl.status.injured === 0 && pl.status.suspended === 0);
-                        if (subsLeft > 0 && availableBench.length > 0) {
-                            document.getElementById('btn-pause-sub').click();
-                        }
-                    });
+                    showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { renderMatchSubsList(); resumeMatch('foul'); });
                 } else { applyYellowCard(p, 'foul'); }
             }
         }
@@ -826,16 +807,7 @@ export function startMatchEngine() {
         renderMatchSubsList();
         modal.classList.add('active');
 
-        // GESTIONE SOSTITUZIONE OBBLIGATORIA
         document.getElementById('close-subs-btn').onclick = () => {
-            let injuredStarters = gameState.userTeam.players.filter(p => p.isStarter && p.status.injured > 0);
-            let availableBench = gameState.userTeam.players.filter(p => !p.isStarter && p.status.injured === 0 && p.status.suspended === 0);
-            
-            if (injuredStarters.length > 0 && subsLeft > 0 && availableBench.length > 0) {
-                showNotification("Sostituzione Obbligatoria", "Devi sostituire il giocatore infortunato prima di continuare!", "warning");
-                return;
-            }
-
             modal.classList.remove('active');
             resumeMatch('subs');
         };
@@ -880,7 +852,7 @@ export function startMatchEngine() {
                 let roleIcons = '';
                 if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
                 if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-                let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+                let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
                 let isSelected = selectedPlayerId === p.id;
                 let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
@@ -917,7 +889,7 @@ export function startMatchEngine() {
             let roleIcons = '';
             if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
             if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-            let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+            let rolesHtml = roleIcons ? `<div style="position: absolute; top: -10px; right: -10px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
 
             bench.innerHTML += `
                 <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
@@ -931,23 +903,16 @@ export function startMatchEngine() {
             `;
         });
 
-        // LOGICA SOSTITUZIONE IN PARTITA CORRETTA E SICURA
         function executeMatchSwap(id1, id2) {
             if(id1 === id2) return;
-            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
-            let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
-            
-            // Non si può far entrare dalla panchina chi è infortunato o espulso
+            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+
             if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
                 (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
-                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error");
-                return;
+                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error"); return;
             }
-
-            // Non si può far uscire dal campo chi è espulso
             if ((p1.isStarter && p1.status.suspended > 0) || (p2.isStarter && p2.status.suspended > 0)) {
-                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error");
-                return;
+                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error"); return;
             }
             
             if(p1.isStarter !== p2.isStarter) {
@@ -964,7 +929,6 @@ export function startMatchEngine() {
         }
 
         document.querySelectorAll('.match-card-interactive').forEach(card => {
-            // RIMOSSO IL BLOCCO: ora si possono cliccare i giocatori opacizzati (infortunati) per sostituirli!
             card.onclick = (e) => {
                 e.stopPropagation(); 
                 const id = card.getAttribute('data-id');
@@ -987,6 +951,12 @@ export function startMatchEngine() {
     function endMatchLogic() {
         document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
         document.getElementById('match-engine').style.display = 'none'; 
+
+        if (!gameState.userTeam.matchHistory) gameState.userTeam.matchHistory = [];
+        gameState.userTeam.matchHistory.push({
+            week: currentWk, userScore: userScore, oppScore: cpuScore,
+            oppName: oppName, isHome: isHomeMatch, isPlayoff: isPlayoff, isCup: isCup, isChampions: isChampions
+        });
 
         gameState.userTeam.players.forEach(p => {
             if (p.status.injured > 0 && (!p.isStarter || p.status.suspended > 0)) p.status.injured--;
@@ -1032,7 +1002,6 @@ export function startMatchEngine() {
                     if (m.scoreHome > m.scoreAway) st1.pts += 3; else if (m.scoreHome < m.scoreAway) st2.pts += 3; else { st1.pts += 1; st2.pts += 1; }
                 }
             }
-
             simulateChampionsRound(sched.round);
             title = "Partita di Champions Conclusa!";
             if (userScore > cpuScore) {
@@ -1047,6 +1016,9 @@ export function startMatchEngine() {
                 }
             } else if (userScore === cpuScore) coinsEarned += 400;
 
+            nextOpponent.roster.forEach(p => p.stats.appearances = (p.stats.appearances||0)+1);
+            for(let k=0; k<cpuScore; k++) { let sc = nextOpponent.roster[Math.floor(Math.random()*6)]; if(sc) sc.stats.goals = (sc.stats.goals||0)+1; }
+            if (userScore === 0) { let gk = nextOpponent.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets = (gk.stats.cleanSheets||0)+1; }
         }
         else if (isCup) {
             let m = gameState.userTeam.cup.rounds[sched.round].find(x => x.home === gameState.userTeam.name || x.away === gameState.userTeam.name);
@@ -1067,6 +1039,11 @@ export function startMatchEngine() {
                 }
             }
             else if (userScore === cpuScore) coinsEarned += 300;
+
+            nextOpponent.roster.forEach(p => p.stats.appearances = (p.stats.appearances||0)+1);
+            for(let k=0; k<cpuScore; k++) { let sc = nextOpponent.roster[Math.floor(Math.random()*6)]; if(sc) sc.stats.goals = (sc.stats.goals||0)+1; }
+            if (userScore === 0) { let gk = nextOpponent.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets = (gk.stats.cleanSheets||0)+1; }
+
         } else {
             gameState.userTeam.stats.played++;
             gameState.userTeam.stats.goalsFor += userScore;
@@ -1081,6 +1058,10 @@ export function startMatchEngine() {
             if (cpuScore > userScore) { nextOpponent.won++; nextOpponent.points += 3; }
             else if (cpuScore === userScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
             else { nextOpponent.lost++; }
+            
+            nextOpponent.roster.forEach(p => p.stats.appearances = (p.stats.appearances||0)+1);
+            for(let k=0; k<cpuScore; k++) { let sc = nextOpponent.roster[Math.floor(Math.random()*6)]; if(sc) sc.stats.goals = (sc.stats.goals||0)+1; }
+            if (userScore === 0) { let gk = nextOpponent.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets = (gk.stats.cleanSheets||0)+1; }
 
             for (const lg in gameState.world) {
                 [1, 2, 3].forEach(div => {
@@ -1128,5 +1109,12 @@ export function startMatchEngine() {
         if(g1 > g2) { t1.won++; t1.points += 3; } else if(g1 === g2) { t1.drawn++; t1.points += 1; } else { t1.lost++; }
         t2.played++; t2.goalsFor += g2; t2.goalsAgainst += g1;
         if(g2 > g1) { t2.won++; t2.points += 3; } else if(g2 === g1) { t2.drawn++; t2.points += 1; } else { t2.lost++; }
+
+        t1.roster.forEach(p => { p.stats.appearances = (p.stats.appearances||0)+1; });
+        t2.roster.forEach(p => { p.stats.appearances = (p.stats.appearances||0)+1; });
+        for(let i=0; i<g1; i++) { let p = t1.roster[Math.floor(Math.random()*6)]; if(p) p.stats.goals = (p.stats.goals || 0)+1; }
+        for(let i=0; i<g2; i++) { let p = t2.roster[Math.floor(Math.random()*6)]; if(p) p.stats.goals = (p.stats.goals || 0)+1; }
+        if(g2===0) { let gk = t1.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets=(gk.stats.cleanSheets||0)+1; }
+        if(g1===0) { let gk = t2.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets=(gk.stats.cleanSheets||0)+1; }
     }
 }

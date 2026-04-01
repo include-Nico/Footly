@@ -41,6 +41,7 @@ export const gameState = {
         cup: { byes: [], rounds: {} }, 
         champions: { groups: [], groupStandings: [], rounds: {} }, 
         palmares: [], 
+        matchHistory: [], // NUOVO: Salva i risultati per il calendario
         playoffWon: false,
         players: [],
         stats: { points: 0, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 }
@@ -94,6 +95,7 @@ export function loadGame() {
         
         if (!gameState.userTeam.seasonYear) gameState.userTeam.seasonYear = 1;
         if (!gameState.userTeam.palmares) gameState.userTeam.palmares = [];
+        if (!gameState.userTeam.matchHistory) gameState.userTeam.matchHistory = []; // Fix cronologia
         
         if (!gameState.userTeam.ownedKits) gameState.userTeam.ownedKits = ["solid", "stripes", "halves"];
 
@@ -178,6 +180,23 @@ export function getPlayoffMatchup() {
     return null; 
 }
 
+function assignCpuStats(team, goalsScored, oppGoalsScored) {
+    if (!team.roster) return;
+    team.roster.forEach(p => p.stats.appearances = (p.stats.appearances || 0) + 1);
+    for(let i=0; i<goalsScored; i++) {
+        let p = team.roster[Math.floor(Math.random() * Math.min(team.roster.length, 7))];
+        if(p) p.stats.goals = (p.stats.goals || 0) + 1;
+        if(Math.random() > 0.4) {
+            let ast = team.roster[Math.floor(Math.random() * Math.min(team.roster.length, 7))];
+            if(ast && ast.id !== p.id) ast.stats.assists = (ast.stats.assists || 0) + 1;
+        }
+    }
+    if (oppGoalsScored === 0) {
+        let gk = team.roster.find(p => p.position === 'POR');
+        if(gk) gk.stats.cleanSheets = (gk.stats.cleanSheets || 0) + 1;
+    }
+}
+
 export function simulateCupRound(roundIndex) {
     if(!gameState.userTeam.cup || !gameState.userTeam.cup.rounds || !gameState.userTeam.cup.rounds[roundIndex]) return;
     let roundMatches = gameState.userTeam.cup.rounds[roundIndex];
@@ -186,16 +205,21 @@ export function simulateCupRound(roundIndex) {
 
     roundMatches.forEach(m => {
         let g1, g2;
+        let t1 = getGlobalTeam(m.home); 
+        let t2 = getGlobalTeam(m.away);
+
         if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) {
             g1 = m.scoreHome !== null ? m.scoreHome : 0;
             g2 = m.scoreAway !== null ? m.scoreAway : 0;
         } else {
-            let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
             let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
             let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
             g1=0; g2=0;
             for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
             m.scoreHome = g1; m.scoreAway = g2;
+            
+            if(t1.roster) assignCpuStats(t1, g1, g2);
+            if(t2.roster) assignCpuStats(t2, g2, g1);
         }
 
         let isSingleLeg = [0, 1, 8].includes(roundIndex); 
@@ -247,16 +271,12 @@ export function generateCupBracket() {
         }
     });
     teams.push(gameState.userTeam.name);
-    
     teams.sort((a,b) => getGlobalTeam(b).strength - getGlobalTeam(a).strength); 
     
     let byes = teams.slice(0, 22);
     let prelims = teams.slice(22).sort(() => Math.random()-0.5);
-    
     let r0 = [];
-    for(let i=0; i<10; i++) {
-        r0.push({home: prelims[i*2], away: prelims[i*2+1], scoreHome:null, scoreAway:null});
-    }
+    for(let i=0; i<10; i++) r0.push({home: prelims[i*2], away: prelims[i*2+1], scoreHome:null, scoreAway:null});
     
     gameState.userTeam.cup = { byes: byes, rounds: { 0: r0, 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[] } };
 }
@@ -269,16 +289,20 @@ export function simulateChampionsRound(roundIndex) {
     
     roundMatches.forEach(m => {
         let g1, g2;
+        let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
+
         if (m.home === gameState.userTeam.name || m.away === gameState.userTeam.name) {
             g1 = m.scoreHome !== null ? m.scoreHome : 0;
             g2 = m.scoreAway !== null ? m.scoreAway : 0;
         } else {
-            let t1 = getGlobalTeam(m.home); let t2 = getGlobalTeam(m.away);
             let w1 = Math.pow(t1.strength, 2); let w2 = Math.pow(t2.strength, 2);
             let diff = Math.abs(t1.strength - t2.strength); let totalChances = randomInt(3, 5) + Math.floor(diff / 8);
             g1=0; g2=0;
             for(let i=0; i<totalChances; i++) { if (Math.random()*(w1+w2) < w1) { if(Math.random()>0.4) g1++; } else { if(Math.random()>0.4) g2++; } }
             m.scoreHome = g1; m.scoreAway = g2;
+            
+            if(t1.roster) assignCpuStats(t1, g1, g2);
+            if(t2.roster) assignCpuStats(t2, g2, g1);
         }
 
         if (roundIndex < 5) {

@@ -15,7 +15,6 @@
         <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">Prossima Partita</div>
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
-            
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center;">
                 <h3 id="next-home-name" style="margin: 0 0 5px 0; font-size: 16px;">Tu</h3>
                 <div id="next-home-rating" style="display: flex; flex-direction: column; align-items: center; gap: 2px;"></div>
@@ -27,7 +26,6 @@
                 <h3 id="cpu-team-name" style="margin: 0 0 5px 0; font-size: 16px;">CPU</h3>
                 <div id="cpu-team-rating" style="display: flex; flex-direction: column; align-items: center; gap: 2px;"></div>
             </div>
-            
         </div>
         
         <button id="play-match-btn" class="glass-btn" style="width: 100%; border-color: var(--accent); color: var(--accent); justify-content: center;">
@@ -38,8 +36,15 @@
     <div class="section-label">Calendario Stagione</div>
     <div id="schedule-container" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 20px; scroll-snap-type: x mandatory;"></div>
 
-    <div class="section-label">Classifica</div>
-    <div class="table-responsive">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div class="section-label" style="margin: 0;">Classifica & Stat.</div>
+        <div style="display: flex; gap: 5px;">
+            <button id="tab-classifica" class="glass-btn" style="padding: 4px 8px; font-size: 11px; background: rgba(0, 245, 160, 0.1); border-color: var(--accent); color: var(--accent);">Classifica</button>
+            <button id="tab-statistiche" class="glass-btn" style="padding: 4px 8px; font-size: 11px;">Statistiche</button>
+        </div>
+    </div>
+
+    <div id="home-table-container" class="table-responsive">
         <table class="league-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 12px;">
             <thead>
                 <tr style="color: var(--text-hint); border-bottom: 1px solid var(--border-dim);">
@@ -52,5 +57,20 @@
             </thead>
             <tbody id="league-table-body"></tbody>
         </table>
+    </div>
+
+    <div id="home-stats-container" style="display: none; flex-direction: column; gap: 15px; padding-bottom: 20px;">
+        <div class="glass-panel" style="padding: 10px;">
+            <div style="font-size: 11px; color: var(--gold); font-weight: bold; margin-bottom: 8px; text-transform: uppercase;"><i class="fas fa-futbol"></i> Capocannoniere</div>
+            <div id="stats-goals-list" style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;"></div>
+        </div>
+        <div class="glass-panel" style="padding: 10px;">
+            <div style="font-size: 11px; color: var(--accent); font-weight: bold; margin-bottom: 8px; text-transform: uppercase;"><i class="fas fa-shoe-prints"></i> Assistman</div>
+            <div id="stats-assists-list" style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;"></div>
+        </div>
+        <div class="glass-panel" style="padding: 10px;">
+            <div style="font-size: 11px; color: #00d4ff; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;"><i class="fas fa-hand-paper"></i> Reti Inviolate (Portieri)</div>
+            <div id="stats-cs-list" style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;"></div>
+        </div>
     </div>
 </div>
