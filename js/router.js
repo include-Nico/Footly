@@ -3,6 +3,7 @@ import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam, SEA
 import { updateDashboardHeader, showNotification, showConfirm, updateNavUI } from './ui.js';
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 import { startMatchEngine } from './engine.js'; 
+import { renderMarket, checkMarketNotifications } from './market.js'; // IMPORT DAL NUOVO FILE
 
 const mainContent = document.getElementById('main-content');
 let selectedPlayerId = null; let draggedId = null; 
@@ -17,26 +18,6 @@ export const FORMATIONS = {
     "2-2-2": { att: 15, def: -10, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'30%'}, {role:'DIF', t:'66%', l:'70%'}, {role:'CEN', t:'42%', l:'30%'}, {role:'CEN', t:'42%', l:'70%'}, {role:'ATT', t:'16%', l:'35%'}, {role:'ATT', t:'16%', l:'65%'}] },
     "1-4-1": { att: 5, def: 5, pos: [{role:'POR', t:'86%', l:'50%'}, {role:'DIF', t:'66%', l:'50%'}, {role:'CEN', t:'45%', l:'15%'}, {role:'CEN', t:'38%', l:'38%'}, {role:'CEN', t:'38%', l:'62%'}, {role:'CEN', t:'45%', l:'85%'}, {role:'ATT', t:'16%', l:'50%'}] }
 };
-
-export function checkMarketNotifications() {
-    let hasOffers = false;
-    if(gameState.userTeam.players) {
-        hasOffers = gameState.userTeam.players.some(p => p.isListed && p.offers && p.offers.length > 0);
-    }
-    
-    let navIcon = document.querySelector('.nav-item[data-target="market"]');
-    if (navIcon) {
-        let dot = navIcon.querySelector('.market-notif-dot');
-        if (hasOffers) {
-            if (!dot) {
-                navIcon.style.position = 'relative';
-                navIcon.innerHTML += `<div class="market-notif-dot" style="position:absolute; top:2px; right:10px; width:10px; height:10px; background:var(--notif-error); border-radius:50%; box-shadow:0 0 5px var(--notif-error);"></div>`;
-            }
-        } else if (dot) {
-            dot.remove();
-        }
-    }
-}
 
 export async function loadView(viewName) {
     try {
@@ -285,7 +266,6 @@ function renderHome() {
             else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
             else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
 
-
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
             if (oppName === "Eliminato" || oppName === "Qualificato" || oppName === "Salvo/Promosso" || oppName === "Da definire" || oppName === "Eliminato/Non Qual." || oppName === "Non qualificato") { venueText = "-"; venueIcon = ""; }
@@ -324,7 +304,7 @@ function renderHome() {
                 else { 
                     userPlays = false; 
                     if (sched.round === 0 && gameState.userTeam.cup.byes && gameState.userTeam.cup.byes.includes(gameState.userTeam.name)) {
-                        oppName = "Qualificato";
+                        oppName = "Qualificato d'ufficio (Riposo)";
                     } else { oppName = "Eliminato"; }
                 }
             } else { userPlays = false; oppName = "Eliminato"; }
@@ -353,7 +333,7 @@ function renderHome() {
             playBtn.style.borderColor = isPlayoff ? "#ff4757" : (isChampions ? "#00d4ff" : "rgba(0,245,160,0.3)");
             playBtn.onclick = () => { if(userStr === 0) { showNotification("Errore", "Metti 7 titolari!", "error"); return; } loadView('match'); };
         } else {
-            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato" ? "Avanza Turno" : "Simula Turno");
+            playBtnText.textContent = isPlayoff ? "Termina Stagione" : (oppName === "Qualificato d'ufficio (Riposo)" ? "Avanza Turno" : "Simula Turno");
             playBtnIcon.innerHTML = isPlayoff ? '<i class="fas fa-forward-step"></i>' : '<i class="fas fa-forward"></i>';
             playBtn.style.background = "rgba(240, 180, 41, 0.1)"; playBtn.style.color = "var(--gold)"; playBtn.style.borderColor = "var(--gold)";
             playBtn.onclick = () => {
@@ -997,351 +977,4 @@ function renderSquad() {
         slot.addEventListener('dragover', (e) => e.preventDefault());
         slot.addEventListener('drop', (e) => { e.preventDefault(); const targetIdx = parseInt(slot.getAttribute('data-idx')); if (draggedId) executeMove(draggedId, targetIdx); });
     });
-}
-
-function renderMarket() {
-    const searchBtn = document.getElementById('market-search-btn');
-    const resultsContainer = document.getElementById('market-results');
-    
-    const tabSearch = document.getElementById('tab-market-search');
-    const tabTransfer = document.getElementById('tab-market-transfer');
-    const searchView = document.getElementById('market-search-view');
-    const transferView = document.getElementById('market-transfer-view');
-    
-    let hasOffers = gameState.userTeam.players.some(p => p.isListed && p.offers && p.offers.length > 0);
-    const transferBadge = document.getElementById('transfer-notif-badge');
-    if (transferBadge) transferBadge.style.display = hasOffers ? 'block' : 'none';
-
-    if (tabSearch && tabTransfer) {
-        tabSearch.onclick = () => {
-            tabSearch.style.borderColor = "var(--accent)"; tabSearch.style.color = "var(--accent)";
-            tabTransfer.style.borderColor = "var(--border-dim)"; tabTransfer.style.color = "white";
-            searchView.style.display = 'flex'; transferView.style.display = 'none';
-        };
-        tabTransfer.onclick = () => {
-            tabTransfer.style.borderColor = "var(--accent)"; tabTransfer.style.color = "var(--accent)";
-            tabSearch.style.borderColor = "var(--border-dim)"; tabSearch.style.color = "white";
-            searchView.style.display = 'none'; transferView.style.display = 'flex';
-            renderTransferList();
-        };
-    }
-
-    function renderTransferList() {
-        const c = document.getElementById('transfer-list-container');
-        c.innerHTML = '';
-        let listedPlayers = gameState.userTeam.players.filter(p => p.isListed);
-        
-        if (listedPlayers.length === 0) {
-            c.innerHTML = `<div style="text-align:center; color:var(--text-hint); font-size:12px; margin-top:20px;">Non hai giocatori in vendita.<br>Vai nella schermata Rosa per aggiungere giocatori alla lista trasferimenti.</div>`;
-            return;
-        }
-
-        listedPlayers.forEach(p => {
-            let offerHtml = `<div style="color:var(--text-hint); font-size:11px; margin-top:8px;">Nessuna offerta. Attendi le prossime giornate...</div>`;
-            
-            if (p.offers && p.offers.length > 0) {
-                let off = p.offers[0];
-                offerHtml = `
-                    <div style="background:rgba(0,245,160,0.1); border:1px solid var(--accent); border-radius:4px; padding:10px; margin-top:10px;">
-                        <div style="font-size:11px; color:var(--text-hint); margin-bottom:4px;">Offerta da: <b>${off.teamName}</b></div>
-                        <div style="font-size:18px; font-weight:bold; color:var(--gold); margin-bottom:10px;">💰 ${off.amount.toLocaleString()}</div>
-                        <div style="display:flex; gap:5px;">
-                            <button class="glass-btn btn-accept-offer" data-id="${p.id}" style="flex:1; border-color:var(--accent); color:var(--accent); font-size:11px; padding:6px;"><i class="fas fa-check"></i> Accetta</button>
-                            <button class="glass-btn btn-nego-offer" data-id="${p.id}" style="flex:1; border-color:var(--notif-info); color:var(--notif-info); font-size:11px; padding:6px;"><i class="fas fa-comments"></i> Tratta</button>
-                            <button class="glass-btn btn-reject-offer" data-id="${p.id}" style="flex:1; border-color:var(--notif-error); color:var(--notif-error); font-size:11px; padding:6px;"><i class="fas fa-xmark"></i> Rifiuta</button>
-                        </div>
-                    </div>
-                `;
-            }
-
-            c.innerHTML += `
-                <div class="glass-panel" style="padding:15px;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div class="card-overall" style="color:${p.color}; font-size:22px;">${p.overall}</div>
-                        <div>
-                            <div style="font-weight:bold; font-size:14px; color:var(--text-primary);">${p.name}</div>
-                            <div style="font-size:10px; color:var(--text-muted);">${p.position} · Valore: 💰 ${(p.value || p.overall * 100).toLocaleString()}</div>
-                        </div>
-                    </div>
-                    ${offerHtml}
-                </div>
-            `;
-        });
-
-        document.querySelectorAll('.btn-accept-offer').forEach(btn => {
-            btn.onclick = (e) => {
-                let pId = e.currentTarget.getAttribute('data-id');
-                let player = gameState.userTeam.players.find(x => x.id === pId);
-                let off = player.offers[0];
-                showConfirm("Accetta Offerta", `Vuoi vendere ${player.name} al ${off.teamName} per 💰${off.amount.toLocaleString()}?`, () => {
-                    executeTransfer(player, off);
-                });
-            };
-        });
-
-        document.querySelectorAll('.btn-reject-offer').forEach(btn => {
-            btn.onclick = (e) => {
-                let pId = e.currentTarget.getAttribute('data-id');
-                let player = gameState.userTeam.players.find(x => x.id === pId);
-                player.offers = []; saveGame(); renderTransferList(); checkMarketNotifications();
-                showNotification("Offerta Rifiutata", "Attendi nuove offerte in futuro.", "info");
-            };
-        });
-
-        document.querySelectorAll('.btn-nego-offer').forEach(btn => {
-            btn.onclick = (e) => {
-                let pId = e.currentTarget.getAttribute('data-id');
-                let player = gameState.userTeam.players.find(x => x.id === pId);
-                let off = player.offers[0];
-                
-                let reqPrice = prompt(`Controproposta per ${player.name} al ${off.teamName}.\nOfferta attuale: ${off.amount.toLocaleString()}\nInserisci la nuova richiesta (es. ${Math.floor(off.amount * 1.1)}):`, off.amount);
-                
-                if (reqPrice !== null) {
-                    reqPrice = parseInt(reqPrice.replace(/\D/g, ''));
-                    if (isNaN(reqPrice) || reqPrice <= 0) return;
-                    
-                    let multiplier = reqPrice / off.amount;
-                    let acceptChance = 0;
-                    if (multiplier <= 1.05) acceptChance = 0.90;
-                    else if (multiplier <= 1.15) acceptChance = 0.60;
-                    else if (multiplier <= 1.25) acceptChance = 0.30;
-                    else acceptChance = 0.05;
-
-                    if (Math.random() < acceptChance) {
-                        off.amount = reqPrice; 
-                        showConfirm("Affare Fatto!", `Il ${off.teamName} ha accettato la tua controproposta di 💰${reqPrice.toLocaleString()}!`, () => {
-                            executeTransfer(player, off);
-                        }, "Vendi", false, true);
-                    } else {
-                        player.offers = []; saveGame(); renderTransferList(); checkMarketNotifications();
-                        showNotification("Trattativa Saltata", `Il ${off.teamName} ha ritenuto la richiesta eccessiva e si è ritirato.`, "error", 4000);
-                    }
-                }
-            };
-        });
-    }
-
-    function executeTransfer(player, offer) {
-        if(gameState.userTeam.players.length <= 12) { showNotification('Rosa Corta', 'Devi avere ALMENO 12 giocatori! Impossibile vendere.', 'error'); return; }
-        
-        gameState.userTeam.players = gameState.userTeam.players.filter(p => p.id !== player.id);
-        gameState.userTeam.coins += offer.amount;
-        
-        player.isStarter = false; player.slotIndex = -1; player.isListed = false; player.offers = [];
-        let cpuTeam = gameState.world[offer.league][offer.division].find(t => t.name === offer.teamName);
-        if (cpuTeam) {
-            cpuTeam.roster.push(player);
-            if (cpuTeam.roster.length > 14) {
-                cpuTeam.roster.sort((a,b) => a.overall - b.overall);
-                cpuTeam.roster.shift(); 
-            }
-        }
-        
-        saveGame(); updateDashboardHeader(); renderTransferList(); checkMarketNotifications();
-        showNotification('Venduto!', `${player.name} ceduto al ${offer.teamName}. +💰${offer.amount.toLocaleString()}`, 'success');
-    }
-
-    if(!searchBtn || !resultsContainer) return;
-    searchBtn.onclick = () => {
-        const nameFilter = document.getElementById('market-search-name').value.toLowerCase();
-        const posFilter = document.getElementById('market-pos').value;
-        const rarityFilter = document.getElementById('market-rarity').value;
-        const ageFilter = document.getElementById('market-age').value;
-        const budgetFilter = document.getElementById('market-budget').value; 
-
-        let allPlayers = [];
-        if(gameState.world) {
-            for (const lg in gameState.world) {
-                [1, 2, 3].forEach(div => {
-                    if(gameState.world[lg][div]) {
-                        gameState.world[lg][div].forEach(team => {
-                            team.roster.forEach(p => { p.teamName = team.name; p.leagueName = lg; p.divLevel = div; allPlayers.push(p); });
-                        });
-                    }
-                });
-            }
-        }
-
-        let filtered = allPlayers.filter(p => {
-            if(nameFilter && !p.name.toLowerCase().includes(nameFilter)) return false;
-            if(posFilter && p.position !== posFilter) return false;
-            if(rarityFilter && p.rarity !== rarityFilter) return false;
-            
-            let playerPrice = p.value || (p.overall * 100);
-            if (budgetFilter && playerPrice > parseInt(budgetFilter)) return false;
-            
-            if(ageFilter) {
-                let [minAge, maxAge] = ageFilter.split('-');
-                if(maxAge) { if(p.age < parseInt(minAge) || p.age > parseInt(maxAge)) return false; } 
-                else { if(p.age < 30) return false; }
-            }
-            return true;
-        });
-
-        filtered.sort((a, b) => b.overall - a.overall);
-        resultsContainer.innerHTML = '';
-        if(filtered.length === 0) { resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato col budget selezionato.</p>'; return; }
-
-        filtered.slice(0, 30).forEach(p => {
-            const flag = p.nationality ? p.nationality.split(' ')[0] : '';
-            resultsContainer.innerHTML += `
-                <div class="player-card" style="border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; width: 105px; padding: 8px; cursor:default; position:relative;">
-                    <div style="position: absolute; top: -6px; left: -6px; background: var(--bg-surface); border: 1px solid var(--border-dim); border-radius: 4px; padding: 2px 4px; font-size: 8px; color: var(--text-muted);">Div ${p.divLevel} - ${p.leagueName.substring(0,3)}</div>
-                    <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${p.overall}</div>
-                    <div class="card-pos">${p.position} <span style="font-size:10px;">${flag} ${p.age}a</span></div>
-                    <div class="card-name" title="${p.name}" style="font-size: 10px; margin-bottom: 4px;">${p.name.split(' ')[1] || p.name}</div>
-                    <div style="font-size: 8px; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; border-top: 1px solid var(--border-dim); padding-top: 4px;">${p.teamName}</div>
-                    <button class="glass-btn buy-btn" data-id="${p.id}" data-team="${p.teamName}" data-league="${p.leagueName}" data-div="${p.divLevel}" data-price="${p.value || (p.overall*100)}" style="padding: 6px; font-size: 11px; margin-top: 8px; width: 100%; border-color: var(--gold); color: var(--gold);">💰 ${(p.value || p.overall*100).toLocaleString()}</button>
-                </div>
-            `;
-        });
-
-        document.querySelectorAll('.buy-btn').forEach(btn => {
-            btn.onclick = (e) => {
-                const id = e.target.getAttribute('data-id');
-                const price = parseInt(e.target.getAttribute('data-price')) || 100;
-                const teamName = e.target.getAttribute('data-team');
-                const lg = e.target.getAttribute('data-league');
-                const div = e.target.getAttribute('data-div');
-
-                if(gameState.userTeam.coins >= price) {
-                    showConfirm("Acquisto", `Vuoi acquistare il giocatore dal ${teamName} per 💰${price.toLocaleString()} monete?`, () => {
-                        gameState.userTeam.coins -= price;
-                        let boughtPlayer = null;
-                        const cpuTeam = gameState.world[lg][div].find(t => t.name === teamName);
-                        
-                        if(cpuTeam) {
-                            const pIndex = cpuTeam.roster.findIndex(p => p.id === id);
-                            if(pIndex > -1) {
-                                boughtPlayer = cpuTeam.roster.splice(pIndex, 1)[0];
-                                let clonePlayer = generatePlayer(boughtPlayer.position, false, 'BRONZE'); 
-                                clonePlayer.name = generateRandomNameByNation(clonePlayer.nationKey);
-                                cpuTeam.roster.push(clonePlayer);
-                            }
-                        }
-                        
-                        if(boughtPlayer) {
-                            boughtPlayer.isStarter = false; 
-                            gameState.userTeam.players.push(boughtPlayer);
-                            saveGame(); updateDashboardHeader();
-                            showNotification('Acquisto Completato!', `Hai acquistato ${boughtPlayer.name}!`, 'success');
-                            searchBtn.click(); 
-                        }
-                    });
-                } else showNotification('Fondi Insufficienti', 'Non hai abbastanza monete.', 'error');
-            };
-        });
-    };
-}
-
-function renderProfile() {
-    const teamNameEl = document.getElementById('profile-team-name');
-    const leagueDivEl = document.getElementById('profile-league-div');
-    const coinsEl = document.getElementById('profile-coins');
-    const playersCountEl = document.getElementById('profile-players-count');
-    const deleteBtn = document.getElementById('delete-account-btn');
-    
-    const strEl = document.getElementById('profile-strength');
-    const starsEl = document.getElementById('profile-stars');
-    const palmaresEl = document.getElementById('profile-palmares'); 
-    
-    const crestEl = document.getElementById('profile-crest');
-    if (crestEl) crestEl.style.cssText += getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
-
-    if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
-    if (leagueDivEl) leagueDivEl.textContent = `${gameState.userTeam.league} · Div ${gameState.userTeam.division} · Anno ${gameState.userTeam.seasonYear}`;
-    if (coinsEl) coinsEl.textContent = gameState.userTeam.coins.toLocaleString('it-IT');
-    if (playersCountEl && gameState.userTeam.players) playersCountEl.textContent = gameState.userTeam.players.length;
-
-    if (strEl && starsEl) {
-        const str = getUserTeamStrength();
-        strEl.textContent = str;
-        starsEl.innerHTML = getStarsHTML(str);
-    }
-
-    if (palmaresEl) {
-        if (gameState.userTeam.palmares && gameState.userTeam.palmares.length > 0) {
-            palmaresEl.innerHTML = [...gameState.userTeam.palmares].reverse().map(p => `
-                <div style="font-size: 13px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;"><span style="color:var(--gold); margin-right:8px;">${p.icon}</span> <b style="color:var(--text-hint);">Anno ${p.year}:</b> ${p.name}</div>
-            `).join('');
-        } else {
-            palmaresEl.innerHTML = `<div style="font-size: 12px; color: var(--text-hint); text-align: center; margin-top: 20px;">Nessun trofeo ancora vinto...</div>`;
-        }
-    }
-
-    const kitEditorHeader = document.getElementById('kit-editor-header');
-    const kitEditorContent = document.getElementById('kit-editor-content');
-    const kitEditorChevron = document.getElementById('kit-editor-chevron');
-
-    if (kitEditorHeader && kitEditorContent) {
-        kitEditorHeader.onclick = () => {
-            if (kitEditorContent.style.display === 'none' || kitEditorContent.style.display === '') {
-                kitEditorContent.style.display = 'flex';
-                kitEditorChevron.style.transform = 'rotate(180deg)';
-            } else {
-                kitEditorContent.style.display = 'none';
-                kitEditorChevron.style.transform = 'rotate(0deg)';
-            }
-        };
-    }
-
-    const c1 = document.getElementById('edit-color-1');
-    const c2 = document.getElementById('edit-color-2');
-    const styleSel = document.getElementById('edit-kit-style');
-    const saveKitBtn = document.getElementById('save-kit-btn');
-    
-    if (c1 && c2 && styleSel && saveKitBtn) {
-        c1.value = gameState.userTeam.colors.primary;
-        c2.value = gameState.userTeam.colors.secondary;
-        
-        styleSel.innerHTML = gameState.userTeam.ownedKits.map(k => `<option value="${k}" ${gameState.userTeam.kitStyle === k ? 'selected' : ''}>${KIT_STYLES_LABELS[k]}</option>`).join('');
-        
-        saveKitBtn.onclick = () => {
-            saveKitBtn.innerHTML = `<i class="fas fa-check"></i> Salvato!`;
-            saveKitBtn.style.transform = 'scale(1.05)';
-            saveKitBtn.style.background = 'rgba(0, 245, 160, 0.2)';
-            
-            gameState.userTeam.colors.primary = c1.value;
-            gameState.userTeam.colors.secondary = c2.value;
-            gameState.userTeam.kitStyle = styleSel.value;
-            saveGame();
-            
-            if (crestEl) {
-                crestEl.style.cssText = `width: 80px; height: 95px; margin: 0 auto 15px; border-radius: 12px 12px 50% 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 3px solid rgba(255,255,255,0.8);`;
-                crestEl.style.cssText += getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
-            }
-            
-            setTimeout(() => {
-                saveKitBtn.innerHTML = `<i class="fas fa-palette"></i> Applica Modifiche`;
-                saveKitBtn.style.transform = 'scale(1)';
-                saveKitBtn.style.background = 'transparent';
-                showNotification("Divisa Aggiornata!", "I nuovi colori sono stati applicati.", "success");
-            }, 600);
-        };
-    }
-
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => {
-            showConfirm("Cancellazione Account", "⚠️ Sei sicuro di voler cancellare la tua squadra? Perderai tutto.", () => { resetGame(); }, "Cancella Definitivamente", true);
-        });
-    }
-
-    const promoInput = document.getElementById('promo-code-input');
-    const promoBtn = document.getElementById('promo-code-btn');
-    
-    if (promoBtn && promoInput) {
-        promoBtn.onclick = () => {
-            const code = promoInput.value.trim();
-            if (code === "160105") {
-                gameState.userTeam.coins = 999999999;
-                gameState.userTeam.gems = 999999999;
-                saveGame();
-                updateDashboardHeader();
-                promoInput.value = '';
-                showNotification("Trucco Attivato!", "Hai sbloccato Monete e Gemme INFINITE! 💎💰", "success");
-            } else if (code !== "") {
-                showNotification("Errore", "Codice non valido.", "error");
-            }
-        };
-    }
 }

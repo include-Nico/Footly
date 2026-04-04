@@ -1,7 +1,9 @@
 // js/engine.js
-import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS, generateTransferOffers } from './state.js';import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
+import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS, generateTransferOffers } from './state.js';
+import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
-import { loadView, FORMATIONS, checkMarketNotifications } from './router.js';
+import { loadView, FORMATIONS, checkMarketNotifications } from './router.js'; 
+import { initDribblingModal } from './minigames.js'; // IMPORTA IL NUOVO MINIGIOCO!
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
@@ -220,29 +222,6 @@ export function startMatchEngine() {
         banner.classList.add('show'); setTimeout(() => { banner.classList.remove('show'); if(callback) callback(); }, 3000);
     }
 
-    // === GESTIONE AUTOMATICA RUOLI IN GARA ===
-    function reassignRolesIfNeeded(outPlayerId) {
-        let startersNow = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.id !== outPlayerId);
-        if (startersNow.length === 0) return;
-
-        if (outPlayerId === gameState.userTeam.roles?.captain) {
-            let oldest = startersNow.reduce((prev, current) => (prev.age > current.age) ? prev : current);
-            if(oldest) {
-                gameState.userTeam.roles.captain = oldest.id;
-                addLog(`©️ La fascia di capitano passa a <b>${oldest.name}</b> (${oldest.age} anni).`);
-            }
-        }
-
-        if (outPlayerId === gameState.userTeam.roles?.penalty) {
-            let attackers = startersNow.filter(p => p.position === 'ATT');
-            let newPen = attackers.length > 0 ? attackers.sort((a,b) => b.overall - a.overall)[0] : startersNow.sort((a,b) => b.overall - a.overall)[0];
-            if(newPen) {
-                gameState.userTeam.roles.penalty = newPen.id;
-                addLog(`🎯 Il nuovo rigorista in campo è <b>${newPen.name}</b>.`);
-            }
-        }
-    }
-
     let strDiffAbs = Math.abs(userStr - nextOpponent.strength);
     let totalChances = randomInt(3, 4) + Math.floor(strDiffAbs / 8); 
     if(totalChances > 8) totalChances = 8;
@@ -253,10 +232,6 @@ export function startMatchEngine() {
         if(!chanceMinutes.includes(m) && ![15, 30, 45, 60, 75, 90].includes(m)) chanceMinutes.push(m);
     }
     if(Math.random() > 0.4) chanceMinutes.push(90 + randomInt(1, stoppageTime)); 
-
-    document.getElementById('btn-intro-sim').innerHTML = `Simula Rapida (💎 5) <i class="fas fa-bolt"></i>`;
-    document.getElementById('btn-intro-sim').style.borderColor = "#00d4ff";
-    document.getElementById('btn-intro-sim').style.color = "#00d4ff";
 
     document.getElementById('start-kickoff-btn').onclick = () => {
         document.getElementById('match-intro').style.display = 'none';
@@ -270,8 +245,7 @@ export function startMatchEngine() {
     document.getElementById('btn-intro-sim').onclick = () => {
         if(gameState.userTeam.gems >= 5) {
             showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
-                gameState.userTeam.gems -= 5;
-                updateDashboardHeader();
+                gameState.userTeam.gems -= 5; updateDashboardHeader();
                 
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
@@ -390,13 +364,35 @@ export function startMatchEngine() {
         else { simulateMinute(); }
     }
 
+    function reassignRolesIfNeeded(outPlayerId) {
+        let startersNow = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.id !== outPlayerId);
+        if (startersNow.length === 0) return;
+
+        if (outPlayerId === gameState.userTeam.roles?.captain) {
+            let oldest = startersNow.reduce((prev, current) => (prev.age > current.age) ? prev : current);
+            if(oldest) {
+                gameState.userTeam.roles.captain = oldest.id;
+                addLog(`©️ La fascia di capitano passa a <b>${oldest.name}</b> (${oldest.age} anni).`);
+            }
+        }
+
+        if (outPlayerId === gameState.userTeam.roles?.penalty) {
+            let attackers = startersNow.filter(p => p.position === 'ATT');
+            let newPen = attackers.length > 0 ? attackers.sort((a,b) => b.overall - a.overall)[0] : startersNow.sort((a,b) => b.overall - a.overall)[0];
+            if(newPen) {
+                gameState.userTeam.roles.penalty = newPen.id;
+                addLog(`🎯 Il nuovo rigorista in campo è <b>${newPen.name}</b>.`);
+            }
+        }
+    }
+
     function applyYellowCard(p, reason) {
         p.matchYellows++; p.stats.yellowCards++; p.status.yellowCards++;
         if (p.matchYellows === 2) {
             p.status.suspended = 2; p.stats.redCards++; p.status.yellowCards = 0; 
             addLog(`🟥 DOPPIO GIALLO! <b>${p.name}</b> viene espulso!`, 'log-red');
             reassignRolesIfNeeded(p.id);
-            showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}<br><span style="font-size:12px;">Doppio Giallo</span>`, () => { updateMatchHeaderStr(); renderMatchSubsList(); resumeMatch(reason); });
+            showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}<br><span style="font-size:12px;">Doppio Giallo</span>`, () => { updateMatchHeaderStr(); document.getElementById('btn-pause-sub').click(); resumeMatch(reason); });
         } else if (p.status.yellowCards >= 2) {
             addLog(`🟨 Ammonito <b>${p.name}</b>. Era diffidato, salterà la prossima gara!`, 'log-yellow');
             showMatchBanner('yellow', 'AMMONIZIONE', `🟨 ${p.name}<br><span style="font-size:12px;color:var(--text-hint);">Diffidato: salterà la prossima gara.</span>`, () => { resumeMatch(reason); });
@@ -410,7 +406,7 @@ export function startMatchEngine() {
         p.status.suspended = 2; p.status.yellowCards = 0; p.stats.redCards++;
         addLog(`🟥 ROSSO DIRETTO! <b>${p.name}</b> finisce negli spogliatoi!`, 'log-red');
         reassignRolesIfNeeded(p.id);
-        showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}`, () => { updateMatchHeaderStr(); renderMatchSubsList(); resumeMatch(reason); });
+        showMatchBanner('red', 'ESPULSO', `🟥 ${p.name}`, () => { updateMatchHeaderStr(); document.getElementById('btn-pause-sub').click(); resumeMatch(reason); });
     }
 
     function simulateMinute() {
@@ -446,13 +442,9 @@ export function startMatchEngine() {
                     p.status.injured = Math.floor(Math.random()*2)+1; 
                     addLog(`🤕 Brutto contrasto! <b>${p.name}</b> è infortunato!`, 'log-injury'); 
                     showMatchBanner('injury', 'INFORTUNIO', `🤕 ${p.name} deve uscire!`, () => { 
-                        renderMatchSubsList(); 
                         resumeMatch('foul'); 
-                        
                         let availableBench = gameState.userTeam.players.filter(pl => !pl.isStarter && pl.status.injured === 0 && pl.status.suspended === 0);
-                        if (subsLeft > 0 && availableBench.length > 0) {
-                            document.getElementById('btn-pause-sub').click();
-                        }
+                        if (subsLeft > 0 && availableBench.length > 0) { document.getElementById('btn-pause-sub').click(); }
                     });
                 } else { applyYellowCard(p, 'foul'); }
             }
@@ -543,6 +535,18 @@ export function startMatchEngine() {
                     let successChance = (getEffectiveOverall(pOff) / 100) * 0.7; 
                     if(Math.random() < successChance) { addLog(`${pOff.name} si libera lo specchio della porta!`); triggerGoalMiniGame(pOff, false, null, 'event'); }
                     else { addLog(`${pOff.name} viene murato al momento del tiro.`); resumeMatch('event'); }
+                });
+
+                // AGGIUNTA EVENTO DRIBBLING
+                addEventButton(`Tenta il Dribbling in area (Rischioso)`, () => {
+                    modal.classList.remove('active');
+                    initDribblingModal(getUserTeamStrength(), cpuDynamicStrength, () => {
+                        addLog(`✨ Dribbling ubriacante di <b>${pOff.name}</b>! Salta l'uomo ed è a tu per tu col portiere!`);
+                        triggerGoalMiniGame(pOff, false, null, 'event');
+                    }, () => {
+                        addLog(`❌ <b>${pOff.name}</b> si allunga troppo la palla e viene fermato. Palla persa.`);
+                        resumeMatch('event');
+                    });
                 });
 
             } else {
