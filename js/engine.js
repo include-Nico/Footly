@@ -2,8 +2,9 @@
 import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS, generateTransferOffers } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
-import { loadView, FORMATIONS, checkMarketNotifications } from './router.js'; 
-import { initDribblingModal } from './minigames.js'; // IMPORTA IL NUOVO MINIGIOCO!
+import { loadView, FORMATIONS } from './router.js'; 
+import { checkMarketNotifications } from './market.js'; // L'ho spostata nel file giusto!
+import { initDribblingModal } from './minigames.js';
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
