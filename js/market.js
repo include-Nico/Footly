@@ -2,7 +2,6 @@
 import { gameState, saveGame } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { generatePlayer, generateRandomNameByNation } from './players.js';
-import { loadView } from './router.js';
 
 export function checkMarketNotifications() {
     let hasOffers = false;

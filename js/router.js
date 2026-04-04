@@ -3,7 +3,7 @@ import { gameState, resetGame, saveGame, getUserTeamStrength, getGlobalTeam, SEA
 import { updateDashboardHeader, showNotification, showConfirm, updateNavUI } from './ui.js';
 import { processEndOfSeason, generatePlayer, generateRandomNameByNation, getEffectiveOverall } from './players.js'; 
 import { startMatchEngine } from './engine.js'; 
-import { renderMarket, checkMarketNotifications } from './market.js'; // IMPORT DAL NUOVO FILE
+import { renderMarket, checkMarketNotifications } from './market.js'; // IMPORT DEL MERCATO
 
 const mainContent = document.getElementById('main-content');
 let selectedPlayerId = null; let draggedId = null; 
@@ -265,6 +265,7 @@ function renderHome() {
             } 
             else if (i+1 === currentWk) { statusClass = 'border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 245, 160, 0.15);'; statusText = 'Oggi ⚽'; } 
             else { statusClass = 'border-color: var(--border-dim);'; statusText = 'Da giocare ⏳'; }
+
 
             let venueText = isHome ? "Casa" : "Trasferta";
             let venueIcon = isHome ? '<i class="fas fa-house" style="color:var(--accent); font-size:10px;"></i>' : '<i class="fas fa-bus" style="color:var(--notif-warning); font-size:10px;"></i>';
@@ -977,4 +978,116 @@ function renderSquad() {
         slot.addEventListener('dragover', (e) => e.preventDefault());
         slot.addEventListener('drop', (e) => { e.preventDefault(); const targetIdx = parseInt(slot.getAttribute('data-idx')); if (draggedId) executeMove(draggedId, targetIdx); });
     });
+}
+
+function renderProfile() {
+    const teamNameEl = document.getElementById('profile-team-name');
+    const leagueDivEl = document.getElementById('profile-league-div');
+    const coinsEl = document.getElementById('profile-coins');
+    const playersCountEl = document.getElementById('profile-players-count');
+    const deleteBtn = document.getElementById('delete-account-btn');
+    
+    const strEl = document.getElementById('profile-strength');
+    const starsEl = document.getElementById('profile-stars');
+    const palmaresEl = document.getElementById('profile-palmares'); 
+    
+    const crestEl = document.getElementById('profile-crest');
+    if (crestEl) crestEl.style.cssText += getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+
+    if (teamNameEl) teamNameEl.textContent = gameState.userTeam.name;
+    if (leagueDivEl) leagueDivEl.textContent = `${gameState.userTeam.league} · Div ${gameState.userTeam.division} · Anno ${gameState.userTeam.seasonYear}`;
+    if (coinsEl) coinsEl.textContent = gameState.userTeam.coins.toLocaleString('it-IT');
+    if (playersCountEl && gameState.userTeam.players) playersCountEl.textContent = gameState.userTeam.players.length;
+
+    if (strEl && starsEl) {
+        const str = getUserTeamStrength();
+        strEl.textContent = str;
+        starsEl.innerHTML = getStarsHTML(str);
+    }
+
+    if (palmaresEl) {
+        if (gameState.userTeam.palmares && gameState.userTeam.palmares.length > 0) {
+            palmaresEl.innerHTML = [...gameState.userTeam.palmares].reverse().map(p => `
+                <div style="font-size: 13px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;"><span style="color:var(--gold); margin-right:8px;">${p.icon}</span> <b style="color:var(--text-hint);">Anno ${p.year}:</b> ${p.name}</div>
+            `).join('');
+        } else {
+            palmaresEl.innerHTML = `<div style="font-size: 12px; color: var(--text-hint); text-align: center; margin-top: 20px;">Nessun trofeo ancora vinto...</div>`;
+        }
+    }
+
+    const kitEditorHeader = document.getElementById('kit-editor-header');
+    const kitEditorContent = document.getElementById('kit-editor-content');
+    const kitEditorChevron = document.getElementById('kit-editor-chevron');
+
+    if (kitEditorHeader && kitEditorContent) {
+        kitEditorHeader.onclick = () => {
+            if (kitEditorContent.style.display === 'none' || kitEditorContent.style.display === '') {
+                kitEditorContent.style.display = 'flex';
+                kitEditorChevron.style.transform = 'rotate(180deg)';
+            } else {
+                kitEditorContent.style.display = 'none';
+                kitEditorChevron.style.transform = 'rotate(0deg)';
+            }
+        };
+    }
+
+    const c1 = document.getElementById('edit-color-1');
+    const c2 = document.getElementById('edit-color-2');
+    const styleSel = document.getElementById('edit-kit-style');
+    const saveKitBtn = document.getElementById('save-kit-btn');
+    
+    if (c1 && c2 && styleSel && saveKitBtn) {
+        c1.value = gameState.userTeam.colors.primary;
+        c2.value = gameState.userTeam.colors.secondary;
+        
+        styleSel.innerHTML = gameState.userTeam.ownedKits.map(k => `<option value="${k}" ${gameState.userTeam.kitStyle === k ? 'selected' : ''}>${KIT_STYLES_LABELS[k]}</option>`).join('');
+        
+        saveKitBtn.onclick = () => {
+            saveKitBtn.innerHTML = `<i class="fas fa-check"></i> Salvato!`;
+            saveKitBtn.style.transform = 'scale(1.05)';
+            saveKitBtn.style.background = 'rgba(0, 245, 160, 0.2)';
+            
+            gameState.userTeam.colors.primary = c1.value;
+            gameState.userTeam.colors.secondary = c2.value;
+            gameState.userTeam.kitStyle = styleSel.value;
+            saveGame();
+            
+            if (crestEl) {
+                crestEl.style.cssText = `width: 80px; height: 95px; margin: 0 auto 15px; border-radius: 12px 12px 50% 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 3px solid rgba(255,255,255,0.8);`;
+                crestEl.style.cssText += getKitCSS(gameState.userTeam.colors.primary, gameState.userTeam.colors.secondary, gameState.userTeam.kitStyle);
+            }
+            
+            setTimeout(() => {
+                saveKitBtn.innerHTML = `<i class="fas fa-palette"></i> Applica Modifiche`;
+                saveKitBtn.style.transform = 'scale(1)';
+                saveKitBtn.style.background = 'transparent';
+                showNotification("Divisa Aggiornata!", "I nuovi colori sono stati applicati.", "success");
+            }, 600);
+        };
+    }
+
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            showConfirm("Cancellazione Account", "⚠️ Sei sicuro di voler cancellare la tua squadra? Perderai tutto.", () => { resetGame(); }, "Cancella Definitivamente", true);
+        });
+    }
+
+    const promoInput = document.getElementById('promo-code-input');
+    const promoBtn = document.getElementById('promo-code-btn');
+    
+    if (promoBtn && promoInput) {
+        promoBtn.onclick = () => {
+            const code = promoInput.value.trim();
+            if (code === "160105") {
+                gameState.userTeam.coins = 999999999;
+                gameState.userTeam.gems = 999999999;
+                saveGame();
+                updateDashboardHeader();
+                promoInput.value = '';
+                showNotification("Trucco Attivato!", "Hai sbloccato Monete e Gemme INFINITE! 💎💰", "success");
+            } else if (code !== "") {
+                showNotification("Errore", "Codice non valido.", "error");
+            }
+        };
+    }
 }
