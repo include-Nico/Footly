@@ -1,11 +1,10 @@
 // js/engine.js
-// js/engine.js
 import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS, generateTransferOffers } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
 import { loadView, FORMATIONS } from './router.js'; 
 import { checkMarketNotifications } from './market.js';
-import { initDribblingModal } from './minigames.js';
+import { initDribblingModal, initDefenseModal } from './minigames.js'; // Importiamo i due giochi
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
@@ -247,7 +246,8 @@ export function startMatchEngine() {
     document.getElementById('btn-intro-sim').onclick = () => {
         if(gameState.userTeam.gems >= 5) {
             showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
-                gameState.userTeam.gems -= 5; updateDashboardHeader();
+                gameState.userTeam.gems -= 5;
+                updateDashboardHeader();
                 
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
@@ -479,192 +479,13 @@ export function startMatchEngine() {
         return roster[Math.floor(Math.random() * roster.length)];
     }
 
-    function getMultipleActivePlayers(count) {
-        let active = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0);
-        let selected = [];
-        for(let i=0; i<count; i++) {
-            if(active.length === 0) break;
-            let idx = Math.floor(Math.random() * active.length);
-            selected.push(active[idx]); active.splice(idx, 1);
-        }
-        return selected;
-    }
-
-    // === GESTIONE BOTTONE SOSTITUZIONI/GESTIONE SQUADRA ===
-    document.getElementById('btn-pause-sub').onclick = () => {
-        pauseMatch('subs');
-        const modal = document.getElementById('subs-modal');
-        const matchFormSelect = document.getElementById('match-formation-select');
-        
-        if (matchFormSelect) {
-            matchFormSelect.value = gameState.userTeam.formation;
-            matchFormSelect.onchange = (e) => {
-                gameState.userTeam.formation = e.target.value;
-                selectedPlayerId = null; saveGame(); renderMatchSubsList(); updateMatchHeaderStr(); 
-                addLog(`🔄 Cambio Modulo: L'allenatore passa al ${gameState.userTeam.formation}.`);
-            };
-        }
-
-        renderMatchSubsList();
-        modal.classList.add('active');
-
-        document.getElementById('close-subs-btn').onclick = () => {
-            let injuredStarters = gameState.userTeam.players.filter(p => p.isStarter && p.status.injured > 0);
-            let availableBench = gameState.userTeam.players.filter(p => !p.isStarter && p.status.injured === 0 && p.status.suspended === 0);
-            
-            if (injuredStarters.length > 0 && subsLeft > 0 && availableBench.length > 0) {
-                showNotification("Sostituzione Obbligatoria", "Devi sostituire il giocatore infortunato prima di continuare!", "warning");
-                return;
-            }
-
-            modal.classList.remove('active');
-            resumeMatch('subs');
-        };
-    };
-
-    function renderMatchSubsList() {
-        const pitch = document.getElementById('match-pitch-players');
-        const bench = document.getElementById('match-bench-players');
-        
-        let sLeftEl = document.getElementById('subs-left');
-        let sModalLeftEl = document.getElementById('subs-modal-left');
-        if(sLeftEl) sLeftEl.textContent = subsLeft;
-        if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
-        
-        const currentF = FORMATIONS[gameState.userTeam.formation];
-        let totalTacAtt = tacBonusAtt + currentF.att;
-        let totalTacDef = tacBonusDef + currentF.def;
-        
-        let attEl = document.getElementById('match-tactics-att');
-        let defEl = document.getElementById('match-tactics-def');
-        if (attEl) attEl.textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
-        if (defEl) defEl.textContent = `DIF: ${totalTacDef > 0 ? '+' : ''}${totalTacDef}%`;
-
-        pitch.innerHTML = ''; bench.innerHTML = '';
-        
-        let starters = gameState.userTeam.players.filter(p => p.isStarter);
-        let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
-
-        currentF.pos.forEach((slot, idx) => {
-            let p = starters.find(pl => pl.slotIndex === idx);
-            if(p) {
-                const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
-                let displayOverall = isOOP ? Math.floor(getEffectiveOverall(p) * 0.7) : getEffectiveOverall(p);
-                
-                let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
-
-                let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
-                if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
-                if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
-                else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
-
-                let roleIcons = '';
-                if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
-                if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-                let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
-
-                let isSelected = selectedPlayerId === p.id;
-                let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
-                const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
-
-                pitch.innerHTML += `
-                    <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
-                        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                        <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
-                            ${warningHTML}
-                            ${rolesHtml}
-                            <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position}</div>
-                            ${getEnergyBarHTML(p)}
-                            <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
-                        </div>
-                    </div>
-                `;
-            } else pitch.innerHTML += `<div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};"><div class="empty-slot" data-idx="${idx}"><i class="fas fa-plus"></i><br>${slot.role}</div></div>`;
-        });
-
-        reserves.forEach(p => {
-            let isSelected = selectedPlayerId === p.id;
-            let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
-            const flag = p.nationality ? p.nationality.split(' ')[0] : '';
-            
-            let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
-
-            let warningHTML = '';
-            if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
-            if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
-            else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
-
-            let roleIcons = '';
-            if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
-            if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-            let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
-
-            bench.innerHTML += `
-                <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
-                    ${warningHTML}
-                    ${rolesHtml}
-                    <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
-                    <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
-                    ${getEnergyBarHTML(p)}
-                    <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
-                </div>
-            `;
-        });
-
-        function executeMatchSwap(id1, id2) {
-            if(id1 === id2) return;
-            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
-            let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
-            
-            if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
-                (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
-                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error");
-                return;
-            }
-
-            if ((p1.isStarter && p1.status.suspended > 0) || (p2.isStarter && p2.status.suspended > 0)) {
-                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error");
-                return;
-            }
-            
-            let outPlayer = null;
-            if(p1.isStarter !== p2.isStarter) {
-                if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
-                subsLeft--;
-                if(sLeftEl) sLeftEl.textContent = subsLeft;
-                if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
-                
-                outPlayer = p1.isStarter ? p1 : p2;
-                let inPlayer = p1.isStarter ? p2 : p1;
-                addLog(`🔄 Sostituzione: Esce ${outPlayer.name}, entra ${inPlayer.name}.`);
-            }
-            
-            let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
-            let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
-            
-            if (outPlayer) reassignRolesIfNeeded(outPlayer.id);
-            
-            renderMatchSubsList(); updateMatchHeaderStr();
-        }
-
-        document.querySelectorAll('.match-card-interactive').forEach(card => {
-            card.onclick = (e) => {
-                e.stopPropagation(); 
-                const id = card.getAttribute('data-id');
-                if (!selectedPlayerId) { selectedPlayerId = id; renderMatchSubsList(); } 
-                else { if (selectedPlayerId === id) selectedPlayerId = null; else executeMatchSwap(selectedPlayerId, id); selectedPlayerId = null; renderMatchSubsList(); }
-            };
-        });
-    }
-
     function triggerMatchEvent() {
         pauseMatch('event');
         const modal = document.getElementById('event-modal'); const titleEl = document.getElementById('event-title'); const descEl = document.getElementById('event-desc'); const optionsEl = document.getElementById('event-options');
         optionsEl.innerHTML = '';
         
         let pOff = getActivePlayer(['ATT', 'CEN']) || getActivePlayer();
-        let pDef = getActivePlayer(['DIF', 'CEN']) || getActivePlayer();
+        let pDef = getActivePlayer(['DIF']) || getActivePlayer();
         
         let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + FORMATIONS[gameState.userTeam.formation].att, 2);
         let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + FORMATIONS[gameState.userTeam.formation].def * 0.5), 2);
@@ -685,65 +506,72 @@ export function startMatchEngine() {
         } else {
             if (isUserEvent) {
                 titleEl.textContent = "Azione Pericolosa!"; titleEl.style.color = "var(--accent)";
-                let offVerbs = ["sale prepotentemente sulla fascia", "trova un varco centrale", "avanza palla al piede", "supera un avversario con una finta"];
+                let offVerbs = ["vede un buco nella difesa", "ha spazio per ragionare", "avanza palla al piede al limite dell'area"];
                 let offVerb = offVerbs[Math.floor(Math.random() * offVerbs.length)];
-                descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. La difesa è scoperta. Cosa gli diciamo di fare?`;
+                descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. Cosa decidi di fargli fare?`;
                 
-                let availableCompanions = gameState.userTeam.players.filter(p => 
-                    p.isStarter && 
-                    p.status.suspended === 0 && 
-                    p.status.injured === 0 && 
-                    p.id !== pOff.id && 
-                    p.position !== 'POR'
-                );
-                
+                // Opzioni di Passaggio (Evita se stesso e il Portiere)
+                let availableCompanions = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0 && p.id !== pOff.id && p.position !== 'POR');
                 availableCompanions.sort(() => Math.random() - 0.5);
-                let numPassOptions = randomInt(2, 3);
-                let companions = availableCompanions.slice(0, numPassOptions);
+                let companions = availableCompanions.slice(0, randomInt(2, 3));
 
                 companions.forEach(comp => {
                     let successChance = (getEffectiveOverall(comp) / 100) * 0.85;
                     addEventButton(`Passa la palla a ${comp.name} (${comp.position})`, () => {
                         modal.classList.remove('active');
                         if(Math.random() < successChance) { 
-                            addLog(`✨ Passaggio illuminante per <b>${comp.name}</b>, che va al tiro!`); 
+                            addLog(`✨ Passaggio filtrante perfetto per <b>${comp.name}</b>, che va al tiro!`); 
                             triggerGoalMiniGame(comp, false, pOff, 'event'); 
                         } else { 
-                            addLog(`❌ Passaggio intercettato verso ${comp.name}. Palla persa.`); 
+                            addLog(`❌ Passaggio intercettato verso ${comp.name}. La difesa spazza.`); 
                             resumeMatch('event'); 
                         }
                     });
                 });
 
-                addEventButton(`Tenta il Dribbling in area (Rischioso)`, () => {
-                    modal.classList.remove('active');
-                    initDribblingModal(getUserTeamStrength(), cpuDynamicStrength, () => {
-                        addLog(`✨ Dribbling ubriacante di <b>${pOff.name}</b>! Salta l'uomo ed è a tu per tu col portiere!`);
-                        triggerGoalMiniGame(pOff, false, null, 'event');
-                    }, () => {
-                        addLog(`❌ <b>${pOff.name}</b> si allunga troppo la palla e viene fermato. Palla persa.`);
-                        resumeMatch('event');
+                // Opzione Dribbling (Solo per Centrocampisti e Attaccanti)
+                if (pOff.position === 'CEN' || pOff.position === 'ATT') {
+                    let zoneText = pOff.position === 'CEN' ? 'a centrocampo' : 'in attacco';
+                    addEventButton(`Tenta il Dribbling ${zoneText} (Minigioco)`, () => {
+                        modal.classList.remove('active');
+                        initDribblingModal(getUserTeamStrength(), cpuDynamicStrength, () => {
+                            addLog(`✨ Dribbling ubriacante di <b>${pOff.name}</b>! Salta l'uomo ed è a tu per tu col portiere!`);
+                            triggerGoalMiniGame(pOff, false, null, 'event');
+                        }, () => {
+                            addLog(`❌ <b>${pOff.name}</b> si allunga troppo la palla e viene fermato. Palla persa.`);
+                            resumeMatch('event');
+                        });
                     });
-                });
+                }
 
             } else {
                 titleEl.textContent = "Contropiede Avversario!"; titleEl.style.color = "var(--notif-warning)";
-                descEl.innerHTML = `Lancio lungo improvviso! Gli avversari ripartono veloci. <b>${pDef.name}</b> è l'ultimo uomo rimasto in difesa.`;
+                descEl.innerHTML = `Gli avversari ripartono veloci in campo aperto! <b>${pDef.name}</b> è rimasto solo contro l'attaccante.`;
                 
-                addEventButton(`Fallo Tattico (Rischio Cartellino)`, () => {
+                // Opzione Minigioco Difensivo
+                addEventButton(`Contenimento Fisico (Minigioco)`, () => {
                     modal.classList.remove('active');
-                    if(Math.random() < 0.3) { applyRedCard(pDef, 'event'); } else { applyYellowCard(pDef, 'event'); }
+                    initDefenseModal(getUserTeamStrength(), cpuDynamicStrength, 
+                        () => {
+                            addLog(`🛡️ Chiusura difensiva magistrale di <b>${pDef.name}</b>! Temporeggia alla perfezione e l'azione sfuma.`);
+                            resumeMatch('event');
+                        },
+                        () => {
+                            addLog(`🏃‍♂️ <b>${pDef.name}</b> viene saltato in velocità! L'attaccante s'invola verso la porta.`);
+                            let oppShooter = getRandomOpponentPlayer(['ATT', 'CEN']) || getRandomOpponentPlayer();
+                            triggerGoalMiniGame(oppShooter, true, null, 'event');
+                        },
+                        () => {
+                            addLog(`🟨 Troppa irruenza! <b>${pDef.name}</b> commette un brutto fallo tattico per fermare l'uomo.`);
+                            applyYellowCard(pDef, 'event');
+                        }
+                    );
                 });
-                
-                addEventButton(`Difendi temporeggiando (Rischio Gol)`, () => {
+
+                // Opzione Rischio/Fallo Diretto
+                addEventButton(`Entrata in Scivolata Diretta (Rischio Cartellino)`, () => {
                     modal.classList.remove('active');
-                    let successChance = (getEffectiveOverall(pDef) / 100) * 0.85;
-                    if(Math.random() < successChance) { addLog(`Chiusura difensiva magistrale di <b>${pDef.name}</b>! Pericolo scampato.`); resumeMatch('event'); } 
-                    else { 
-                        addLog(`<b>${pDef.name}</b> viene saltato di netto! L'attaccante si invola.`); 
-                        let oppShooter = getRandomOpponentPlayer(['ATT', 'CEN']) || getRandomOpponentPlayer();
-                        triggerGoalMiniGame(oppShooter, true, null, 'event'); 
-                    }
+                    if(Math.random() < 0.4) { applyRedCard(pDef, 'event'); } else { applyYellowCard(pDef, 'event'); }
                 });
             }
         }
@@ -1003,6 +831,174 @@ export function startMatchEngine() {
         handlePkTurn();
     }
 
+    // === GESTIONE BOTTONE SOSTITUZIONI/GESTIONE SQUADRA ===
+    document.getElementById('btn-pause-sub').onclick = () => {
+        pauseMatch('subs');
+        const modal = document.getElementById('subs-modal');
+        const matchFormSelect = document.getElementById('match-formation-select');
+        
+        if (matchFormSelect) {
+            matchFormSelect.value = gameState.userTeam.formation;
+            matchFormSelect.onchange = (e) => {
+                gameState.userTeam.formation = e.target.value;
+                selectedPlayerId = null; saveGame(); renderMatchSubsList(); updateMatchHeaderStr(); 
+                addLog(`🔄 Cambio Modulo: L'allenatore passa al ${gameState.userTeam.formation}.`);
+            };
+        }
+
+        renderMatchSubsList();
+        modal.classList.add('active');
+
+        document.getElementById('close-subs-btn').onclick = () => {
+            let injuredStarters = gameState.userTeam.players.filter(p => p.isStarter && p.status.injured > 0);
+            let availableBench = gameState.userTeam.players.filter(p => !p.isStarter && p.status.injured === 0 && p.status.suspended === 0);
+            
+            if (injuredStarters.length > 0 && subsLeft > 0 && availableBench.length > 0) {
+                showNotification("Sostituzione Obbligatoria", "Devi sostituire il giocatore infortunato prima di continuare!", "warning");
+                return;
+            }
+
+            modal.classList.remove('active');
+            resumeMatch('subs');
+        };
+    };
+
+    function renderMatchSubsList() {
+        const pitch = document.getElementById('match-pitch-players');
+        const bench = document.getElementById('match-bench-players');
+        
+        let sLeftEl = document.getElementById('subs-left');
+        let sModalLeftEl = document.getElementById('subs-modal-left');
+        if(sLeftEl) sLeftEl.textContent = subsLeft;
+        if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
+        
+        const currentF = FORMATIONS[gameState.userTeam.formation];
+        let totalTacAtt = tacBonusAtt + currentF.att;
+        let totalTacDef = tacBonusDef + currentF.def;
+        
+        let attEl = document.getElementById('match-tactics-att');
+        let defEl = document.getElementById('match-tactics-def');
+        if (attEl) attEl.textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
+        if (defEl) defEl.textContent = `DIF: ${totalTacDef > 0 ? '+' : ''}${totalTacDef}%`;
+
+        pitch.innerHTML = ''; bench.innerHTML = '';
+        
+        let starters = gameState.userTeam.players.filter(p => p.isStarter);
+        let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
+
+        currentF.pos.forEach((slot, idx) => {
+            let p = starters.find(pl => pl.slotIndex === idx);
+            if(p) {
+                const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
+                let displayOverall = isOOP ? Math.floor(getEffectiveOverall(p) * 0.7) : getEffectiveOverall(p);
+                
+                let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
+
+                let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
+                if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
+                if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
+                else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
+
+                let roleIcons = '';
+                if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
+                if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
+                let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+
+                let isSelected = selectedPlayerId === p.id;
+                let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
+                const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
+
+                pitch.innerHTML += `
+                    <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
+                        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
+                        <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
+                            ${warningHTML}
+                            ${rolesHtml}
+                            <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
+                            <div class="card-pos">${p.position}</div>
+                            ${getEnergyBarHTML(p)}
+                            <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
+                        </div>
+                    </div>
+                `;
+            } else pitch.innerHTML += `<div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};"><div class="empty-slot" data-idx="${idx}"><i class="fas fa-plus"></i><br>${slot.role}</div></div>`;
+        });
+
+        reserves.forEach(p => {
+            let isSelected = selectedPlayerId === p.id;
+            let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
+            const flag = p.nationality ? p.nationality.split(' ')[0] : '';
+            
+            let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
+
+            let warningHTML = '';
+            if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
+            if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
+            else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
+
+            let roleIcons = '';
+            if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
+            if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
+            let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
+
+            bench.innerHTML += `
+                <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
+                    ${warningHTML}
+                    ${rolesHtml}
+                    <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
+                    <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
+                    ${getEnergyBarHTML(p)}
+                    <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
+                </div>
+            `;
+        });
+
+        function executeMatchSwap(id1, id2) {
+            if(id1 === id2) return;
+            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
+            let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
+            
+            if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
+                (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
+                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error");
+                return;
+            }
+
+            if ((p1.isStarter && p1.status.suspended > 0) || (p2.isStarter && p2.status.suspended > 0)) {
+                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error");
+                return;
+            }
+            
+            let outPlayer = null;
+            if(p1.isStarter !== p2.isStarter) {
+                if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
+                subsLeft--;
+                if(sLeftEl) sLeftEl.textContent = subsLeft;
+                if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
+                
+                outPlayer = p1.isStarter ? p1 : p2;
+                let inPlayer = p1.isStarter ? p2 : p1;
+                addLog(`🔄 Sostituzione: Esce ${outPlayer.name}, entra ${inPlayer.name}.`);
+            }
+            
+            let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
+            let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
+            
+            if (outPlayer) reassignRolesIfNeeded(outPlayer.id);
+            
+            renderMatchSubsList(); updateMatchHeaderStr();
+        }
+
+        document.querySelectorAll('.match-card-interactive').forEach(card => {
+            card.onclick = (e) => {
+                e.stopPropagation(); 
+                const id = card.getAttribute('data-id');
+                if (!selectedPlayerId) { selectedPlayerId = id; renderMatchSubsList(); } 
+                else { if (selectedPlayerId === id) selectedPlayerId = null; else executeMatchSwap(selectedPlayerId, id); selectedPlayerId = null; renderMatchSubsList(); }
+            };
+        });
+    }
+
     function processCpuTeam(team) {
         if (!team || !team.roster) return;
         team.roster.forEach(p => {
@@ -1125,7 +1121,7 @@ export function startMatchEngine() {
             if (cpuScore > userScore) { nextOpponent.won++; nextOpponent.points += 3; }
             else if (cpuScore === userScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
             else { nextOpponent.lost++; }
-
+            
             nextOpponent.roster.forEach(p => p.stats.appearances = (p.stats.appearances||0)+1);
             for(let k=0; k<cpuScore; k++) { let sc = nextOpponent.roster[Math.floor(Math.random()*6)]; if(sc) sc.stats.goals = (sc.stats.goals||0)+1; }
             if (userScore === 0) { let gk = nextOpponent.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets = (gk.stats.cleanSheets||0)+1; }
