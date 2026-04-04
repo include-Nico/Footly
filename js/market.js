@@ -47,27 +47,6 @@ export function renderMarket() {
         };
     }
 
-    const minSlider = document.getElementById('market-price-min');
-    const maxSlider = document.getElementById('market-price-max');
-    const minVal = document.getElementById('price-min-val');
-    const maxVal = document.getElementById('price-max-val');
-    const trackFill = document.getElementById('price-track-fill');
-
-    if (minSlider && maxSlider) {
-        function updateSlider() {
-            let min = parseInt(minSlider.value);
-            let max = parseInt(maxSlider.value);
-            if(min > max) { let tmp = min; min = max; max = tmp; }
-            minVal.textContent = min.toLocaleString('it-IT');
-            maxVal.textContent = max.toLocaleString('it-IT');
-            let percentMin = (min / 1000000) * 100; let percentMax = (max / 1000000) * 100;
-            trackFill.style.left = percentMin + "%"; trackFill.style.width = (percentMax - percentMin) + "%";
-        }
-        minSlider.addEventListener('input', () => { if(parseInt(minSlider.value) > parseInt(maxSlider.value)) minSlider.value = maxSlider.value; updateSlider(); });
-        maxSlider.addEventListener('input', () => { if(parseInt(maxSlider.value) < parseInt(minSlider.value)) maxSlider.value = minSlider.value; updateSlider(); });
-        updateSlider();
-    }
-
     function renderTransferList() {
         const c = document.getElementById('transfer-list-container'); c.innerHTML = '';
         let listedPlayers = gameState.userTeam.players.filter(p => p.isListed);
@@ -138,12 +117,10 @@ export function renderMarket() {
         const posFilterEl = document.getElementById('market-pos');
         const rarityFilterEl = document.getElementById('market-rarity');
         const ageFilterEl = document.getElementById('market-age');
-        
-        // CONTROLLO DI SICUREZZA: se non trova lo slider (es. pagina caricata male) si ferma senza errori
-        const minPriceEl = document.getElementById('market-price-min');
-        const maxPriceEl = document.getElementById('market-price-max');
-        if (!minPriceEl || !maxPriceEl) {
-            showNotification('Errore di Caricamento', 'Ricarica la pagina del Mercato.', 'error');
+        const budgetFilterEl = document.getElementById('market-budget');
+
+        if (!budgetFilterEl) {
+            showNotification('Errore', 'Errore di caricamento. Ricarica la pagina.', 'error');
             return;
         }
 
@@ -151,8 +128,7 @@ export function renderMarket() {
         const posFilter = posFilterEl.value;
         const rarityFilter = rarityFilterEl.value;
         const ageFilter = ageFilterEl.value;
-        const minPrice = parseInt(minPriceEl.value);
-        const maxPrice = parseInt(maxPriceEl.value);
+        const budgetMax = budgetFilterEl.value !== "" ? parseInt(budgetFilterEl.value) : Infinity;
 
         let allPlayers = [];
         if(gameState.world) {
@@ -171,7 +147,7 @@ export function renderMarket() {
             if(rarityFilter && p.rarity !== rarityFilter) return false;
             
             let playerPrice = p.value || (p.overall * 100);
-            if (playerPrice < minPrice || playerPrice > maxPrice) return false;
+            if (playerPrice > budgetMax) return false;
             
             if(ageFilter) {
                 let [minAge, maxAge] = ageFilter.split('-');
@@ -182,7 +158,7 @@ export function renderMarket() {
 
         filtered.sort((a, b) => b.overall - a.overall);
         resultsContainer.innerHTML = '';
-        if(filtered.length === 0) { resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato.</p>'; return; }
+        if(filtered.length === 0) { resultsContainer.innerHTML = '<p style="color: var(--text-hint);">Nessun talento trovato col budget selezionato.</p>'; return; }
 
         filtered.slice(0, 30).forEach(p => {
             const flag = p.nationality ? p.nationality.split(' ')[0] : '';
