@@ -132,13 +132,27 @@ export function renderMarket() {
     }
 
     if(!searchBtn || !resultsContainer) return;
+    
     searchBtn.onclick = () => {
-        const nameFilter = document.getElementById('market-search-name').value.toLowerCase();
-        const posFilter = document.getElementById('market-pos').value;
-        const rarityFilter = document.getElementById('market-rarity').value;
-        const ageFilter = document.getElementById('market-age').value;
-        const minPrice = parseInt(document.getElementById('market-price-min').value);
-        const maxPrice = parseInt(document.getElementById('market-price-max').value);
+        const nameFilterEl = document.getElementById('market-search-name');
+        const posFilterEl = document.getElementById('market-pos');
+        const rarityFilterEl = document.getElementById('market-rarity');
+        const ageFilterEl = document.getElementById('market-age');
+        
+        // CONTROLLO DI SICUREZZA: se non trova lo slider (es. pagina caricata male) si ferma senza errori
+        const minPriceEl = document.getElementById('market-price-min');
+        const maxPriceEl = document.getElementById('market-price-max');
+        if (!minPriceEl || !maxPriceEl) {
+            showNotification('Errore di Caricamento', 'Ricarica la pagina del Mercato.', 'error');
+            return;
+        }
+
+        const nameFilter = nameFilterEl.value.toLowerCase();
+        const posFilter = posFilterEl.value;
+        const rarityFilter = rarityFilterEl.value;
+        const ageFilter = ageFilterEl.value;
+        const minPrice = parseInt(minPriceEl.value);
+        const maxPrice = parseInt(maxPriceEl.value);
 
         let allPlayers = [];
         if(gameState.world) {
@@ -155,8 +169,10 @@ export function renderMarket() {
             if(nameFilter && !p.name.toLowerCase().includes(nameFilter)) return false;
             if(posFilter && p.position !== posFilter) return false;
             if(rarityFilter && p.rarity !== rarityFilter) return false;
+            
             let playerPrice = p.value || (p.overall * 100);
             if (playerPrice < minPrice || playerPrice > maxPrice) return false;
+            
             if(ageFilter) {
                 let [minAge, maxAge] = ageFilter.split('-');
                 if(maxAge) { if(p.age < parseInt(minAge) || p.age > parseInt(maxAge)) return false; } else { if(p.age < 30) return false; }
