@@ -157,12 +157,12 @@
     <div id="defense-modal" class="modal-overlay" style="background: rgba(0,0,0,0.95); z-index: 350;">
         <div class="modal-box" style="background: transparent; border: none; box-shadow: none; text-align: center; width: 100%; max-width: 400px; padding: 15px;">
             <h2 style="color: var(--notif-info); margin-bottom: 5px; text-shadow: 0 2px 4px black; font-size: 32px; text-transform: uppercase; font-style: italic;">Contrasto!</h2>
-            <p style="color: white; margin-bottom: 20px; font-size: 12px;">Tieni premuto e rilascia per mantenere il difensore nella zona verde finché la barra in basso non si riempie!</p>
+            <p style="color: white; margin-bottom: 20px; font-size: 12px;">Premi ripetutamente il bottone per contrastare l'attaccante e mantenere l'indicatore nella zona verde!</p>
             
             <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin-bottom: 30px;">
                 <div style="position: relative; width: 30px; height: 180px; background: #222; border-radius: 15px; border: 3px solid #555; overflow: hidden; box-shadow: inset 0 0 10px black;">
                     <div id="def-safe-zone" style="position: absolute; width: 100%; background: rgba(0, 245, 160, 0.4); border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);"></div>
-                    <div id="def-indicator" style="position: absolute; width: 100%; height: 8px; background: white; bottom: 0; left: 0; box-shadow: 0 0 12px white; border-radius: 4px; transition: bottom 0.1s linear;"></div>
+                    <div id="def-indicator" style="position: absolute; width: 100%; height: 8px; background: white; bottom: 0; left: 0; box-shadow: 0 0 12px white; border-radius: 4px; transition: bottom 0.05s linear;"></div>
                 </div>
 
                 <div style="width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden; border: 1px solid #555;">
@@ -170,7 +170,7 @@
                 </div>
             </div>
             
-            <button id="def-press-btn" class="glass-btn" style="width: 100%; padding: 20px; font-size: 18px; border-color: var(--notif-info); color: var(--notif-info); background: rgba(0, 212, 255, 0.1); touch-action: none; user-select: none;">TIENI PREMUTO <i class="fas fa-hand-fist"></i></button>
+            <button id="def-press-btn" class="glass-btn" style="width: 100%; padding: 20px; font-size: 18px; border-color: var(--notif-info); color: var(--notif-info); background: rgba(0, 212, 255, 0.1); touch-action: none; user-select: none;">TAP TAP TAP! <i class="fas fa-hand-pointer"></i></button>
         </div>
     </div>
 
