@@ -1,10 +1,11 @@
 // js/engine.js
-import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS } from './state.js';
+// js/engine.js
+import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDULE, simulateCupRound, getPlayoffMatchup, simulateChampionsRound, getKitCSS, generateTransferOffers } from './state.js';
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
 import { loadView, FORMATIONS } from './router.js'; 
-import { checkMarketNotifications, generateTransferOffers } from './market.js';
-import { initDribblingModal } from './minigames.js'; 
+import { checkMarketNotifications } from './market.js';
+import { initDribblingModal } from './minigames.js';
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
