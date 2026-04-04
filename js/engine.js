@@ -3,7 +3,7 @@ import { gameState, saveGame, getUserTeamStrength, getGlobalTeam, SEASON_SCHEDUL
 import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
 import { loadView, FORMATIONS } from './router.js'; 
-import { checkMarketNotifications } from './market.js'; // L'ho spostata nel file giusto!
+import { checkMarketNotifications } from './market.js';
 import { initDribblingModal } from './minigames.js';
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -246,7 +246,8 @@ export function startMatchEngine() {
     document.getElementById('btn-intro-sim').onclick = () => {
         if(gameState.userTeam.gems >= 5) {
             showConfirm("Simulazione Rapida", "Vuoi saltare la partita spendendo 💎 5 Gemme?", () => {
-                gameState.userTeam.gems -= 5; updateDashboardHeader();
+                gameState.userTeam.gems -= 5;
+                updateDashboardHeader();
                 
                 gameState.userTeam.players.filter(p => p.isStarter).forEach(p => {
                     let matchLoss = p.position === 'POR' ? randomInt(2, 5) : randomInt(25, 45);
@@ -478,17 +479,6 @@ export function startMatchEngine() {
         return roster[Math.floor(Math.random() * roster.length)];
     }
 
-    function getMultipleActivePlayers(count) {
-        let active = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0);
-        let selected = [];
-        for(let i=0; i<count; i++) {
-            if(active.length === 0) break;
-            let idx = Math.floor(Math.random() * active.length);
-            selected.push(active[idx]); active.splice(idx, 1);
-        }
-        return selected;
-    }
-
     function triggerMatchEvent() {
         pauseMatch('event');
         const modal = document.getElementById('event-modal'); const titleEl = document.getElementById('event-title'); const descEl = document.getElementById('event-desc'); const optionsEl = document.getElementById('event-options');
@@ -520,25 +510,35 @@ export function startMatchEngine() {
                 let offVerb = offVerbs[Math.floor(Math.random() * offVerbs.length)];
                 descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. La difesa è scoperta. Cosa gli diciamo di fare?`;
                 
-                let companions = getMultipleActivePlayers(2);
+                // NUOVA LOGICA: Cerca solo compagni (escluso se stesso ed escluso il Portiere)
+                let availableCompanions = gameState.userTeam.players.filter(p => 
+                    p.isStarter && 
+                    p.status.suspended === 0 && 
+                    p.status.injured === 0 && 
+                    p.id !== pOff.id && 
+                    p.position !== 'POR'
+                );
+                
+                availableCompanions.sort(() => Math.random() - 0.5);
+                let numPassOptions = randomInt(2, 3);
+                let companions = availableCompanions.slice(0, numPassOptions);
+
+                // Opzioni di Passaggio
                 companions.forEach(comp => {
-                    if(comp.id === pOff.id) return;
-                    let successChance = (getEffectiveOverall(comp) / 100) * 0.8;
+                    let successChance = (getEffectiveOverall(comp) / 100) * 0.85;
                     addEventButton(`Passa la palla a ${comp.name} (${comp.position})`, () => {
                         modal.classList.remove('active');
-                        if(Math.random() < successChance) { addLog(`Passaggio illuminante per ${comp.name}!`); triggerGoalMiniGame(comp, false, pOff, 'event'); }
-                        else { addLog(`Passaggio intercettato per ${comp.name}. Palla persa.`); resumeMatch('event'); }
+                        if(Math.random() < successChance) { 
+                            addLog(`✨ Passaggio illuminante per <b>${comp.name}</b>, che va al tiro!`); 
+                            triggerGoalMiniGame(comp, false, pOff, 'event'); 
+                        } else { 
+                            addLog(`❌ Passaggio intercettato verso ${comp.name}. Palla persa.`); 
+                            resumeMatch('event'); 
+                        }
                     });
                 });
-                
-                addEventButton(`Cerca la conclusione personale`, () => {
-                    modal.classList.remove('active');
-                    let successChance = (getEffectiveOverall(pOff) / 100) * 0.7; 
-                    if(Math.random() < successChance) { addLog(`${pOff.name} si libera lo specchio della porta!`); triggerGoalMiniGame(pOff, false, null, 'event'); }
-                    else { addLog(`${pOff.name} viene murato al momento del tiro.`); resumeMatch('event'); }
-                });
 
-                // AGGIUNTA EVENTO DRIBBLING
+                // Opzione Dribbling
                 addEventButton(`Tenta il Dribbling in area (Rischioso)`, () => {
                     modal.classList.remove('active');
                     initDribblingModal(getUserTeamStrength(), cpuDynamicStrength, () => {
@@ -827,183 +827,6 @@ export function startMatchEngine() {
         handlePkTurn();
     }
 
-    document.getElementById('btn-pause-sub').onclick = () => {
-        pauseMatch('subs');
-        const modal = document.getElementById('subs-modal');
-        const matchFormSelect = document.getElementById('match-formation-select');
-        
-        if (matchFormSelect) {
-            matchFormSelect.value = gameState.userTeam.formation;
-            matchFormSelect.onchange = (e) => {
-                gameState.userTeam.formation = e.target.value;
-                selectedPlayerId = null; saveGame(); renderMatchSubsList(); updateMatchHeaderStr(); 
-                addLog(`🔄 Cambio Modulo: L'allenatore passa al ${gameState.userTeam.formation}.`);
-            };
-        }
-
-        renderMatchSubsList();
-        modal.classList.add('active');
-
-        document.getElementById('close-subs-btn').onclick = () => {
-            let injuredStarters = gameState.userTeam.players.filter(p => p.isStarter && p.status.injured > 0);
-            let availableBench = gameState.userTeam.players.filter(p => !p.isStarter && p.status.injured === 0 && p.status.suspended === 0);
-            
-            if (injuredStarters.length > 0 && subsLeft > 0 && availableBench.length > 0) {
-                showNotification("Sostituzione Obbligatoria", "Devi sostituire il giocatore infortunato prima di continuare!", "warning");
-                return;
-            }
-
-            modal.classList.remove('active');
-            resumeMatch('subs');
-        };
-    };
-
-    function renderMatchSubsList() {
-        const pitch = document.getElementById('match-pitch-players');
-        const bench = document.getElementById('match-bench-players');
-        
-        let sLeftEl = document.getElementById('subs-left');
-        let sModalLeftEl = document.getElementById('subs-modal-left');
-        if(sLeftEl) sLeftEl.textContent = subsLeft;
-        if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
-        
-        const currentF = FORMATIONS[gameState.userTeam.formation];
-        let totalTacAtt = tacBonusAtt + currentF.att;
-        let totalTacDef = tacBonusDef + currentF.def;
-        
-        let attEl = document.getElementById('match-tactics-att');
-        let defEl = document.getElementById('match-tactics-def');
-        if (attEl) attEl.textContent = `ATT: ${totalTacAtt > 0 ? '+' : ''}${totalTacAtt}%`;
-        if (defEl) defEl.textContent = `DIF: ${totalTacDef > 0 ? '+' : ''}${totalTacDef}%`;
-
-        pitch.innerHTML = ''; bench.innerHTML = '';
-        
-        let starters = gameState.userTeam.players.filter(p => p.isStarter);
-        let reserves = gameState.userTeam.players.filter(p => !p.isStarter);
-
-        currentF.pos.forEach((slot, idx) => {
-            let p = starters.find(pl => pl.slotIndex === idx);
-            if(p) {
-                const isOOP = (p.position !== slot.role) && !(p.secondaryPositions && p.secondaryPositions.includes(slot.role));
-                let displayOverall = isOOP ? Math.floor(getEffectiveOverall(p) * 0.7) : getEffectiveOverall(p);
-                
-                let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
-
-                let warningHTML = isOOP ? `<div class="oop-warning" title="Fuori Ruolo!"><i class="fas fa-exclamation"></i></div>` : '';
-                if(p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato!"><i class="fas fa-briefcase-medical"></i></div>`;
-                if(p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Espulso!"><i class="fas fa-square"></i></div>`;
-                else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Ammonito/Diffidato"><i class="fas fa-square"></i></div>`;
-
-                let roleIcons = '';
-                if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
-                if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-                let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
-
-                let isSelected = selectedPlayerId === p.id;
-                let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
-                const flag = p.nationality ? p.nationality.split(' ')[0] : ''; 
-
-                pitch.innerHTML += `
-                    <div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};">
-                        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px #000;">${slot.role}</div>
-                        <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
-                            ${warningHTML}
-                            ${rolesHtml}
-                            <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${displayOverall}</div>
-                            <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
-                            ${getEnergyBarHTML(p)}
-                            <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
-                        </div>
-                    </div>
-                `;
-            } else pitch.innerHTML += `<div class="pitch-slot" style="top: ${slot.t}; left: ${slot.l};"><div class="empty-slot" data-idx="${idx}"><i class="fas fa-plus"></i><br>${slot.role}</div></div>`;
-        });
-
-        reserves.forEach(p => {
-            let isSelected = selectedPlayerId === p.id;
-            let selStyle = isSelected ? `border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.08); transition: all 0.2s;` : `border: 1px solid ${p.color}; box-shadow: 0 4px 12px ${p.color}40; transition: all 0.2s;`;
-            const flag = p.nationality ? p.nationality.split(' ')[0] : '';
-            
-            let disabledClass = (p.status && (p.status.suspended > 0 || p.status.injured > 0)) ? "disabled" : "";
-
-            let warningHTML = '';
-            if(p.status && p.status.injured > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #f43f5e;" title="Infortunato per ${p.status.injured} turni"><i class="fas fa-briefcase-medical"></i></div>`;
-            if(p.status && p.status.suspended > 0) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: #ef4444;" title="Squalificato per ${p.status.suspended} turni"><i class="fas fa-square"></i></div>`;
-            else if (p.status && p.status.yellowCards === 1) warningHTML += `<div class="oop-warning" style="right: auto; left: -8px; background: var(--gold); color: #000;" title="Diffidato"><i class="fas fa-square"></i></div>`;
-
-            let roleIcons = '';
-            if (gameState.userTeam.roles?.captain === p.id) roleIcons += '<div style="background:var(--gold); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Capitano">C</div>';
-            if (gameState.userTeam.roles?.penalty === p.id) roleIcons += '<div style="background:var(--accent); color:#000; border-radius:50%; width:16px; height:16px; font-size:10px; font-weight:bold; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.5);" title="Rigorista">R</div>';
-            let rolesHtml = roleIcons ? `<div style="position: absolute; bottom: -8px; right: -8px; display:flex; gap: 2px; z-index: 10;">${roleIcons}</div>` : '';
-
-            bench.innerHTML += `
-                <div class="player-card match-card-interactive ${disabledClass}" data-id="${p.id}" style="${selStyle}">
-                    ${warningHTML}
-                    ${rolesHtml}
-                    <div class="card-overall" style="color: ${p.color}; text-shadow: 0 0 8px ${p.color}80;">${getEffectiveOverall(p)}</div>
-                    <div class="card-pos">${p.position} <span style="font-size:10px;">${flag}</span></div>
-                    ${getEnergyBarHTML(p)}
-                    <div class="card-name" title="${p.name}">${p.name.split(' ')[1] || p.name}</div>
-                </div>
-            `;
-        });
-
-        function executeMatchSwap(id1, id2) {
-            if(id1 === id2) return;
-            let p1 = gameState.userTeam.players.find(pl => pl.id === id1); 
-            let p2 = gameState.userTeam.players.find(pl => pl.id === id2);
-            
-            if ((!p1.isStarter && (p1.status.injured > 0 || p1.status.suspended > 0)) ||
-                (!p2.isStarter && (p2.status.injured > 0 || p2.status.suspended > 0))) {
-                showNotification("Non disponibile", "Non puoi far entrare un giocatore infortunato o squalificato.", "error");
-                return;
-            }
-
-            if ((p1.isStarter && p1.status.suspended > 0) || (p2.isStarter && p2.status.suspended > 0)) {
-                showNotification("Azione bloccata", "Non puoi sostituire un giocatore espulso.", "error");
-                return;
-            }
-            
-            let outPlayer = null;
-            if(p1.isStarter !== p2.isStarter) {
-                if(subsLeft <= 0) { showNotification("Cambi Esauriti", "Hai finito le sostituzioni disponibili.", "error"); return; }
-                subsLeft--;
-                if(sLeftEl) sLeftEl.textContent = subsLeft;
-                if(sModalLeftEl) sModalLeftEl.textContent = subsLeft;
-                
-                outPlayer = p1.isStarter ? p1 : p2;
-                let inPlayer = p1.isStarter ? p2 : p1;
-                addLog(`🔄 Sostituzione: Esce ${outPlayer.name}, entra ${inPlayer.name}.`);
-            }
-            
-            let tempS = p1.isStarter; p1.isStarter = p2.isStarter; p2.isStarter = tempS;
-            let tempIdx = p1.slotIndex; p1.slotIndex = p2.slotIndex; p2.slotIndex = tempIdx;
-            
-            if (outPlayer) reassignRolesIfNeeded(outPlayer.id);
-            
-            renderMatchSubsList(); updateMatchHeaderStr();
-        }
-
-        document.querySelectorAll('.match-card-interactive').forEach(card => {
-            card.onclick = (e) => {
-                e.stopPropagation(); 
-                const id = card.getAttribute('data-id');
-                if (!selectedPlayerId) { selectedPlayerId = id; renderMatchSubsList(); } 
-                else { if (selectedPlayerId === id) selectedPlayerId = null; else executeMatchSwap(selectedPlayerId, id); selectedPlayerId = null; renderMatchSubsList(); }
-            };
-        });
-    }
-
-    function processCpuTeam(team) {
-        team.roster.forEach(p => {
-            if(p.energy === undefined) p.energy = 100;
-            if(Math.random() < 0.7) p.energy = Math.max(10, p.energy - randomInt(30, 50)) + randomInt(20, 40); 
-            else p.energy = Math.min(100, p.energy + randomInt(50, 80)); 
-        });
-        let best = [...team.roster].sort((a,b) => getEffectiveOverall(b) - getEffectiveOverall(a)).slice(0,7);
-        team.strength = Math.floor(best.reduce((acc, p) => acc + getEffectiveOverall(p), 0) / 7);
-    }
-
     function endMatchLogic() {
         document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
         document.getElementById('match-engine').style.display = 'none'; 
@@ -1115,7 +938,7 @@ export function startMatchEngine() {
             if (cpuScore > userScore) { nextOpponent.won++; nextOpponent.points += 3; }
             else if (cpuScore === userScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
             else { nextOpponent.lost++; }
-            
+
             nextOpponent.roster.forEach(p => p.stats.appearances = (p.stats.appearances||0)+1);
             for(let k=0; k<cpuScore; k++) { let sc = nextOpponent.roster[Math.floor(Math.random()*6)]; if(sc) sc.stats.goals = (sc.stats.goals||0)+1; }
             if (userScore === 0) { let gk = nextOpponent.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets = (gk.stats.cleanSheets||0)+1; }
