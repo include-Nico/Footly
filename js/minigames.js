@@ -53,7 +53,7 @@ export function initDribblingModal(userStr, cpuStr, onSuccess, onFail) {
     };
 }
 
-// === MINIGIOCO 2: CONTENIMENTO IN DIFESA (TAP RIPETUTO) ===
+// === MINIGIOCO 2: CONTENIMENTO IN DIFESA (SOPRAVVIVENZA A TEMPO CON TAP) ===
 export function initDefenseModal(userStr, cpuStr, onSuccess, onFailSpeed, onFailFoul) {
     const modal = document.getElementById('defense-modal');
     const safeZone = document.getElementById('def-safe-zone');
@@ -61,11 +61,10 @@ export function initDefenseModal(userStr, cpuStr, onSuccess, onFailSpeed, onFail
     const progressBar = document.getElementById('def-progress-fill');
     const btn = document.getElementById('def-press-btn');
 
-    // Calcolo difficoltà
     let ratio = userStr / (userStr + cpuStr);
     if (isNaN(ratio)) ratio = 0.5;
 
-    // La zona sicura (Safe Zone) è larga dal 20% al 45% della barra, centrata
+    // La zona sicura
     let safeSize = 20 + (ratio * 25);
     let safeTop = 50 - (safeSize / 2);
     let safeBottom = safeTop + safeSize;
@@ -73,32 +72,29 @@ export function initDefenseModal(userStr, cpuStr, onSuccess, onFailSpeed, onFail
     safeZone.style.top = safeTop + '%';
     safeZone.style.height = safeSize + '%';
 
-    let pressure = 50; // Parte dal centro
-    let progress = 0;
+    let pressure = 50; 
     let isAnimating = true;
     let animFrame;
 
-    // Nuove variabili per il tapping:
-    // Se l'avversario è forte, la gravità che spinge giù è maggiore e il tap fa salire meno
-    let gravity = 0.02 + ((1 - ratio) * 0.035); // Caduta continua per millisecondo
-    let tapBoost = 7 + (ratio * 4); // Spinta in % per ogni tap sul bottone
+    let gravity = 0.02 + ((1 - ratio) * 0.035); 
+    let tapBoost = 7 + (ratio * 4); 
 
-    progressBar.style.width = '0%';
-    progressBar.style.background = 'var(--notif-info)';
+    // Timer della Sopravvivenza (4 Secondi in cui resistere)
+    let totalTime = 4000; 
+    let timeLeft = totalTime;
+
+    progressBar.style.width = '100%';
+    progressBar.style.background = 'var(--gold)';
     indicator.style.background = 'white';
 
-    // Logica di Interazione "Tap" invece di Hold
     const handleTap = (e) => {
-        e.preventDefault(); // Previene lo zoom su mobile
+        e.preventDefault(); 
         if(!isAnimating) return;
         pressure += tapBoost;
-        
-        // Effetto visivo pressione bottone
         btn.style.transform = 'scale(0.92)';
         setTimeout(() => { if(isAnimating) btn.style.transform = 'scale(1)'; }, 50);
     };
 
-    // Aggiungiamo i listener per click e tocco
     btn.addEventListener('mousedown', handleTap);
     btn.addEventListener('touchstart', handleTap, {passive: false});
 
@@ -113,14 +109,16 @@ export function initDefenseModal(userStr, cpuStr, onSuccess, onFailSpeed, onFail
     function finish(result) {
         cleanup();
         if (result === 'win') {
-            progressBar.style.background = '#00f5a0';
             indicator.style.background = '#00f5a0';
+            progressBar.style.background = '#00f5a0';
             setTimeout(() => { modal.classList.remove('active'); onSuccess(); }, 1200);
         } else if (result === 'speed') {
-            indicator.style.background = '#00d4ff'; // Troppo lento, attaccante passa
+            indicator.style.background = '#00d4ff'; 
+            progressBar.style.background = '#00d4ff';
             setTimeout(() => { modal.classList.remove('active'); onFailSpeed(); }, 1200);
         } else if (result === 'foul') {
-            indicator.style.background = '#f05252'; // Fallo, barra esplosa in cima
+            indicator.style.background = '#f05252'; 
+            progressBar.style.background = '#f05252';
             setTimeout(() => { modal.classList.remove('active'); onFailFoul(); }, 1200);
         }
     }
@@ -133,33 +131,29 @@ export function initDefenseModal(userStr, cpuStr, onSuccess, onFailSpeed, onFail
         let dt = time - lastTime;
         lastTime = time;
 
-        // La pressione cade costantemente per la forza di gravità
+        // La gravità lo fa scendere, il tempo scorre
         pressure -= gravity * dt;
+        timeLeft -= dt;
 
-        // Sconfitta immediata se tocca i bordi (0 = saltato, 100 = fallo brutto)
-        if (pressure >= 100) { pressure = 100; finish('foul'); return; }
-        if (pressure <= 0) { pressure = 0; finish('speed'); return; }
+        // Aggiorna il Timer visivo in basso
+        let timePercent = Math.max(0, (timeLeft / totalTime) * 100);
+        progressBar.style.width = timePercent + '%';
+
+        // Sconfitta immediata se sbatte sui bordi prima che scada il tempo!
+        if (pressure >= 100) { pressure = 100; indicator.style.bottom = '100%'; finish('foul'); return; }
+        if (pressure <= 0) { pressure = 0; indicator.style.bottom = '0%'; finish('speed'); return; }
 
         indicator.style.bottom = pressure + '%';
 
-        // Controllo se l'indicatore è dentro la Zona Verde
+        // Controlla se sei nella zona verde (solo effetto visivo)
         let pTop = 100 - pressure; 
+        let inZone = (pTop >= safeTop && pTop <= safeBottom);
+        indicator.style.background = inZone ? '#00f5a0' : 'white';
 
-        if (pTop >= safeTop && pTop <= safeBottom) {
-            progress += 0.35 * (dt / 16); // Aumenta il progresso di vittoria
-            indicator.style.background = '#00f5a0';
-        } else {
-            indicator.style.background = 'white';
-            progress -= 0.15 * (dt / 16); // Perde progresso più velocemente se sei fuori
-            if (progress < 0) progress = 0;
-        }
-
-        progressBar.style.width = progress + '%';
-
-        // Vittoria! Hai contenuto abbastanza a lungo.
-        if (progress >= 100) {
-            progress = 100;
-            finish('win');
+        // Se il tempo è scaduto, si giudica la posizione dell'indicatore
+        if (timeLeft <= 0) {
+            if (inZone) finish('win'); // Hai temporeggiato con successo!
+            else finish('speed'); // Eri sbilanciato, l'attaccante scappa
             return;
         }
 
