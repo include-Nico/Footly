@@ -4,7 +4,7 @@ import { showNotification, showConfirm, updateDashboardHeader } from './ui.js';
 import { getEffectiveOverall } from './players.js';
 import { loadView, FORMATIONS } from './router.js'; 
 import { checkMarketNotifications } from './market.js';
-import { initDribblingModal, initDefenseModal } from './minigames.js'; // Importiamo i due giochi
+import { initDribblingModal, initDefenseModal } from './minigames.js'; 
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
@@ -204,11 +204,15 @@ export function startMatchEngine() {
     if(unavailable.length > 0) { showNotification("Indisponibili!", "Hai schierato titolari infortunati o squalificati!", "error"); setTimeout(() => loadView('squad'), 2000); return; }
 
     const logContainer = document.getElementById('match-log');
+    
+    // === SCROLL CORRETTO DELLA TELECRONACA ===
     function addLog(text, type = '') {
         const div = document.createElement('div'); div.className = `log-event ${type}`;
         let displayMin = minute > 90 && !isExtraTime ? `90+${minute-90}'` : (minute > 120 ? `120+${minute-120}'` : `${minute}'`);
         div.innerHTML = `<span style="font-weight:bold; color:var(--text-hint); width:35px;">${displayMin}</span> <span>${text}</span>`;
-        logContainer.prepend(div); logContainer.scrollTop = logContainer.scrollHeight;
+        
+        logContainer.prepend(div); 
+        logContainer.scrollTop = 0; // Torna su per seguire gli eventi freschi!
     }
 
     function showMatchBanner(type, mainText, subText, callback) {
@@ -479,13 +483,24 @@ export function startMatchEngine() {
         return roster[Math.floor(Math.random() * roster.length)];
     }
 
+    function getMultipleActivePlayers(count) {
+        let active = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0);
+        let selected = [];
+        for(let i=0; i<count; i++) {
+            if(active.length === 0) break;
+            let idx = Math.floor(Math.random() * active.length);
+            selected.push(active[idx]); active.splice(idx, 1);
+        }
+        return selected;
+    }
+
     function triggerMatchEvent() {
         pauseMatch('event');
         const modal = document.getElementById('event-modal'); const titleEl = document.getElementById('event-title'); const descEl = document.getElementById('event-desc'); const optionsEl = document.getElementById('event-options');
         optionsEl.innerHTML = '';
         
         let pOff = getActivePlayer(['ATT', 'CEN']) || getActivePlayer();
-        let pDef = getActivePlayer(['DIF']) || getActivePlayer();
+        let pDef = getActivePlayer(['DIF', 'CEN']) || getActivePlayer();
         
         let wUser = Math.pow(getUserTeamStrength() + tacBonusAtt + FORMATIONS[gameState.userTeam.formation].att, 2);
         let wCpu = Math.pow(cpuDynamicStrength - (tacBonusDef * 0.5 + FORMATIONS[gameState.userTeam.formation].def * 0.5), 2);
@@ -506,21 +521,28 @@ export function startMatchEngine() {
         } else {
             if (isUserEvent) {
                 titleEl.textContent = "Azione Pericolosa!"; titleEl.style.color = "var(--accent)";
-                let offVerbs = ["vede un buco nella difesa", "ha spazio per ragionare", "avanza palla al piede al limite dell'area"];
+                let offVerbs = ["sale prepotentemente sulla fascia", "trova un varco centrale", "avanza palla al piede", "supera un avversario con una finta"];
                 let offVerb = offVerbs[Math.floor(Math.random() * offVerbs.length)];
-                descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. Cosa decidi di fargli fare?`;
+                descEl.innerHTML = `<b>${pOff.name}</b> ${offVerb}. La difesa è scoperta. Cosa gli diciamo di fare?`;
                 
-                // Opzioni di Passaggio (Evita se stesso e il Portiere)
-                let availableCompanions = gameState.userTeam.players.filter(p => p.isStarter && p.status.suspended === 0 && p.status.injured === 0 && p.id !== pOff.id && p.position !== 'POR');
+                let availableCompanions = gameState.userTeam.players.filter(p => 
+                    p.isStarter && 
+                    p.status.suspended === 0 && 
+                    p.status.injured === 0 && 
+                    p.id !== pOff.id && 
+                    p.position !== 'POR'
+                );
+                
                 availableCompanions.sort(() => Math.random() - 0.5);
-                let companions = availableCompanions.slice(0, randomInt(2, 3));
+                let numPassOptions = randomInt(2, 3);
+                let companions = availableCompanions.slice(0, numPassOptions);
 
                 companions.forEach(comp => {
                     let successChance = (getEffectiveOverall(comp) / 100) * 0.85;
                     addEventButton(`Passa la palla a ${comp.name} (${comp.position})`, () => {
                         modal.classList.remove('active');
                         if(Math.random() < successChance) { 
-                            addLog(`✨ Passaggio filtrante perfetto per <b>${comp.name}</b>, che va al tiro!`); 
+                            addLog(`✨ Passaggio illuminante per <b>${comp.name}</b>, che va al tiro!`); 
                             triggerGoalMiniGame(comp, false, pOff, 'event'); 
                         } else { 
                             addLog(`❌ Passaggio intercettato verso ${comp.name}. La difesa spazza.`); 
@@ -529,7 +551,6 @@ export function startMatchEngine() {
                     });
                 });
 
-                // Opzione Dribbling (Solo per Centrocampisti e Attaccanti)
                 if (pOff.position === 'CEN' || pOff.position === 'ATT') {
                     let zoneText = pOff.position === 'CEN' ? 'a centrocampo' : 'in attacco';
                     addEventButton(`Tenta il Dribbling ${zoneText} (Minigioco)`, () => {
@@ -548,7 +569,6 @@ export function startMatchEngine() {
                 titleEl.textContent = "Contropiede Avversario!"; titleEl.style.color = "var(--notif-warning)";
                 descEl.innerHTML = `Gli avversari ripartono veloci in campo aperto! <b>${pDef.name}</b> è rimasto solo contro l'attaccante.`;
                 
-                // Opzione Minigioco Difensivo
                 addEventButton(`Contenimento Fisico (Minigioco)`, () => {
                     modal.classList.remove('active');
                     initDefenseModal(getUserTeamStrength(), cpuDynamicStrength, 
@@ -568,7 +588,6 @@ export function startMatchEngine() {
                     );
                 });
 
-                // Opzione Rischio/Fallo Diretto
                 addEventButton(`Entrata in Scivolata Diretta (Rischio Cartellino)`, () => {
                     modal.classList.remove('active');
                     if(Math.random() < 0.4) { applyRedCard(pDef, 'event'); } else { applyYellowCard(pDef, 'event'); }
@@ -1121,7 +1140,7 @@ export function startMatchEngine() {
             if (cpuScore > userScore) { nextOpponent.won++; nextOpponent.points += 3; }
             else if (cpuScore === userScore) { nextOpponent.drawn++; nextOpponent.points += 1; }
             else { nextOpponent.lost++; }
-            
+
             nextOpponent.roster.forEach(p => p.stats.appearances = (p.stats.appearances||0)+1);
             for(let k=0; k<cpuScore; k++) { let sc = nextOpponent.roster[Math.floor(Math.random()*6)]; if(sc) sc.stats.goals = (sc.stats.goals||0)+1; }
             if (userScore === 0) { let gk = nextOpponent.roster.find(p=>p.position==='POR'); if(gk) gk.stats.cleanSheets = (gk.stats.cleanSheets||0)+1; }
